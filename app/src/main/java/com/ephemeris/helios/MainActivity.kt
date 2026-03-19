@@ -27,6 +27,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ephemeris.helios.ui.composables.Navbar
+import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.Routes
 
@@ -63,7 +64,7 @@ class MainActivity : ComponentActivity() {
                             //UV()
                         }
                         composable(Routes.Sun.route) {
-                            //Sun()
+                            Sun()
                         }
                         composable(Routes.Moon.route) {
                             //Moon()
