@@ -12,9 +12,9 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun PathCard(
-    xValuesMillis: LongArray,
+    xValues: FloatArray,
     yValues: FloatArray,
-    currentTimeMillis: Long = 15L
+    currentHour: Float = 15f
 ) {
     OutlinedCard(
         modifier = Modifier
@@ -22,9 +22,9 @@ fun PathCard(
             .aspectRatio(2f)
     ) {
         PathChart(
-            xValuesMillis = xValuesMillis,
+            xValues = xValues,
             yValues = yValues,
-            currentTimeMillis = currentTimeMillis,
+            currentHour = currentHour,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(PaddingValues(vertical = 0.dp))

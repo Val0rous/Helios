@@ -18,9 +18,9 @@ import com.ephemeris.helios.R
 
 @Composable
 fun PathChart(
-    xValuesMillis: LongArray,
+    xValues: FloatArray,
     yValues: FloatArray,
-    currentTimeMillis: Long,
+    currentHour: Float,
     modifier: Modifier = Modifier
 ) {
     val sunPainter = painterResource(id = R.drawable.ic_sunny_filled)
@@ -34,13 +34,13 @@ fun PathChart(
     val backgroundColor = MaterialTheme.colorScheme.surface
 
     Canvas(modifier = modifier) {
-        if (xValuesMillis.isEmpty() || yValues.isEmpty()) return@Canvas
+        if (xValues.isEmpty() || yValues.isEmpty()) return@Canvas
 
         val width = size.width
         val height = size.height
 
-        val minX = xValuesMillis.minOrNull() ?: 0L
-        val maxX = xValuesMillis.maxOrNull() ?: 24L
+        val minX = xValues.minOrNull() ?: 0f
+        val maxX = xValues.maxOrNull() ?: 24f
         val minY = yValues.minOrNull() ?: -90f
         val maxY = yValues.maxOrNull() ?: 90f
 
@@ -48,14 +48,12 @@ fun PathChart(
         val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
 
         // Helper functions to map mathematical coordinates to Canvas pixels
-        fun mapX(x: Long): Float {
-            return ((x - minX).toFloat() / (maxX - minX).toFloat()) * width
-        }
+        fun mapX(x: Float) = ((x - minX) / (maxX - minX)) * width
         // Canvas Y=0 is at the top, so we invert the Y mapping
         fun mapY(y: Float) = height - verticalPaddingPx - ((y - minY) / (maxY - minY)) * drawHeight
 
         val zeroYPixel = mapY(0f)
-        val currentXPx = mapX(currentTimeMillis)
+        val currentXPx = mapX(currentHour)
 
         // Day Background
         drawRect(
@@ -73,22 +71,22 @@ fun PathChart(
 
         // 1. Build the smooth curve path
         val curvePath = Path().apply {
-            moveTo(mapX(xValuesMillis[0]), mapY(yValues[0]))
-            for (i in 0 until xValuesMillis.size - 1) {
+            moveTo(mapX(xValues[0]), mapY(yValues[0]))
+            for (i in 0 until xValues.size - 1) {
                 // Get previous point (or duplicate current if at the start edge)
-                val x0 = mapX(xValuesMillis[(i - 1).coerceAtLeast(0)])
+                val x0 = mapX(xValues[(i - 1).coerceAtLeast(0)])
                 val y0 = mapY(yValues[(i - 1).coerceAtLeast(0)])
 
                 // Current point
-                val x1 = mapX(xValuesMillis[i])
+                val x1 = mapX(xValues[i])
                 val y1 = mapY(yValues[i])
 
                 // Next point
-                val x2 = mapX(xValuesMillis[i + 1])
+                val x2 = mapX(xValues[i + 1])
                 val y2 = mapY(yValues[i + 1])
 
                 // Point after next (or duplicate next if at the end edge)
-                val x3 = mapX(xValuesMillis[(i + 2).coerceAtMost(xValuesMillis.size - 1)])
+                val x3 = mapX(xValues[(i + 2).coerceAtMost(xValues.size - 1)])
                 val y3 = mapY(yValues[(i + 2).coerceAtMost(yValues.size - 1)])
 
                 // Tension controls how "tight" the curve is. 0.2f is standard for sine waves
@@ -106,8 +104,8 @@ fun PathChart(
         // 2. Build the fill path that closes down to the X-axis
         val fillPath = Path().apply {
             addPath(curvePath)
-            lineTo(mapX(xValuesMillis.last()), zeroYPixel)
-            lineTo(mapX(xValuesMillis.first()), zeroYPixel)
+            lineTo(mapX(xValues.last()), zeroYPixel)
+            lineTo(mapX(xValues.first()), zeroYPixel)
             close()
         }
 
@@ -145,17 +143,17 @@ fun PathChart(
             color = Color.LightGray,
             start = Offset(0f, zeroYPixel),
             end = Offset(width, zeroYPixel),
-            strokeWidth = 1.dp.toPx()
+            strokeWidth = 2.dp.toPx()
         )
 
         // 6. Calculate exact Y position for the sun at currentHour
         var currentY = 0f
-        for (i in 0 until xValuesMillis.size - 1) {
-            if (currentTimeMillis in xValuesMillis[i]..xValuesMillis[i+1]) {
-                val timeDelta = (xValuesMillis[i+1] - xValuesMillis[i]).toFloat()
+        for (i in 0 until xValues.size - 1) {
+            if (currentHour in xValues[i]..xValues[i+1]) {
+                val timeDelta = (xValues[i+1] - xValues[i])
                 if (timeDelta > 0) {
                     // Linear interpolation to find the exact altitude at this moment
-                    val fraction = (currentTimeMillis - xValuesMillis[i]).toFloat() / timeDelta
+                    val fraction = (currentHour - xValues[i]) / timeDelta
                     currentY = yValues[i] + fraction * (yValues[i+1] - yValues[i])
                 }
                 break

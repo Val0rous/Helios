@@ -6,7 +6,7 @@ import com.ephemeris.helios.ui.composables.PathCard
 @Composable
 fun Sun() {
     PathCard(
-        longArrayOf(0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L, 11L, 12L, 13L, 14L, 15L, 16L, 17L, 18L, 19L, 20L, 21L, 22L, 23L, 24L),
+        floatArrayOf(0f, 1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f, 9f, 10f, 11f, 12f, 13f, 14f, 15f, 16f, 17f, 18f, 19f, 20f, 21f, 22f, 23f, 24f),
         floatArrayOf(-90f, -75f, -60f, -45f, -30f, -15f, 0f, 15f, 30f, 45f, 60f, 75f, 90f, 75f, 60f, 45f, 30f, 15f, 0f, -15f, -30f, -45f, -60f, -75f, -90f)
     )
 }
