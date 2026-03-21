@@ -10,11 +10,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
+import com.ephemeris.helios.ui.theme.MaterialColors
 
 @Composable
 fun PathChart(
@@ -25,8 +27,12 @@ fun PathChart(
 ) {
     val sunPainter = painterResource(id = R.drawable.ic_sunny_filled)
 
-    val sunYellow = Color(0xFFFFEB3B)
+    val sunYellow = MaterialColors.Amber500
     val dayOrangeFill = Color(0xFFFF9800).copy(alpha = 0.4f)
+    val civilTwilightFill = Color(0xFF64B5F6).copy(alpha = 0.5f)
+    val nauticalTwilightFill = Color(0xFF1E88E5).copy(alpha = 0.5f)
+    val astroTwilightFill = Color(0xFF1565C0).copy(alpha = 0.5f)
+    val deepNightFill = Color(0xFF757575).copy(alpha = 0.5f)
     val nightBlueFill = Color(0xFF2196F3).copy(alpha = 0.4f)
     val dayBackground = Color(0xFFFFF9C4).copy(alpha = 0.2f)
     val nightBackground = Color(0xFFE3F2FD).copy(alpha = 0.2f)
@@ -41,10 +47,10 @@ fun PathChart(
 
         val minX = xValues.minOrNull() ?: 0f
         val maxX = xValues.maxOrNull() ?: 24f
-        val minY = yValues.minOrNull() ?: -90f
-        val maxY = yValues.maxOrNull() ?: 90f
+        val minY = -90f
+        val maxY = 90f
 
-        val verticalPaddingPx = 32.dp.toPx()
+        val verticalPaddingPx = 16.dp.toPx()
         val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
 
         // Helper functions to map mathematical coordinates to Canvas pixels
@@ -53,6 +59,9 @@ fun PathChart(
         fun mapY(y: Float) = height - verticalPaddingPx - ((y - minY) / (maxY - minY)) * drawHeight
 
         val zeroYPixel = mapY(0f)
+        val civilYPixel = mapY(-6f)
+        val nauticalYPixel = mapY(-12f)
+        val astroYPixel = mapY(-18f)
         val currentXPx = mapX(currentHour)
 
         // Day Background
@@ -71,33 +80,11 @@ fun PathChart(
 
         // 1. Build the smooth curve path
         val curvePath = Path().apply {
-            moveTo(mapX(xValues[0]), mapY(yValues[0]))
-            for (i in 0 until xValues.size - 1) {
-                // Get previous point (or duplicate current if at the start edge)
-                val x0 = mapX(xValues[(i - 1).coerceAtLeast(0)])
-                val y0 = mapY(yValues[(i - 1).coerceAtLeast(0)])
-
-                // Current point
-                val x1 = mapX(xValues[i])
-                val y1 = mapY(yValues[i])
-
-                // Next point
-                val x2 = mapX(xValues[i + 1])
-                val y2 = mapY(yValues[i + 1])
-
-                // Point after next (or duplicate next if at the end edge)
-                val x3 = mapX(xValues[(i + 2).coerceAtMost(xValues.size - 1)])
-                val y3 = mapY(yValues[(i + 2).coerceAtMost(yValues.size - 1)])
-
-                // Tension controls how "tight" the curve is. 0.2f is standard for sine waves
-                val tension = 0.0f
-                val cx1 = x1 + (x2 - x0) * tension
-                val cy1 = y1 + (y2 - y0) * tension
-                val cx2 = x2 - (x3 - x1) * tension
-                val cy2 = y2 - (y3 - y1) * tension
-
-                //lineTo
-                cubicTo(cx1, cy1, cx2, cy2, x2, y2)
+            if(xValues.isNotEmpty()) {
+                moveTo(mapX(xValues[0]), mapY(yValues[0]))
+                for (i in 1 until xValues.size) {
+                    lineTo(mapX(xValues[i]), mapY(yValues[i]))
+                }
             }
         }
 
@@ -117,17 +104,129 @@ fun PathChart(
             drawPath(path = fillPath, color = nightBackground.copy(alpha = 1.0f))
         }
 
-        // 3. Draw the colored areas (clipped strictly up to currentHour)
-        clipRect(right = currentXPx) {
+//        // 3. Draw the colored areas (clipped strictly up to currentHour)
+//        clipRect(right = currentXPx) {
+//
+//            // Day (Above 0deg)
+//            clipRect(bottom = zeroYPixel) {
+//                drawPath(path = fillPath, color = dayOrangeFill)
+//            }
+//
+//            // Civil Twilight (0deg to -6deg)
+//            clipRect(top = zeroYPixel, bottom = civilYPixel) {
+//                drawPath(path = fillPath, color = civilTwilightFill)
+//            }
+//
+//            // Nautical Twilight (-6deg to -12deg)
+//            clipRect(top = civilYPixel, bottom = nauticalYPixel) {
+//                drawPath(path = fillPath, color = nauticalTwilightFill)
+//            }
+//
+//            // Astronomical Twilight (-12deg to -18deg)
+//            clipRect(top = nauticalYPixel, bottom = astroYPixel) {
+//                drawPath(path = fillPath, color = astroTwilightFill)
+//            }
+//
+//            // Night (Below -18deg)
+//            clipRect(top = astroYPixel, bottom = height) {
+//                drawPath(path = fillPath, color = deepNightFill)
+//            }
+//        }
 
-            // Positive Y (Above X-axis -> from Canvas top down to zeroYPixel)
-            clipRect(bottom = zeroYPixel) {
-                drawPath(path = fillPath, color = dayOrangeFill)
+        // 3a. Calculate exact X intersections for vertical stripes
+        val thresholds = floatArrayOf(0f, -6f, -12f, -18f)
+        val sortedXPoints = mutableListOf<Float>()
+        for (x in xValues) {
+            // Add all original X points
+            sortedXPoints.add(x)
+        }
+        // Add all mathematical crossing points
+        for (i in 0 until xValues.size - 1) {
+            val x1 = xValues[i]
+            val x2 = xValues[i+1]
+            val y1 = yValues[i]
+            val y2 = yValues[i+1]
+
+            for (th in thresholds) {
+                if ((y1 < th && y2 > th) || (y1 > th && y2 < th)) {
+                    // Linear interpolation to find the exact X coordinate of the threshold
+                    val fraction = (th - y1) / (y2 - y1)
+                    val x = x1 + fraction * (x2 - x1)
+                    sortedXPoints.add(x)
+                }
+            }
+        }
+        sortedXPoints.sort()
+        val uniqueXPoints = sortedXPoints.distinct()
+
+        // --- NEW: Draw the clipped vertical stripes ---
+        clipPath(fillPath) {
+
+            // 1. Day area: Clipped by the curve (via clipPath) and stops at currentX
+            clipRect(right = currentXPx, bottom = zeroYPixel) {
+                drawRect(
+                    color = dayOrangeFill,
+                    topLeft = Offset(0f, 0f),
+                    size = Size(width, zeroYPixel)
+                )
             }
 
-            // Negative Y (Below X-axis -> from zeroYPixel down to Canvas bottom)
-            clipRect(top = zeroYPixel) {
-                drawPath(path = fillPath, color = nightBlueFill)
+            // 2. Night twilights: Vertical stripes extending past currentX
+            var currentBlockColor = Color.Transparent
+            var blockStartX = uniqueXPoints.firstOrNull() ?: 0f
+
+            for (i in 0 until uniqueXPoints.size - 1) {
+                val xA = uniqueXPoints[i]
+                val xB = uniqueXPoints[i + 1]
+                val midX = (xA + xB) / 2f // Find the center point of this slice
+
+                // Interpolate to find the Y altitude at the exact center of this stripe
+                var midY = 0f
+                for (j in 0 until xValues.size - 1) {
+                    if (midX >= xValues[j] && midX <= xValues[j + 1]) {
+                        val delta = xValues[j + 1] - xValues[j]
+                        midY = if (delta > 0f) {
+                            yValues[j] + ((midX - xValues[j]) / delta) * (yValues[j + 1] - yValues[j])
+                        } else yValues[j]
+                        break
+                    }
+                }
+
+                val sliceColor = when {
+                    midY >= 0f -> Color.Transparent // Day area already drawn above
+                    midY >= -6f -> civilTwilightFill
+                    midY >= -12f -> nauticalTwilightFill
+                    midY >= -18f -> astroTwilightFill
+                    else -> deepNightFill
+                }
+
+                // If the color changes, draw the accumulated block from the previous segments
+                if (sliceColor != currentBlockColor) {
+                    if (currentBlockColor != Color.Transparent && i > 0) {
+                        val startPx = mapX(blockStartX)
+                        val endPx = mapX(xA)
+                        drawRect(
+                            color = currentBlockColor,
+                            topLeft = Offset(startPx, zeroYPixel),
+                            // +1f width eliminates antialiasing hairline gaps between distinct twilight phases
+                            size = Size(endPx - startPx + 1f, height - zeroYPixel)
+                        )
+                    }
+                    // Start tracking the new color block
+                    currentBlockColor = sliceColor
+                    blockStartX = xA
+                }
+            }
+
+            // Draw the final accumulated block that hits the edge of the chart
+            if (currentBlockColor != Color.Transparent) {
+                val startPx = mapX(blockStartX)
+                val endPx = mapX(uniqueXPoints.last())
+                drawRect(
+                    color = currentBlockColor,
+                    topLeft = Offset(startPx, zeroYPixel),
+                    size = Size(endPx - startPx + 1f, height - zeroYPixel)
+                )
             }
         }
 
@@ -135,7 +234,7 @@ fun PathChart(
         drawPath(
             path = curvePath,
             color = Color.Gray,
-            style = Stroke(width = 3.dp.toPx())
+            style = Stroke(width = 2.dp.toPx())
         )
 
         // 5. Draw a subtle X-Axis line to visually separate the zones
@@ -143,15 +242,15 @@ fun PathChart(
             color = Color.LightGray,
             start = Offset(0f, zeroYPixel),
             end = Offset(width, zeroYPixel),
-            strokeWidth = 2.dp.toPx()
+            strokeWidth = 3.dp.toPx()
         )
 
         // 6. Calculate exact Y position for the sun at currentHour
         var currentY = 0f
         for (i in 0 until xValues.size - 1) {
             if (currentHour in xValues[i]..xValues[i+1]) {
-                val timeDelta = (xValues[i+1] - xValues[i])
-                if (timeDelta > 0) {
+                val timeDelta = xValues[i+1] - xValues[i]
+                if (timeDelta > 0f) {
                     // Linear interpolation to find the exact altitude at this moment
                     val fraction = (currentHour - xValues[i]) / timeDelta
                     currentY = yValues[i] + fraction * (yValues[i+1] - yValues[i])
@@ -167,11 +266,11 @@ fun PathChart(
             val padding = 4.dp.toPx()
             val radius = (iconSize / 2) + padding
 
-            drawCircle(
-                color = backgroundColor,
-                radius = radius,
-                center = Offset(currentXPx, currentYPx)
-            )
+//            drawCircle(
+//                color = backgroundColor,
+//                radius = radius,
+//                center = Offset(currentXPx, currentYPx)
+//            )
 
             translate(
                 left = currentXPx - iconSize / 2,
