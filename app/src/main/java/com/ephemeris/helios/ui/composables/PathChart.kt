@@ -17,6 +17,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.MaterialColors
+import kotlin.math.sin
 
 @Composable
 fun PathChart(
