@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
@@ -18,6 +17,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.MaterialColors
+import kotlin.math.round
 
 @Composable
 fun PathChart(
@@ -28,21 +28,30 @@ fun PathChart(
 ) {
     val sunPainter = painterResource(id = R.drawable.ic_sunny_filled)
 
-    val sunYellow = MaterialColors.Amber500
-    val dayYellowFill = Color(0xFFFFEB3B).copy(alpha = 0.6f)
-    val goldenHourRed = Color(0xFFE53935).copy(alpha = 0.9f)
-    val sunriseOrange = Color(0xFFFF9800).copy(alpha = 0.9f)
-    val sunsetRed = Color(0xFFE53935).copy(alpha = 0.9f)
-    val lightBlueHour = Color(0xFF4FC3F7).copy(alpha = 0.8f)
-    val darkBlueHour = Color(0xFF1565C0).copy(alpha = 0.8f)
-    val electricBlue = Color(0xFF2979FF).copy(alpha = 0.6f)
-    val civilTwilightFill = Color(0xFF64B5F6).copy(alpha = 0.5f)
-    val nauticalTwilightFill = Color(0xFF1E88E5).copy(alpha = 0.5f)
-    val astroTwilightFill = Color(0xFF1565C0).copy(alpha = 0.5f)
-    val deepNightFill = Color(0xFF757575).copy(alpha = 0.5f)
-    val nightBlueFill = Color(0xFF2196F3).copy(alpha = 0.4f)
-    val dayBackground = Color(0xFFFFF9C4).copy(alpha = 0.2f)
-    val nightBackground = Color(0xFFE3F2FD).copy(alpha = 0.2f)
+    val sunYellow = MaterialColors.Amber700
+    val dayFill = MaterialColors.LightBlue50.copy(alpha = 0.6f)
+    val civilTwilightFill = MaterialColors.BlueGray200.copy(alpha = 0.6f)
+    val nauticalTwilightFill = MaterialColors.BlueGray500.copy(alpha = 0.6f)
+    val astroTwilightFill = MaterialColors.Gray700.copy(alpha = 0.6f)
+    val nightFill = MaterialColors.Gray900.copy(alpha = 0.6f)
+    val dayBackground = MaterialColors.Yellow50.copy(alpha = 0.2f)
+    val nightBackground = MaterialColors.Indigo50.copy(alpha = 0.2f)
+    val elapsedDayFill = MaterialColors.Yellow500.copy(alpha = 0.25f)
+    val elapsedNightFill = MaterialColors.Black.copy(alpha = 0.1f)
+//    val dayFill = Color(0xFFFFEB3B).copy(alpha = 0.6f)
+//    val goldenHourRed = Color(0xFFE53935).copy(alpha = 0.9f)
+//    val sunriseOrange = Color(0xFFFF9800).copy(alpha = 0.9f)
+//    val sunsetRed = Color(0xFFE53935).copy(alpha = 0.9f)
+//    val lightBlueHour = Color(0xFF4FC3F7).copy(alpha = 0.8f)
+//    val darkBlueHour = Color(0xFF1565C0).copy(alpha = 0.8f)
+//    val electricBlue = Color(0xFF2979FF).copy(alpha = 0.6f)
+//    val civilTwilightFill = Color(0xFF64B5F6).copy(alpha = 0.5f)
+//    val nauticalTwilightFill = Color(0xFF1E88E5).copy(alpha = 0.5f)
+//    val astroTwilightFill = Color(0xFF1565C0).copy(alpha = 0.5f)
+//    val nightFill = Color(0xFF757575).copy(alpha = 0.5f)
+//    val nightBlueFill = Color(0xFF2196F3).copy(alpha = 0.4f)
+//    val dayBackground = Color(0xFFFFF9C4).copy(alpha = 0.2f)
+//    val nightBackground = Color(0xFFE3F2FD).copy(alpha = 0.2f)
 
     val backgroundColor = MaterialTheme.colorScheme.surface
 
@@ -56,7 +65,6 @@ fun PathChart(
         val maxX = xValues.maxOrNull() ?: 24f
         val minY = -90f
         val maxY = 90f
-        val peakAltitude = yValues.maxOrNull() ?: 0f
 
         val verticalPaddingPx = 16.dp.toPx()
         val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
@@ -67,9 +75,6 @@ fun PathChart(
         fun mapY(y: Float) = height - verticalPaddingPx - ((y - minY) / (maxY - minY)) * drawHeight
 
         val zeroYPixel = mapY(0f)
-        val civilYPixel = mapY(-6f)
-        val nauticalYPixel = mapY(-12f)
-        val astroYPixel = mapY(-18f)
         val currentXPx = mapX(currentHour)
 
         // Day Background
@@ -174,7 +179,7 @@ fun PathChart(
             clipRect(bottom = zeroYPixel) {
 //                if (zeroYPixel > 0f) {
                 drawRect(
-                    color = dayYellowFill,
+                    color = dayFill,
                     topLeft = Offset(0f, 0f),
                     size = Size(width, zeroYPixel)
                 )
@@ -207,19 +212,19 @@ fun PathChart(
                     midY >= -6f -> civilTwilightFill
                     midY >= -12f -> nauticalTwilightFill
                     midY >= -18f -> astroTwilightFill
-                    else -> deepNightFill
+                    else -> nightFill
                 }
 
                 // If the color changes, draw the accumulated block from the previous segments
                 if (sliceColor != currentBlockColor) {
                     if (currentBlockColor != Color.Transparent && i > 0) {
-                        val startPx = mapX(blockStartX)
-                        val endPx = mapX(xA)
+                        // Snap to exact pixels to prevent alpha-stacking artifacts
+                        val startPx = round(mapX(blockStartX))
+                        val endPx = round(mapX(xA))
                         drawRect(
                             color = currentBlockColor,
                             topLeft = Offset(startPx, zeroYPixel),
-                            // +1f width eliminates antialiasing hairline gaps between distinct twilight phases
-                            size = Size(endPx - startPx + 1f, height - zeroYPixel)
+                            size = Size(endPx - startPx, height - zeroYPixel)
                         )
                     }
                     // Start tracking the new color block
@@ -230,29 +235,43 @@ fun PathChart(
 
             // Draw the final accumulated block that hits the edge of the chart
             if (currentBlockColor != Color.Transparent) {
-                val startPx = mapX(blockStartX)
-                val endPx = mapX(uniqueXPoints.last())
+                val startPx = round(mapX(blockStartX))
+                val endPx = round(mapX(uniqueXPoints.last()))
                 drawRect(
                     color = currentBlockColor,
                     topLeft = Offset(startPx, zeroYPixel),
-                    size = Size(endPx - startPx + 1f, height - zeroYPixel)
+                    size = Size(endPx - startPx, height - zeroYPixel)
                 )
+            }
+
+            // 3. Draw the elapsed time overlay (clipped strictly up to currentHour)
+            clipRect(right = currentXPx) {
+
+                // Elapsed Day (Above 0deg)
+                clipRect(bottom = zeroYPixel) {
+                    drawPath(path = fillPath, color = elapsedDayFill)
+                }
+
+                // Elapsed Night (Below 0deg)
+                clipRect(top = zeroYPixel) {
+                    drawPath(path = fillPath, color = elapsedNightFill)
+                }
             }
         }
 
         // 4. Draw the full unclipped curve line for all values
         drawPath(
             path = curvePath,
-            color = Color.Gray,
-            style = Stroke(width = 2.dp.toPx())
+            color = MaterialColors.Gray500,
+            style = Stroke(width = (1.5).dp.toPx())
         )
 
         // 5. Draw a subtle X-Axis line to visually separate the zones
         drawLine(
-            color = Color.LightGray,
+            color = MaterialColors.Gray700,
             start = Offset(0f, zeroYPixel),
             end = Offset(width, zeroYPixel),
-            strokeWidth = 3.dp.toPx()
+            strokeWidth = (1.5).dp.toPx()
         )
 
         // 6. Calculate exact Y position for the sun at currentHour
@@ -274,7 +293,7 @@ fun PathChart(
         if (currentY >= 0f) {
             val iconSize = 28.dp.toPx()
             val padding = 4.dp.toPx()
-            val radius = (iconSize / 2) + padding
+//            val radius = (iconSize / 2) + padding
 
 //            drawCircle(
 //                color = backgroundColor,

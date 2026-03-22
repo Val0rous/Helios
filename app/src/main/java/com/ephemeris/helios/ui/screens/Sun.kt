@@ -34,7 +34,7 @@ fun Sun() {
     LazyColumn() {
         // lat 0, dec 0
         item { PathCard(hours, getAngles(0f, 0f)) }
-        // lat 23.44, dec 23.44
+        // lat 33.44, dec 0
         item { PathCard(hours, getAngles(33.44f, 0f)) }
         // lat 30, dec 0
         item { PathCard(hours, getAngles(30f, 0f)) }
@@ -48,7 +48,7 @@ fun Sun() {
         item { PathCard(hours, getAngles(80f, 0f)) }
         // lat 90, dec +23.44
         item { PathCard(hours, getAngles(90f, 23.44f)) }
-        // lat 90, dec -23.44
+        // lat 65, dec -23.44
         item { PathCard(hours, getAngles(65f, -23.44f)) }
     }
 }
