@@ -18,44 +18,37 @@ fun toSin(list: FloatArray): FloatArray {
     return list.map { 90f * sin(Math.toRadians(it.toDouble())).toFloat() }.toFloatArray()
 }
 
-fun getAngles(lat: Float, dec: Float, toSin: Boolean = true): FloatArray {
+fun toCos(list: FloatArray): FloatArray {
+    return list.map { 90f * cos(Math.toRadians(90.0 - it.toDouble())).toFloat() }.toFloatArray()
+}
+
+fun getAngles(lat: Float, dec: Float, toSin: Boolean = false, toCos: Boolean = false): FloatArray {
     val list = angles.map { dec + (90f - lat) * sin(Math.toRadians(it.toDouble())).toFloat() }.toFloatArray()
-    return if (toSin) toSin(list) else list
+    if (toSin) return toSin(list)
+    if (toCos) return toCos(list)
+    return list
 }
 
 @Composable
 fun Sun() {
-    angles.forEach { angle ->
-        Log.d("Angles", angle.toString())
-    }
     LazyColumn() {
         // lat 0, dec 0
-        item {
-            PathCard(hours, getAngles(0f, 0f))
-        }
+        item { PathCard(hours, getAngles(0f, 0f)) }
+        // lat 23.44, dec 23.44
+        item { PathCard(hours, getAngles(33.44f, 0f)) }
         // lat 30, dec 0
-        item {
-            PathCard(hours, getAngles(30f, 0f))
-        }
+        item { PathCard(hours, getAngles(30f, 0f)) }
         // lat 45, dec 0
-        item {
-            PathCard(hours, getAngles(45f, 0f))
-        }
+        item { PathCard(hours, getAngles(45f, 0f)) }
         // lat 45, dec +23.44
-        item {
-            PathCard(hours, getAngles(45f, 23.44f))
-        }
+        item { PathCard(hours, getAngles(45f, 23.44f)) }
         // lat 70, dec 10
-        item {
-            PathCard(hours, getAngles(70f, 10f))
-        }
+        item { PathCard(hours, getAngles(70f, 10f)) }
         // lat 80, dec 0
-        item {
-            PathCard(hours, getAngles(80f, 0f))
-        }
+        item { PathCard(hours, getAngles(80f, 0f)) }
         // lat 90, dec +23.44
-        item {
-            PathCard(hours, getAngles(90f, 23.44f))
-        }
+        item { PathCard(hours, getAngles(90f, 23.44f)) }
+        // lat 90, dec -23.44
+        item { PathCard(hours, getAngles(65f, -23.44f)) }
     }
 }

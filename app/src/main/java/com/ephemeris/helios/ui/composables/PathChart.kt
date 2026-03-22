@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
@@ -17,7 +18,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.MaterialColors
-import kotlin.math.sin
 
 @Composable
 fun PathChart(
@@ -29,7 +29,13 @@ fun PathChart(
     val sunPainter = painterResource(id = R.drawable.ic_sunny_filled)
 
     val sunYellow = MaterialColors.Amber500
-    val dayOrangeFill = Color(0xFFFF9800).copy(alpha = 0.4f)
+    val dayYellowFill = Color(0xFFFFEB3B).copy(alpha = 0.6f)
+    val goldenHourRed = Color(0xFFE53935).copy(alpha = 0.9f)
+    val sunriseOrange = Color(0xFFFF9800).copy(alpha = 0.9f)
+    val sunsetRed = Color(0xFFE53935).copy(alpha = 0.9f)
+    val lightBlueHour = Color(0xFF4FC3F7).copy(alpha = 0.8f)
+    val darkBlueHour = Color(0xFF1565C0).copy(alpha = 0.8f)
+    val electricBlue = Color(0xFF2979FF).copy(alpha = 0.6f)
     val civilTwilightFill = Color(0xFF64B5F6).copy(alpha = 0.5f)
     val nauticalTwilightFill = Color(0xFF1E88E5).copy(alpha = 0.5f)
     val astroTwilightFill = Color(0xFF1565C0).copy(alpha = 0.5f)
@@ -50,6 +56,7 @@ fun PathChart(
         val maxX = xValues.maxOrNull() ?: 24f
         val minY = -90f
         val maxY = 90f
+        val peakAltitude = yValues.maxOrNull() ?: 0f
 
         val verticalPaddingPx = 16.dp.toPx()
         val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
@@ -163,13 +170,15 @@ fun PathChart(
         // --- NEW: Draw the clipped vertical stripes ---
         clipPath(fillPath) {
 
-            // 1. Day area: Clipped by the curve (via clipPath) and stops at currentX
-            clipRect(right = currentXPx, bottom = zeroYPixel) {
+            // 1. Day area: Removed 'right = currentXPx' so sunset is always visible by default
+            clipRect(bottom = zeroYPixel) {
+//                if (zeroYPixel > 0f) {
                 drawRect(
-                    color = dayOrangeFill,
+                    color = dayYellowFill,
                     topLeft = Offset(0f, 0f),
                     size = Size(width, zeroYPixel)
                 )
+//                }
             }
 
             // 2. Night twilights: Vertical stripes extending past currentX
