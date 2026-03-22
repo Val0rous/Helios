@@ -4,32 +4,24 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ephemeris.helios.ui.composables.Navbar
 import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.Routes
+import kotlinx.coroutines.delay
+import java.time.LocalDateTime
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
@@ -41,6 +33,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             navController = rememberNavController()
             var startDestination by remember { mutableStateOf(initialStartDestination) }
+            var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
+            var isAutoUpdateEnabled by remember { mutableStateOf(true) }
+
             HeliosTheme {
                 Scaffold(
                     //modifier
@@ -50,6 +45,14 @@ class MainActivity : ComponentActivity() {
                     LaunchedEffect(Unit) {
                         savedInstanceState?.getString("NAVIGATION_STATE")?.let { savedRoute ->
                             startDestination = savedRoute
+                        }
+                    }
+                    LaunchedEffect(isAutoUpdateEnabled) {
+                        if (isAutoUpdateEnabled) {
+                            while (true) {
+                                delay(12000)
+                                currentTime = LocalDateTime.now()
+                            }
                         }
                     }
                     NavHost(
@@ -64,7 +67,12 @@ class MainActivity : ComponentActivity() {
                             //UV()
                         }
                         composable(Routes.Sun.route) {
-                            Sun()
+                            Sun(
+                                time = currentTime,
+                                isAutoUpdate = isAutoUpdateEnabled,
+                                onTimeChange = { currentTime = it },
+                                onAutoUpdateChange = { isAutoUpdateEnabled = it }
+                            )
                         }
                         composable(Routes.Moon.route) {
                             //Moon()

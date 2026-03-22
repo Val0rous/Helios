@@ -1,10 +1,11 @@
 package com.ephemeris.helios.ui.screens
 
-import android.util.Log
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import com.ephemeris.helios.ui.composables.PathCard
-import kotlin.collections.copyOf
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import kotlin.collections.toFloatArray
 import kotlin.math.asin
 import kotlin.math.cos
@@ -30,8 +31,17 @@ fun getAngles(lat: Float, dec: Float, toSin: Boolean = false, toCos: Boolean = f
 }
 
 @Composable
-fun Sun() {
+fun Sun(
+    time: LocalDateTime,
+    isAutoUpdate: Boolean,
+    onTimeChange: (LocalDateTime) -> Unit,
+    onAutoUpdateChange: (Boolean) -> Unit
+) {
     LazyColumn() {
+        item {
+            val dateTime = time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            Text(dateTime)
+        }
         // lat 0, dec 0
         item { PathCard(hours, getAngles(0f, 0f)) }
         // lat 33.44, dec 0
