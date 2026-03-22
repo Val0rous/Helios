@@ -19,6 +19,7 @@ import androidx.navigation.compose.rememberNavController
 import com.ephemeris.helios.ui.composables.Navbar
 import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
+import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.Routes
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
             var startDestination by remember { mutableStateOf(initialStartDestination) }
             var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
             var isAutoUpdateEnabled by remember { mutableStateOf(true) }
+            var coordinates by remember { mutableStateOf(Coordinates(44.24, 11.99)) }
 
             HeliosTheme {
                 Scaffold(
@@ -70,8 +72,10 @@ class MainActivity : ComponentActivity() {
                             Sun(
                                 time = currentTime,
                                 isAutoUpdate = isAutoUpdateEnabled,
+                                coordinates = coordinates,
                                 onTimeChange = { currentTime = it },
-                                onAutoUpdateChange = { isAutoUpdateEnabled = it }
+                                onAutoUpdateChange = { isAutoUpdateEnabled = it },
+                                onLocationChange = { coordinates = it },
                             )
                         }
                         composable(Routes.Moon.route) {

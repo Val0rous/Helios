@@ -43,6 +43,7 @@ fun PathChart(
     val elapsedNightFill = colors.elapsedNight
 
     val backgroundColor = MaterialTheme.colorScheme.surface
+    val materialTheme = MaterialTheme.colorScheme
 
     Canvas(modifier = modifier) {
         if (xValues.isEmpty() || yValues.isEmpty()) return@Canvas
@@ -251,13 +252,13 @@ fun PathChart(
         // 4. Draw the full unclipped curve line for all values
         drawPath(
             path = curvePath,
-            color = MaterialColors.Gray500,
+            color = materialTheme.onSurfaceVariant,
             style = Stroke(width = (1.5).dp.toPx())
         )
 
         // 5. Draw a subtle X-Axis line to visually separate the zones
         drawLine(
-            color = MaterialColors.Gray700,
+            color = materialTheme.outline,
             start = Offset(0f, zeroYPixel),
             end = Offset(width, zeroYPixel),
             strokeWidth = (1.5).dp.toPx()
