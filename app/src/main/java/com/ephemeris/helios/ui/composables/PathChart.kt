@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
+import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import kotlin.math.round
 
@@ -27,31 +28,19 @@ fun PathChart(
     modifier: Modifier = Modifier
 ) {
     val sunPainter = painterResource(id = R.drawable.ic_sunny_filled)
+    val indicatorPainter = painterResource(id = R.drawable.ic_circle_filled)
 
-    val sunYellow = MaterialColors.Amber700
-    val dayFill = MaterialColors.LightBlue50.copy(alpha = 0.6f)
-    val civilTwilightFill = MaterialColors.BlueGray200.copy(alpha = 0.6f)
-    val nauticalTwilightFill = MaterialColors.BlueGray500.copy(alpha = 0.6f)
-    val astroTwilightFill = MaterialColors.Gray700.copy(alpha = 0.6f)
-    val nightFill = MaterialColors.Gray900.copy(alpha = 0.6f)
-    val dayBackground = MaterialColors.Yellow50.copy(alpha = 0.2f)
-    val nightBackground = MaterialColors.Indigo50.copy(alpha = 0.2f)
-    val elapsedDayFill = MaterialColors.Yellow500.copy(alpha = 0.25f)
-    val elapsedNightFill = MaterialColors.Black.copy(alpha = 0.1f)
-//    val dayFill = Color(0xFFFFEB3B).copy(alpha = 0.6f)
-//    val goldenHourRed = Color(0xFFE53935).copy(alpha = 0.9f)
-//    val sunriseOrange = Color(0xFFFF9800).copy(alpha = 0.9f)
-//    val sunsetRed = Color(0xFFE53935).copy(alpha = 0.9f)
-//    val lightBlueHour = Color(0xFF4FC3F7).copy(alpha = 0.8f)
-//    val darkBlueHour = Color(0xFF1565C0).copy(alpha = 0.8f)
-//    val electricBlue = Color(0xFF2979FF).copy(alpha = 0.6f)
-//    val civilTwilightFill = Color(0xFF64B5F6).copy(alpha = 0.5f)
-//    val nauticalTwilightFill = Color(0xFF1E88E5).copy(alpha = 0.5f)
-//    val astroTwilightFill = Color(0xFF1565C0).copy(alpha = 0.5f)
-//    val nightFill = Color(0xFF757575).copy(alpha = 0.5f)
-//    val nightBlueFill = Color(0xFF2196F3).copy(alpha = 0.4f)
-//    val dayBackground = Color(0xFFFFF9C4).copy(alpha = 0.2f)
-//    val nightBackground = Color(0xFFE3F2FD).copy(alpha = 0.2f)
+    val colors = LocalCustomColors.current
+    val sunYellow = colors.sun
+    val dayFill = colors.day
+    val civilTwilightFill = colors.civilTwilight
+    val nauticalTwilightFill = colors.nauticalTwilight
+    val astroTwilightFill = colors.astronomicalTwilight
+    val nightFill = colors.night
+    val dayBackground = colors.dayBackground
+    val nightBackground = colors.nightBackground
+    val elapsedDayFill = colors.elapsedDay
+    val elapsedNightFill = colors.elapsedNight
 
     val backgroundColor = MaterialTheme.colorScheme.surface
 
@@ -291,8 +280,8 @@ fun PathChart(
 
         // 7. Paint the Sun Icon if above horizon
         if (currentY >= 0f) {
-            val iconSize = 28.dp.toPx()
-            val padding = 4.dp.toPx()
+            val iconSize = 24.dp.toPx()
+//            val padding = 4.dp.toPx()
 //            val radius = (iconSize / 2) + padding
 
 //            drawCircle(
@@ -309,6 +298,19 @@ fun PathChart(
                     draw(
                         size = Size(iconSize, iconSize),
                         colorFilter = ColorFilter.tint(sunYellow)
+                    )
+                }
+            }
+        } else {
+            val iconSize = 12.dp.toPx()
+            translate(
+                left = currentXPx - iconSize / 2,
+                top = currentYPx - iconSize / 2
+            ) {
+                with(indicatorPainter) {
+                    draw(
+                        size = Size(iconSize, iconSize),
+                        colorFilter = ColorFilter.tint(sunYellow.copy(alpha = 0.5f))
                     )
                 }
             }

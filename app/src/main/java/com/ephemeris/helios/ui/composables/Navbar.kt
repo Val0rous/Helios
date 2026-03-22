@@ -42,8 +42,8 @@ object NavbarItems {
         ),
         NavbarItem(
             label = R.string.sun,
-            icon = R.drawable.ic_sunny,
-            filledIcon = R.drawable.ic_sunny_filled,
+            icon = R.drawable.ic_wb_sunny,
+            filledIcon = R.drawable.ic_wb_sunny_filled,
             route = Routes.Sun.route
         ),
         NavbarItem(

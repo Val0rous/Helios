@@ -9,6 +9,9 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
@@ -20,7 +23,7 @@ private val DarkColorScheme = darkColorScheme(
 private val LightColorScheme = lightColorScheme(
     primary = Purple40,
     secondary = PurpleGrey40,
-    tertiary = Pink40
+    tertiary = Pink40,
 
     /* Other default colors to override
     background = Color(0xFFFFFBFE),
@@ -32,6 +35,52 @@ private val LightColorScheme = lightColorScheme(
     onSurface = Color(0xFF1C1B1F),
     */
 )
+
+data class CustomColorScheme(
+    val day: Color,
+    val night: Color,
+    val civilTwilight: Color,
+    val nauticalTwilight: Color,
+    val astronomicalTwilight: Color,
+    val elapsedDay: Color,
+    val elapsedNight: Color,
+    val dayBackground: Color,
+    val nightBackground: Color,
+    val sun: Color,
+    val moon: Color,
+)
+
+private val DarkCustomColors = CustomColorScheme(
+    day = MaterialColors.LightBlue200.copy(alpha = 0.3f),
+    night = MaterialColors.Gray900.copy(alpha = 0.7f),
+    civilTwilight = MaterialColors.BlueGray200.copy(alpha = 0.7f),
+    nauticalTwilight = MaterialColors.BlueGray500.copy(alpha = 0.7f),
+    astronomicalTwilight = MaterialColors.Gray700.copy(alpha = 0.7f),
+    elapsedDay = MaterialColors.Yellow500.copy(alpha = 0.4f),
+    elapsedNight = MaterialColors.Gray600.copy(alpha = 0.25f),
+    dayBackground = MaterialColors.Yellow50.copy(alpha = 0.15f),
+    nightBackground = MaterialColors.Indigo50.copy(alpha = 0.15f),
+    sun = MaterialColors.Orange400,
+    moon = MaterialColors.Gray500
+)
+
+private val LightCustomColors = CustomColorScheme(
+    day = MaterialColors.LightBlue50.copy(alpha = 0.6f),
+    night = MaterialColors.Gray900.copy(alpha = 0.6f),
+    civilTwilight = MaterialColors.BlueGray200.copy(alpha = 0.6f),
+    nauticalTwilight = MaterialColors.BlueGray500.copy(alpha = 0.6f),
+    astronomicalTwilight = MaterialColors.Gray700.copy(alpha = 0.6f),
+    elapsedDay = MaterialColors.Yellow500.copy(alpha = 0.25f),
+    elapsedNight = MaterialColors.Gray400.copy(alpha = 0.25f),
+    dayBackground = MaterialColors.Yellow50.copy(alpha = 0.2f),
+    nightBackground = MaterialColors.Indigo50.copy(alpha = 0.2f),
+    sun = MaterialColors.Amber700,
+    moon = MaterialColors.Gray700
+)
+
+internal val LocalCustomColors = staticCompositionLocalOf<CustomColorScheme> {
+    error("No custom colors provided")
+}
 
 @Composable
 fun HeliosTheme(
@@ -49,10 +98,17 @@ fun HeliosTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
+    val customColors = if (darkTheme) DarkCustomColors else LightCustomColors
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        content = content
+        content = {
+            CompositionLocalProvider(
+                LocalCustomColors provides customColors
+            ) {
+                content()
+            }
+        }
     )
 }
