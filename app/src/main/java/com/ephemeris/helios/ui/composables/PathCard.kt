@@ -57,7 +57,8 @@ fun PathCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(IntrinsicSize.Min)
-                    .padding(8.dp),
+                    .padding(8.dp)
+                    .padding(bottom = 2.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
