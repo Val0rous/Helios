@@ -63,6 +63,5 @@ fun Sun(
             )
         }
         item { PathCard(hours, getAngles(coordinates.latitude, 23.44)) }
-
     }
 }

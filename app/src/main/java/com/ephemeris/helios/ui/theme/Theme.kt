@@ -51,12 +51,12 @@ data class CustomColorScheme(
 )
 
 private val DarkCustomColors = CustomColorScheme(
-    day = MaterialColors.LightBlue200.copy(alpha = 0.3f),
+    day = MaterialColors.LightBlue50.copy(alpha = 0.7f),
     night = MaterialColors.Gray900.copy(alpha = 0.7f),
     civilTwilight = MaterialColors.BlueGray200.copy(alpha = 0.7f),
     nauticalTwilight = MaterialColors.BlueGray500.copy(alpha = 0.7f),
     astronomicalTwilight = MaterialColors.Gray700.copy(alpha = 0.7f),
-    elapsedDay = MaterialColors.Yellow500.copy(alpha = 0.4f),
+    elapsedDay = MaterialColors.Yellow500.copy(alpha = 0.5f),
     elapsedNight = MaterialColors.Gray600.copy(alpha = 0.25f),
     dayBackground = MaterialColors.Yellow50.copy(alpha = 0.15f),
     nightBackground = MaterialColors.Indigo50.copy(alpha = 0.15f),
@@ -70,8 +70,8 @@ private val LightCustomColors = CustomColorScheme(
     civilTwilight = MaterialColors.BlueGray200.copy(alpha = 0.6f),
     nauticalTwilight = MaterialColors.BlueGray500.copy(alpha = 0.6f),
     astronomicalTwilight = MaterialColors.Gray700.copy(alpha = 0.6f),
-    elapsedDay = MaterialColors.Yellow500.copy(alpha = 0.25f),
-    elapsedNight = MaterialColors.Gray400.copy(alpha = 0.25f),
+    elapsedDay = MaterialColors.Yellow500.copy(alpha = 0.35f),
+    elapsedNight = MaterialColors.Gray400.copy(alpha = 0.3f),
     dayBackground = MaterialColors.Yellow50.copy(alpha = 0.2f),
     nightBackground = MaterialColors.Indigo50.copy(alpha = 0.2f),
     sun = MaterialColors.Amber700,

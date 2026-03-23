@@ -37,8 +37,10 @@ fun PathChart(
     val nauticalTwilightFill = colors.nauticalTwilight
     val astroTwilightFill = colors.astronomicalTwilight
     val nightFill = colors.night
-    val dayBackground = colors.dayBackground
-    val nightBackground = colors.nightBackground
+    //val dayBackground = colors.dayBackground
+    //val nightBackground = colors.nightBackground
+    val dayBackground = MaterialTheme.colorScheme.surface
+    val nightBackground = MaterialTheme.colorScheme.surfaceVariant
     val elapsedDayFill = colors.elapsedDay
     val elapsedNightFill = colors.elapsedNight
 
