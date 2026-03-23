@@ -1,5 +1,6 @@
 package com.ephemeris.helios.ui.composables
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -9,15 +10,23 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.LocalCustomColors
-import com.ephemeris.helios.ui.theme.MaterialColors
+import java.text.DateFormatSymbols
+import java.util.Locale
 import kotlin.math.round
 
 @Composable
@@ -46,6 +55,28 @@ fun PathChart(
 
     val backgroundColor = MaterialTheme.colorScheme.surface
     val materialTheme = MaterialTheme.colorScheme
+
+    val context = LocalContext.current
+    val is24Hour = DateFormat.is24HourFormat(context)
+    val amPmStrings = DateFormatSymbols.getInstance(Locale.getDefault()).amPmStrings
+
+    // Format hours according to brevity rules
+    fun formatHour(hour: Int): String {
+        if (is24Hour) return hour.toString()
+        val adjustedHour = if (hour == 12) 12 else if (hour > 12) hour - 12 else hour
+        val amPm = if (hour >= 12) amPmStrings[1] else amPmStrings[0]
+        // Regex removes 'm', 'M', spaces, and periods (e.g., "a.m." -> "a", " AM" -> "A")
+        val suffix = amPm.replace(Regex("[mM\\s.]"), "")
+        return "$adjustedHour$suffix"
+    }
+
+    // Text Measurer and styling for the legends
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+        fontSize = (9.5).sp,
+        fontFamily = FontFamily.Monospace
+    )
 
     Canvas(modifier = modifier) {
         if (xValues.isEmpty() || yValues.isEmpty()) return@Canvas
@@ -265,6 +296,70 @@ fun PathChart(
             end = Offset(width, zeroYPixel),
             strokeWidth = (1.5).dp.toPx()
         )
+
+        // Define the dotted path effect and grid color ---
+        // floatArrayOf(on, off) in pixels. Using dp ensures consistent dot spacing on all screens.
+        val verticalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 0.dp.toPx()), 0f)
+        val horizontalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx()), 0f)
+        val verticalGridlineColor = materialTheme.outlineVariant.copy(alpha = 0.15f) // Light and subtle
+        val horizontalGridlineColor = materialTheme.outline.copy(alpha = 0.3f) // Light and subtle
+
+        // 5a. Draw Vertical Legend (Y-axis Altitudes)
+        val yLabels = listOf(90f, 60f, 30f, 0f, -30f, -60f, -90f)
+        yLabels.forEach { yVal ->
+            val yPx = mapY(yVal)
+//            if (yVal == 0f) return@forEach // Skip the zero
+
+            // Draw horizontal dotted grid line (Skip 0f to avoid drawing over the solid horizon line)
+            if (yVal != 0f) {
+                drawLine(
+                    color = horizontalGridlineColor,
+                    start = Offset(0f, yPx),
+                    end = Offset(width, yPx),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = horizontalGridDashEffect
+                )
+            }
+
+            val text = "${yVal.toInt()}°"
+            val textLayout = textMeasurer.measure(text, labelStyle)
+            drawText(
+                textMeasurer = textMeasurer,
+                text = text,
+                style = labelStyle,
+                topLeft = Offset(
+                    x = 4.dp.toPx(), // Slight padding from the left edge
+                    y = yPx - (textLayout.size.height / 2f) // Perfectly centered vertically on the line
+                )
+            )
+        }
+
+        // 5b. Draw Horizontal Legend (X-axis Hours)
+        val xLabels = listOf(3, 6, 9, 12, 15, 18, 21)
+        xLabels.forEach { hour ->
+            val xPx = mapX(hour.toFloat())
+
+            // Draw vertical dotted grid line
+            drawLine(
+                color = verticalGridlineColor,
+                start = Offset(xPx, 0f),
+                end = Offset(xPx, height), // Spans the entire canvas height
+                strokeWidth = 1.dp.toPx(),
+                pathEffect = verticalGridDashEffect
+            )
+
+            val text = formatHour(hour)
+            val textLayout = textMeasurer.measure(text, labelStyle)
+            drawText(
+                textMeasurer = textMeasurer,
+                text = text,
+                style = labelStyle,
+                topLeft = Offset(
+                    x = xPx - (textLayout.size.width / 2f), // Centered horizontally on the hour mark
+                    y = height - textLayout.size.height - 2.dp.toPx() // Pinned near the bottom edge of the canvas
+                )
+            )
+        }
 
         // 6. Calculate exact Y position for the sun at currentHour
         var currentY = 0f

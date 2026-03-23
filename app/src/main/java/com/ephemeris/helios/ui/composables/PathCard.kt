@@ -3,11 +3,14 @@ package com.ephemeris.helios.ui.composables
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +27,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -52,44 +56,43 @@ fun PathCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
                     .padding(8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                val textStyle = TextStyle(fontSize = (13.5).sp, fontFamily = FontFamily.Monospace)
-                val verticalSpacing = 3.dp
-                DividerDefaults.color
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(verticalSpacing)
-                ) {
-                    Text("Day Length", style = textStyle)
-                    Text("12h 30m 45s", style = textStyle)
-                }
-                VerticalDivider()
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(verticalSpacing)
-                ) {
-                    Text("Altitude", style = textStyle)
-                    Text("47.0°", style = textStyle)
-                }
-                VerticalDivider()
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(verticalSpacing)
-                ) {
-                    Text("Azimuth", style = textStyle)
-                    Text("185.0°", style = textStyle)
-                }
-                VerticalDivider()
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(verticalSpacing)
-                ) {
-                    Text("Shadow Ratio", style = textStyle)
-                    Text("0.94 : 1", style = textStyle)
-                }
+                CustomColumn("Day Length", "12h 30m 45s")
+                CustomVerticalDivider()
+                CustomColumn("Altitude", "47.0°")
+                CustomVerticalDivider()
+                CustomColumn("Azimuth", "185.0°")
+                CustomVerticalDivider()
+                CustomColumn("Shadow Ratio", "0.94 : 1")
             }
         }
+    }
+}
+
+@Composable
+internal fun CustomVerticalDivider() {
+    VerticalDivider(
+        modifier = Modifier
+            .fillMaxHeight()
+            .padding(vertical = 4.dp),
+        thickness = Dp.Hairline,
+        color = DividerDefaults.color
+    )
+}
+
+@Composable
+internal fun CustomColumn(header: String, value: String) {
+    val textStyle = TextStyle(fontSize = (13.5).sp, fontFamily = FontFamily.Monospace)
+    val verticalSpacing = 3.dp
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+    ) {
+        Text(text = header, style = textStyle)
+        Text(text = value, style = textStyle)
     }
 }
