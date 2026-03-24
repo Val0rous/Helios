@@ -36,7 +36,7 @@ fun PathChart(
     currentHour: Float,
     modifier: Modifier = Modifier
 ) {
-    val sunPainter = painterResource(id = R.drawable.ic_sunny_filled)
+    val sunPainter = painterResource(id = R.drawable.ic_brightness_empty_filled)
     val indicatorPainter = painterResource(id = R.drawable.ic_circle_filled)
 
     val colors = LocalCustomColors.current
@@ -388,15 +388,17 @@ fun PathChart(
 //                center = Offset(currentXPx, currentYPx)
 //            )
 
-            translate(
-                left = currentXPx - iconSize / 2,
-                top = currentYPx - iconSize / 2
-            ) {
-                with(sunPainter) {
-                    draw(
-                        size = Size(iconSize, iconSize),
-                        colorFilter = ColorFilter.tint(sunYellow)
-                    )
+            clipRect(bottom = (zeroYPixel - 2f)) {
+                translate(
+                    left = currentXPx - iconSize / 2,
+                    top = currentYPx - iconSize / 2
+                ) {
+                    with(sunPainter) {
+                        draw(
+                            size = Size(iconSize, iconSize),
+                            colorFilter = ColorFilter.tint(sunYellow)
+                        )
+                    }
                 }
             }
         } else {
