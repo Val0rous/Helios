@@ -35,7 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ephemeris.helios.R
+import com.ephemeris.helios.utils.SunChartTypes
 
 @Composable
 fun PathCard(
@@ -57,7 +57,7 @@ fun PathCard(
                 modifier = Modifier.padding(horizontal = 8.dp)
             ) {
                 items(SunChartTypes.entries) { type ->
-                    CustomFilterChip(
+                    ChartSelectorChip(
                         chartType = type,
                         isSelected = type == selectedChartType,
                         onSelectedChartTypeChange = { selectedChartType = it }
@@ -115,30 +115,4 @@ internal fun CustomColumn(header: String, value: String) {
         Text(text = header, style = textStyle.copy(fontWeight = FontWeight.Bold, letterSpacing = (0.3).sp, color = MaterialTheme.colorScheme.onSurfaceVariant))
         Text(text = value, style = textStyle.copy(color = MaterialTheme.colorScheme.onSurface))
     }
-}
-
-@Composable
-internal fun CustomFilterChip(chartType: SunChartTypes, isSelected: Boolean, onSelectedChartTypeChange: (SunChartTypes) -> Unit) {
-    FilterChip(
-        selected = isSelected,
-        onClick = { onSelectedChartTypeChange(chartType) },
-        label = { Text(text = chartType.label) },
-        leadingIcon = {
-            Icon(
-                painter = painterResource(id = (if (isSelected) chartType.filledIcon else chartType.icon)),
-                contentDescription = "",
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    )
-}
-
-internal enum class SunChartTypes(val label: String, val icon: Int, val filledIcon: Int) {
-    ELEVATION("Elevation", R.drawable.ic_sunny, R.drawable.ic_sunny_filled), // Altitude
-    IRRADIANCE("Irradiance", R.drawable.ic_bolt, R.drawable.ic_bolt_filled), // Energy
-    ILLUMINANCE("Illuminance", R.drawable.ic_lightbulb, R.drawable.ic_lightbulb_filled), // Lux
-    TRAJECTORY("Trajectory", R.drawable.ic_explore, R.drawable.ic_explore_filled), // Path
-    SHADOWS("Shadows", R.drawable.ic_ev_shadow, R.drawable.ic_ev_shadow_filled),
-    AIR_MASS("Air Mass", R.drawable.ic_foggy, R.drawable.ic_foggy_filled), // Atmosphere
-    UV_INTENSITY("UV Intensity", R.drawable.ic_beach_access, R.drawable.ic_beach_access_filled) // Intensity, UV
 }

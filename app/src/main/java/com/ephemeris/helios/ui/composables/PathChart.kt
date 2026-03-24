@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.LocalCustomColors
+import com.ephemeris.helios.utils.formatHour
 import java.text.DateFormatSymbols
 import java.util.Locale
 import kotlin.math.round
@@ -57,19 +58,6 @@ fun PathChart(
     val materialTheme = MaterialTheme.colorScheme
 
     val context = LocalContext.current
-    val is24Hour = DateFormat.is24HourFormat(context)
-    val amPmStrings = DateFormatSymbols.getInstance(Locale.getDefault()).amPmStrings
-
-    // Format hours according to brevity rules
-    fun formatHour(hour: Int): String {
-        if (is24Hour) return hour.toString()
-        val adjustedHour = if (hour == 12) 12 else if (hour > 12) hour - 12 else hour
-        val amPm = if (hour >= 12) amPmStrings[1] else amPmStrings[0]
-        // Regex removes 'm', 'M', spaces, and periods (e.g., "a.m." -> "a", " AM" -> "A")
-        val suffix = amPm.replace(Regex("[mM\\s.]"), "")
-        return "$adjustedHour$suffix"
-    }
-
     // Text Measurer and styling for the legends
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = TextStyle(
@@ -348,7 +336,7 @@ fun PathChart(
                 pathEffect = verticalGridDashEffect
             )
 
-            val text = formatHour(hour)
+            val text = formatHour(hour, true, context)
             val textLayout = textMeasurer.measure(text, labelStyle)
             drawText(
                 textMeasurer = textMeasurer,
