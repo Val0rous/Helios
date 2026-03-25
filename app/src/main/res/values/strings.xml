@@ -2,7 +2,7 @@
     <string name="app_name">Helios</string>
 
     <string name="home">Home</string>
-    <string name="uv">UV Rays</string>
+    <string name="exposure">Exposure</string>
     <string name="sun">Sun</string>
     <string name="moon">Moon</string>
     <string name="planets">Planets</string>

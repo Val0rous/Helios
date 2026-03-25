@@ -4,6 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
@@ -12,11 +16,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.NavHost
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.ephemeris.helios.ui.composables.Navbar
+import com.ephemeris.helios.ui.composables.TimeMachine
 import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.Coordinates
@@ -42,7 +48,12 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     //modifier
                     //topBar
-                    bottomBar = { Navbar(navController) },
+                    bottomBar = {
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            TimeMachine()
+                            Navbar(navController)
+                        }
+                    },
                 ) { paddingValues ->
                     LaunchedEffect(Unit) {
                         savedInstanceState?.getString("NAVIGATION_STATE")?.let { savedRoute ->
@@ -65,7 +76,7 @@ class MainActivity : ComponentActivity() {
                         composable(Routes.Home.route) {
                             //Home()
                         }
-                        composable(Routes.UV.route) {
+                        composable(Routes.Exposure.route) {
                             //UV()
                         }
                         composable(Routes.Sun.route) {

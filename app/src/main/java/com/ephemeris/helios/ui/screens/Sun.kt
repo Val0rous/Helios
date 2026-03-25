@@ -17,6 +17,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -173,7 +174,7 @@ fun Sun(
 @Composable
 internal fun SmallCard(card: @Composable () -> Unit, modifier: Modifier = Modifier) {
     val paddingValue = if (modifier == Modifier) 16.dp else 8.dp
-    Card(modifier = modifier
+    OutlinedCard(modifier = modifier
         .fillMaxWidth()
         .padding(horizontal = paddingValue)
     ) {

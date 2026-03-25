@@ -1,6 +1,5 @@
 package com.ephemeris.helios.ui.composables
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -35,10 +34,10 @@ object NavbarItems {
             route = Routes.Home.route
         ),
         NavbarItem(
-            label=R.string.uv,
+            label=R.string.exposure,
             icon = R.drawable.ic_beach_access,
             filledIcon = R.drawable.ic_beach_access_filled,
-            route = Routes.UV.route
+            route = Routes.Exposure.route
         ),
         NavbarItem(
             label = R.string.sun,
