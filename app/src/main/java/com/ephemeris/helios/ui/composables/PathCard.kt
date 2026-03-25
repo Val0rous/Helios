@@ -107,7 +107,7 @@ internal fun CustomVerticalDivider() {
 @Composable
 internal fun CustomColumn(header: String, value: String) {
     val textStyle = TextStyle(fontSize = (13.5).sp, fontFamily = FontFamily.Monospace)
-    val verticalSpacing = 3.dp
+    val verticalSpacing = 4.dp
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(verticalSpacing)

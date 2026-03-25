@@ -1,5 +1,6 @@
 package com.ephemeris.helios.ui.screens
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -10,22 +11,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Card
+import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.PathCard
+import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Coordinates
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -86,15 +93,78 @@ fun Sun(
             SmallCardRow(
                 leftCard = {
                     HeaderEntry(text = "Sunrise & Sunset")
-                    TextEntry(text1 = "10:30 AM", text2 = "@ 155.0°", icon = R.drawable.ic_wb_sunny_filled, desc = "Sunrise")
-                    TextEntry(text1 = "10:00 PM", text2 = "@ 275.0°", icon = R.drawable.ic_wb_twilight_filled, desc = "Sunset")
+                    TextEntry(text1 = "10:30 AM", text2 = "@ 155.0°", icon1 = R.drawable.ic_wb_sunny_filled, desc1 = "Sunrise")
+                    TextEntry(text1 = "10:00 PM", text2 = "@ 275.0°", icon1 = R.drawable.ic_wb_twilight_filled, desc1 = "Sunset")
                 },
                 rightCard = {
                     HeaderEntry(text = "Solar Noon")
-                    TextEntry(text1 = "12:15 PM", text2 = "@ 180.1°", icon = R.drawable.ic_pace, desc = "Time of Solar Noon")
-                    TextEntry(text1 = "69.2°", icon = R.drawable.ic_brightness_7, desc = "Altitude at Solar Noon")
+                    TextEntry(text1 = "12:15 PM", text2 = "@ 180.1°", icon1 = R.drawable.ic_pace, desc1 = "Time of Solar Noon")
+                    TextEntry(text1 = "69.2°", icon1 = R.drawable.ic_brightness_7, desc1 = "Altitude at Solar Noon")
                 }
             )
+        }
+        item {
+            SmallCardRow(
+                leftCard = {
+                    HeaderEntry(text = "UV Index")
+                    TextEntry(text1 = "UVI 12", text2 = "300 mW/m²", icon1 = R.drawable.ic_beach_access_filled, desc1 = "Max UV Index")
+                    TextEntry(text1 = "UVI 10", text2 = "250 mW/m²", icon1 = R.drawable.ic_beach_access, desc1 = "Current UV Index")
+                },
+                rightCard = {
+                    HeaderEntry(text = "Solar Power")
+                    TextEntry(text1 = "1,368", text2 = "W/m²", icon1 = R.drawable.ic_bolt_filled, desc1 = "Max Irradiance")
+                    TextEntry(text1 = "1,100", text2 = "W/m²", icon1 = R.drawable.ic_bolt, desc1 = "Current Irradiance")
+                }
+            )
+        }
+        val goldenHourColor = MaterialColors.Amber500
+        val blueHourColor = MaterialColors.Blue700
+        item {
+            SmallCardRow(
+                leftCard = {
+                    HeaderEntry(text = "Golden Hour", color = goldenHourColor)
+                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = goldenHourColor)
+                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = goldenHourColor)
+                },
+                rightCard = {
+                    HeaderEntry(text = "Blue Hour", color = blueHourColor)
+                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = blueHourColor)
+                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = blueHourColor)
+                }
+            )
+        }
+        val pinkHourColor = MaterialColors.Pink500
+        val alpenglowColor = MaterialColors.Red700
+        item {
+            SmallCardRow(
+                leftCard = {
+                    HeaderEntry(text = "Pink Hour", color = pinkHourColor)
+                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = pinkHourColor)
+                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = pinkHourColor)
+                },
+                rightCard = {
+                    HeaderEntry(text = "Alpenglow", color = alpenglowColor)
+                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = alpenglowColor)
+                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = alpenglowColor)
+                }
+            )
+        }
+    }
+}
+
+@Composable
+internal fun SmallCard(card: @Composable () -> Unit, modifier: Modifier = Modifier) {
+    val paddingValue = if (modifier == Modifier) 16.dp else 8.dp
+    Card(modifier = modifier
+        .fillMaxWidth()
+        .padding(horizontal = paddingValue)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            card()
         }
     }
 }
@@ -111,50 +181,127 @@ internal fun SmallCardRow(
             .padding(horizontal = 8.dp)
     ) {
         // Left Card
-        Card(modifier = Modifier
-            .weight(1f)
-            .padding(horizontal = 8.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                leftCard()
-            }
-        }
+        SmallCard(
+            card = { leftCard() },
+            modifier = Modifier.weight(1f)
+        )
         // Right Card
-        Card(modifier = Modifier
-            .weight(1f)
-            .padding(horizontal = 8.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                rightCard()
-            }
-        }
+        SmallCard(
+            card = { rightCard() },
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
 @Composable
-fun HeaderEntry(text: String) {
-    val headerStyle = TextStyle(fontSize = (13.5).sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.primary)
+fun HeaderEntry(
+    text: String,
+    color: Color = MaterialTheme.colorScheme.primary
+) {
+    val headerStyle = TextStyle(fontSize = (13.5).sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold, color = color)
     Text(text = text, style = headerStyle)
 }
 
 @Composable
-fun TextEntry(text1: String, text2: String = "", icon: Int? = null, desc: String = "") {
+fun TextEntry(
+    text1: String,
+    text2: String = "",
+    icon1: Int? = null,
+    icon2: Int? = null,
+    desc1: String = "",
+    desc2: String = "",
+    color: Color = MaterialTheme.colorScheme.onSurface
+) {
+    val textStyle = TextStyle(fontSize = (13.5).sp, fontFamily = FontFamily.Monospace, color = color)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+    ) {
+        if (icon1 != null) Icon(painter = painterResource(id = icon1), contentDescription = desc1, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(text = text1, style = textStyle)
+        if(text2 != "") Text(text = text2, style = textStyle.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
+    }
+}
+
+@Composable
+fun TextEntryHours(
+    text1: String,
+    text2: String = "",
+    text3: String = "",
+    icon1: Int? = null,
+    icon2: Int? = null,
+    icon3: Int? = null,
+    desc1: String = "",
+    desc2: String = "",
+    desc3: String = "",
+    color: Color = DividerDefaults.color
+) {
     val textStyle = TextStyle(fontSize = (13.5).sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
     ) {
-        if (icon != null) Icon(painter = painterResource(id = icon), contentDescription = desc, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-        Text(text = text1, style = textStyle)
-        if(text2 != "") Text(text = text2, style = textStyle.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
+        VerticalDivider(
+            modifier = Modifier
+                .fillMaxHeight()
+                .padding(vertical = 4.dp),
+            thickness = (1.5).dp,
+            color = color
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row() {
+                if (icon1 != null) Icon(painter = painterResource(id = icon1), contentDescription = desc1, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                Text(text = text1, style = textStyle)
+            }
+            Row() {
+                if (icon2 != null) Icon(painter = painterResource(id = icon2), contentDescription = desc2, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                if(text2 != "") Text(text = text2, style = textStyle)
+            }
+        }
+        val color = DividerDefaults.color
+        // The Curly Brace Separator
+        Canvas(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(12.dp) // Space for the brace
+                .padding(vertical = 4.dp)
+        ) {
+            val strokeWidth = 1.dp.toPx()
+            val w = size.width
+            val h = size.height
+            val r = 4.dp.toPx() // Curvature radius
+
+            val path = androidx.compose.ui.graphics.Path().apply {
+                // Top curve
+                moveTo(0f, 0f)
+                quadraticTo(w * 0.5f, 0f, w * 0.5f, r)
+                // Top vertical line
+                lineTo(w * 0.5f, h * 0.5f - r)
+                // Middle point (the tip of the brace)
+                quadraticTo(w * 0.5f, h * 0.5f, w, h * 0.5f)
+                quadraticTo(w * 0.5f, h * 0.5f, w * 0.5f, h * 0.5f + r)
+                // Bottom vertical line
+                lineTo(w * 0.5f, h - r)
+                // Bottom curve
+                quadraticTo(w * 0.5f, h, 0f, h)
+            }
+
+            drawPath(
+                path = path,
+                color = color,
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
+            )
+        }
+
+        Row() {
+            if (icon3 != null) Icon(painter = painterResource(id = icon3), contentDescription = desc3, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+            if(text3 != "") Text(text = text3, style = textStyle.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
+        }
     }
 }
