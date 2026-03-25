@@ -48,7 +48,7 @@ fun PathCard(
         modifier = Modifier
             .fillMaxWidth()
 //            .aspectRatio(2f)
-            .padding(horizontal = 8.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp)
     ) {
         Column() {
             LazyRow(
@@ -112,7 +112,7 @@ internal fun CustomColumn(header: String, value: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(verticalSpacing)
     ) {
-        Text(text = header, style = textStyle.copy(fontWeight = FontWeight.Bold, letterSpacing = (0.3).sp, color = MaterialTheme.colorScheme.onSurfaceVariant))
+        Text(text = header, style = textStyle.copy(fontWeight = FontWeight.SemiBold, letterSpacing = (0).sp, color = MaterialTheme.colorScheme.primary))
         Text(text = value, style = textStyle.copy(color = MaterialTheme.colorScheme.onSurface))
     }
 }
