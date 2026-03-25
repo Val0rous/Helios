@@ -22,17 +22,37 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.ephemeris.helios.ui.theme.MaterialColors
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TimeMachine() {
+fun TimeMachine(
+    time: LocalDateTime,
+    isAutoUpdate: Boolean,
+    onTimeChange: (LocalDateTime) -> Unit,
+    onAutoUpdateChange: (Boolean) -> Unit,
+) {
+    val dayOfWeek = time.format(DateTimeFormatter.ofPattern("EEE", Locale.getDefault()))
+    val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
+    val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
+    val datePart = time.format(dateFormatter)
+    val timePart = time.format(timeFormatter)
+    val dateTime = "$dayOfWeek $datePart \t $timePart".replace(",", "").uppercase()
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min),
         shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer, // was surfaceVariant
+        color = MaterialTheme.colorScheme.surfaceVariant, // was surfaceContainer
         tonalElevation = 4.dp,
         shadowElevation = 8.dp
     ) {
@@ -42,9 +62,11 @@ fun TimeMachine() {
                 .padding(top = 8.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            //Todo: add row with text for date (left) and time (center), with autoUpdate controls to the right
+            //Todo: set the logic for those to work
             Text(
-                text = "Time Machine Controls Here",
-                style = MaterialTheme.typography.labelLarge,
+                text = dateTime,
+                style = TextStyle(fontFamily = FontFamily.Monospace),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             Canvas(
@@ -53,7 +75,7 @@ fun TimeMachine() {
                     .height(56.dp)/*.size(100.dp)*/
             ) {
                 drawRect(
-                    color = Color.Blue,
+                    color = MaterialColors.Amber300,
                     size = size // refers to Canvas size
 //                    topLeft = Offset(10f, 10f), // Optional: starting point
 //                    size = Size(width = 50f, height = 50f) // Optional: specific dimensions

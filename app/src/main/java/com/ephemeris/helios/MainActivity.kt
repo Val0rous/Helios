@@ -50,7 +50,12 @@ class MainActivity : ComponentActivity() {
                     //topBar
                     bottomBar = {
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            TimeMachine()
+                            TimeMachine(
+                                time = currentTime,
+                                isAutoUpdate = isAutoUpdateEnabled,
+                                onTimeChange = { currentTime = it },
+                                onAutoUpdateChange = { isAutoUpdateEnabled = it },
+                            )
                             Navbar(navController)
                         }
                     },
@@ -81,11 +86,7 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Routes.Sun.route) {
                             Sun(
-                                time = currentTime,
-                                isAutoUpdate = isAutoUpdateEnabled,
                                 coordinates = coordinates,
-                                onTimeChange = { currentTime = it },
-                                onAutoUpdateChange = { isAutoUpdateEnabled = it },
                                 onLocationChange = { coordinates = it },
                             )
                         }

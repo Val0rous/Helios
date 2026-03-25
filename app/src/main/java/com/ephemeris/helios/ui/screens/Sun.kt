@@ -65,30 +65,13 @@ fun getAngles(lat: Double, dec: Double, toSin: Boolean = false, toCos: Boolean =
 
 @Composable
 fun Sun(
-    time: LocalDateTime,
-    isAutoUpdate: Boolean,
     coordinates: Coordinates,
-    onTimeChange: (LocalDateTime) -> Unit,
-    onAutoUpdateChange: (Boolean) -> Unit,
     onLocationChange: (Coordinates) -> Unit,
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item {
-            val dayOfWeek = time.format(DateTimeFormatter.ofPattern("EEE", Locale.getDefault()))
-            val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-            val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
-            val datePart = time.format(dateFormatter)
-            val timePart = time.format(timeFormatter)
-            val dateTime = "$dayOfWeek $datePart \t $timePart".replace(",", "").uppercase()
-            Text(
-                text = dateTime,
-                modifier = Modifier.padding(16.dp),
-                style = TextStyle(fontFamily = FontFamily.Monospace)
-            )
-        }
         item { PathCard(hours, getAngles(coordinates.latitude, 23.44)) }
         item {
             SmallCardRow(
