@@ -149,6 +149,24 @@ fun Sun(
                 }
             )
         }
+        val dawnColor = MaterialColors.Purple500
+        val duskColor = MaterialColors.DeepPurple500
+        item {
+            SmallCardRow(
+                leftCard = {
+                    HeaderEntry(text = "Dawn", color = dawnColor)
+                    TextEntryHours(text1 = "Civil", text2 = "10:30 PM", text3 = "10h 10m", color = dawnColor)
+                    TextEntryHours(text1 = "Nautical", text2 = "11:00 PM", text3 = "10h 10m", color = dawnColor)
+                    TextEntryHours(text1 = "Astro", text2 = "11:30 PM", text3 = "10h 10m", color = dawnColor)
+                },
+                rightCard = {
+                    HeaderEntry(text = "Dusk", color = duskColor)
+                    TextEntryHours(text1 = "Civil", text2 = "10:30 PM", text3 = "10h 10m", color = duskColor)
+                    TextEntryHours(text1 = "Nautical", text2 = "11:00 PM", text3 = "10h 10m", color = duskColor)
+                    TextEntryHours(text1 = "Astro", text2 = "11:30 PM", text3 = "10h 10m", color = duskColor)
+                }
+            )
+        }
     }
 }
 
