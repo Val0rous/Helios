@@ -23,6 +23,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.ephemeris.helios.ui.composables.Navbar
 import com.ephemeris.helios.ui.composables.TimeMachine
+import com.ephemeris.helios.ui.composables.TopBar
 import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.Coordinates
@@ -47,7 +48,7 @@ class MainActivity : ComponentActivity() {
             HeliosTheme {
                 Scaffold(
                     //modifier
-                    //topBar
+                    topBar = { TopBar({}) },
                     bottomBar = {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             TimeMachine(
