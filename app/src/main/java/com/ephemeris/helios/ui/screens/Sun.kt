@@ -34,6 +34,9 @@ import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.PathCard
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Coordinates
+import com.ephemeris.helios.utils.formatNumber
+import com.ephemeris.helios.utils.round
+import com.ephemeris.helios.utils.roundToSignificant
 import kotlin.collections.toFloatArray
 import kotlin.math.asin
 import kotlin.math.cos
@@ -71,32 +74,39 @@ fun Sun(
         item {
             SmallCardRow(
                 leftCard = {
-                    HeaderEntry(text = stringResource(R.string.sunrise_sunset))
-                    TextEntry(text1 = "10:30 AM", text2 = "@ 155.0°", icon1 = R.drawable.ic_wb_sunny_filled, desc1 = "Sunrise")
-                    TextEntry(text1 = "10:00 PM", text2 = "@ 275.0°", icon1 = R.drawable.ic_wb_twilight_filled, desc1 = "Sunset")
+                    SunriseSunsetEntry(
+                        sunriseTime = "10:30 AM",
+                        sunsetTime = "10:00 PM",
+                        sunriseAzimuth = 155.0,
+                        sunsetAzimuth = 275.0
+                    )
                 },
                 rightCard = {
-                    HeaderEntry(text = stringResource(R.string.solar_noon))
-                    TextEntry(text1 = "12:15 PM", text2 = "@ 180.1°", icon1 = R.drawable.ic_pace, desc1 = "Time of Solar Noon")
-                    TextEntry(text1 = "69.2°", icon1 = R.drawable.ic_brightness_7, desc1 = "Altitude at Solar Noon")
+                    SolarNoonEntry(
+                        noonTime = "12:15 PM",
+                        noonAzimuth = 180.1,
+                        noonAltitude = 69.2
+                    )
                 }
             )
         }
         item {
             SmallCardRow(
                 leftCard = {
-                    HeaderEntry(text = stringResource(R.string.live_metrics))
-                    TextEntry(text1 = "1,100", text2 = "W/m²", icon1 = R.drawable.ic_bolt_filled, desc1 = "Current Irradiance")
-                    TextEntry(text1 = "UVI 10", text2 = "250 mW/m²", icon1 = R.drawable.ic_beach_access_filled, desc1 = "Current UV Index")
-                    TextEntry(text1 = "90,000", text2 = "Lux", icon1 = R.drawable.ic_lightbulb_filled, desc1 = "Current Luminance")
-                    TextEntry(text1 = "0.94 : 1", icon1 = R.drawable.ic_ev_shadow_filled, desc1 = "Current Shadow Ratio")
+                    LiveMetricsEntry(
+                        irradiance = 1100.0,
+                        uvIntensity = 10.0,
+                        luminance = 90000.0,
+                        shadowRatio = 0.94
+                    )
                 },
                 rightCard = {
-                    HeaderEntry(text = stringResource(R.string.daily_peaks))
-                    TextEntry(text1 = "1,368", text2 = "W/m²", icon1 = R.drawable.ic_bolt, desc1 = "Max Irradiance")
-                    TextEntry(text1 = "UVI 12", text2 = "300 mW/m²", icon1 = R.drawable.ic_beach_access, desc1 = "Max UV Index")
-                    TextEntry(text1 = "120,000", text2 = "Lux", icon1 = R.drawable.ic_lightbulb, desc1 = "Max Luminance")
-                    TextEntry(text1 = "0.38 : 1", icon1 = R.drawable.ic_ev_shadow, desc1 = "Min Shadow Ratio")
+                    DailyPeaksEntry(
+                        irradiance = 1368.0,
+                        uvIntensity = 12.0,
+                        luminance = 120000.0,
+                        shadowRatio = 0.38
+                    )
                 }
             )
         }
@@ -222,12 +232,12 @@ fun TextVariant(
 
 @Composable
 fun TextEntry(
-    text1: String,
-    text2: String = "",
-    icon1: Int? = null,
-    icon2: Int? = null,
-    desc1: String = "",
-    desc2: String = "",
+    text: String,
+    textVariant: String = "",
+    icon: Int? = null,
+    iconVariant: Int? = null,
+    desc: String = "",
+    descVariant: String = "",
     color: Color = MaterialTheme.colorScheme.onSurface
 ) {
     val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default, color = color)
@@ -238,9 +248,9 @@ fun TextEntry(
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
     ) {
-        if (icon1 != null) Icon(painter = painterResource(id = icon1), contentDescription = desc1, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-        Text(text = text1, style = textStyle)
-        if(text2 != "") TextVariant(text2)
+        if (icon != null) Icon(painter = painterResource(id = icon), contentDescription = desc, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+        Text(text = text, style = textStyle)
+        if(textVariant != "") TextVariant(textVariant)
     }
 }
 
@@ -308,4 +318,57 @@ fun TextEntryHours(
             TextVariant(duration)
         }
     }
+}
+
+@Composable
+fun SunriseSunsetEntry(
+    sunriseTime: String = "",
+    sunsetTime: String = "",
+    sunriseAzimuth: Double = 0.0,
+    sunsetAzimuth: Double = 0.0
+) {
+    HeaderEntry(text = stringResource(R.string.sunrise_sunset))
+    // Todo: implement always above/always below behavior
+    TextEntry(text = sunriseTime, textVariant = "@ $sunriseAzimuth°", icon = R.drawable.ic_wb_sunny_filled, desc = "Sunrise")
+    TextEntry(text = sunsetTime, textVariant = "@ $sunsetAzimuth°", icon = R.drawable.ic_wb_twilight_filled, desc = "Sunset")
+}
+
+@Composable
+fun SolarNoonEntry(
+    noonTime: String = "",
+    noonAzimuth: Double,
+    noonAltitude: Double
+) {
+    // Todo: make altitude turn red if sun is always below horizon
+    HeaderEntry(text = stringResource(R.string.solar_noon))
+    TextEntry(text = noonTime, textVariant = "@ $noonAzimuth°", icon = R.drawable.ic_pace, desc = "Time of Solar Noon")
+    TextEntry(text = "$noonAltitude°", textVariant = "", icon = R.drawable.ic_brightness_7, desc = "Altitude at Solar Noon")
+}
+
+@Composable
+fun LiveMetricsEntry(
+    irradiance: Double = 0.0,
+    uvIntensity: Double = 0.0,
+    luminance: Double = 0.0,
+    shadowRatio: Double = 0.0
+) {
+    HeaderEntry(text = stringResource(R.string.live_metrics))
+    TextEntry(text = "${irradiance.roundToSignificant()}", textVariant = "W/m²", icon = R.drawable.ic_bolt_filled, desc = "Current Irradiance")
+    TextEntry(text = "UVI ${uvIntensity.roundToSignificant(2)}", textVariant = "250 mW/m²", icon = R.drawable.ic_beach_access_filled, desc = "Current UV Index")
+    TextEntry(text = formatNumber(luminance.roundToSignificant()), textVariant = "Lux", icon = R.drawable.ic_lightbulb_filled, desc = "Current Luminance")
+    TextEntry(text = "${shadowRatio.roundToSignificant()} : 1", icon = R.drawable.ic_ev_shadow_filled, desc = "Current Shadow Ratio")
+}
+
+@Composable
+fun DailyPeaksEntry(
+    irradiance: Double = 0.0,
+    uvIntensity: Double = 0.0,
+    luminance: Double = 0.0,
+    shadowRatio: Double = 0.0
+) {
+    HeaderEntry(text = stringResource(R.string.daily_peaks))
+    TextEntry(text = "${irradiance.roundToSignificant()}", textVariant = "W/m²", icon = R.drawable.ic_bolt, desc = "Max Irradiance")
+    TextEntry(text = "UVI ${uvIntensity.roundToSignificant()}", textVariant = "300 mW/m²", icon = R.drawable.ic_beach_access, desc = "Max UV Index")
+    TextEntry(text = formatNumber(luminance.roundToSignificant()), textVariant = "Lux", icon = R.drawable.ic_lightbulb, desc = "Max Luminance")
+    TextEntry(text = "${shadowRatio.roundToSignificant()} : 1", icon = R.drawable.ic_ev_shadow, desc = "Min Shadow Ratio")
 }
