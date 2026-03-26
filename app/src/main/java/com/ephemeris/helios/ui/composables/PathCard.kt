@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ephemeris.helios.utils.Phases
 import com.ephemeris.helios.utils.SunChartTypes
 
 @Composable
@@ -87,7 +88,7 @@ fun PathCard(
                 CustomVerticalDivider()
                 CustomColumn("Azimuth", "185.0°")
                 CustomVerticalDivider()
-                CustomColumn("Shadow Ratio", "0.94 : 1")
+                CustomColumn("Phase", Phases.Sun.Twilight.Astronomical.desc)
             }
         }
     }
@@ -106,7 +107,7 @@ internal fun CustomVerticalDivider() {
 
 @Composable
 internal fun CustomColumn(header: String, value: String) {
-    val textStyle = TextStyle(fontSize = (13.5).sp, fontFamily = FontFamily.Monospace)
+    val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default)
     val verticalSpacing = 4.dp
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,

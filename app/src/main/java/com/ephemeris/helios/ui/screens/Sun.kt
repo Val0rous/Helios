@@ -209,7 +209,7 @@ fun HeaderEntry(
     text: String,
     color: Color = MaterialTheme.colorScheme.primary
 ) {
-    val headerStyle = TextStyle(fontSize = (13.5).sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.SemiBold, color = color)
+    val headerStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, color = color)
     Text(text = text, style = headerStyle)
 }
 
@@ -223,7 +223,7 @@ fun TextEntry(
     desc2: String = "",
     color: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    val textStyle = TextStyle(fontSize = (13.5).sp, fontFamily = FontFamily.Monospace, color = color)
+    val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default, color = color)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -250,7 +250,7 @@ fun TextEntryHours(
     desc3: String = "",
     color: Color = DividerDefaults.color
 ) {
-    val textStyle = TextStyle(fontSize = (13.5).sp, fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface)
+    val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default, color = MaterialTheme.colorScheme.onSurface)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
