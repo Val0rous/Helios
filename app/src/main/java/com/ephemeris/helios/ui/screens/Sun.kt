@@ -93,11 +93,15 @@ fun Sun(
                     HeaderEntry(text = "Live Metrics")
                     TextEntry(text1 = "1,100", text2 = "W/m²", icon1 = R.drawable.ic_bolt_filled, desc1 = "Current Irradiance")
                     TextEntry(text1 = "UVI 10", text2 = "250 mW/m²", icon1 = R.drawable.ic_beach_access_filled, desc1 = "Current UV Index")
+                    TextEntry(text1 = "90,000", text2 = "Lux", icon1 = R.drawable.ic_lightbulb_filled, desc1 = "Current Luminance")
+                    TextEntry(text1 = "0.94 : 1", icon1 = R.drawable.ic_ev_shadow_filled, desc1 = "Current Shadow Ratio")
                 },
                 rightCard = {
                     HeaderEntry(text = "Daily Peaks")
                     TextEntry(text1 = "1,368", text2 = "W/m²", icon1 = R.drawable.ic_bolt, desc1 = "Max Irradiance")
                     TextEntry(text1 = "UVI 12", text2 = "300 mW/m²", icon1 = R.drawable.ic_beach_access, desc1 = "Max UV Index")
+                    TextEntry(text1 = "120,000", text2 = "Lux", icon1 = R.drawable.ic_lightbulb, desc1 = "Max Luminance")
+                    TextEntry(text1 = "0.38 : 1", icon1 = R.drawable.ic_ev_shadow, desc1 = "Min Shadow Ratio")
                 }
             )
         }
