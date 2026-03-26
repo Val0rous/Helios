@@ -137,21 +137,24 @@ fun Sun(
                 }
             )
         }
-        val dawnColor = MaterialColors.Purple500
-        val duskColor = MaterialColors.DeepPurple500
+
+        val civilColor = MaterialColors.DeepPurple200
+        val nauticalColor = MaterialColors.DeepPurple300
+        val astroColor = MaterialColors.DeepPurple500
+        val twilightColor = MaterialColors.DeepPurple500
         item {
             SmallCardRow(
                 leftCard = {
-                    HeaderEntry(text = "Dawn", color = dawnColor)
-                    TextEntryHours(text1 = "Civil", text2 = "10:30 PM", text3 = "10h 10m", color = dawnColor)
-                    TextEntryHours(text1 = "Nautical", text2 = "11:00 PM", text3 = "10h 10m", color = dawnColor)
-                    TextEntryHours(text1 = "Astro", text2 = "11:30 PM", text3 = "10h 10m", color = dawnColor)
+                    HeaderEntry(text = "Dawn", color = twilightColor)
+                    TextEntryHours(text1 = "Civil", text2 = "10:30 PM", text3 = "10h 10m", color = civilColor)
+                    TextEntryHours(text1 = "Nautical", text2 = "11:00 PM", text3 = "10h 10m", color = nauticalColor)
+                    TextEntryHours(text1 = "Astro", text2 = "11:30 PM", text3 = "10h 10m", color = astroColor)
                 },
                 rightCard = {
-                    HeaderEntry(text = "Dusk", color = duskColor)
-                    TextEntryHours(text1 = "Civil", text2 = "10:30 PM", text3 = "10h 10m", color = duskColor)
-                    TextEntryHours(text1 = "Nautical", text2 = "11:00 PM", text3 = "10h 10m", color = duskColor)
-                    TextEntryHours(text1 = "Astro", text2 = "11:30 PM", text3 = "10h 10m", color = duskColor)
+                    HeaderEntry(text = "Dusk", color = twilightColor)
+                    TextEntryHours(text1 = "Civil", text2 = "10:30 PM", text3 = "10h 10m", color = civilColor)
+                    TextEntryHours(text1 = "Nautical", text2 = "11:00 PM", text3 = "10h 10m", color = nauticalColor)
+                    TextEntryHours(text1 = "Astro", text2 = "11:30 PM", text3 = "10h 10m", color = astroColor)
                 },
                 modifier = Modifier.padding(bottom = 16.dp)
             )
