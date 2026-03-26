@@ -1,22 +1,34 @@
 package com.ephemeris.helios.ui.composables
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.MaterialColors
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -36,6 +48,8 @@ fun TimeMachine(
     val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
     val datePart = time.format(dateFormatter)
     val timePart = time.format(timeFormatter)
+    val date = "$dayOfWeek $datePart".replace(",", "").uppercase()
+    val time = "$timePart".replace(",", "").uppercase()
     val dateTime = "$dayOfWeek $datePart \t $timePart".replace(",", "").uppercase()
 
     Surface(
@@ -49,17 +63,68 @@ fun TimeMachine(
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
+                .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             //Todo: add row with text for date (left) and time (center), with autoUpdate controls to the right
             //Todo: set the logic for those to work
-            Text(
-                text = dateTime,
-                style = TextStyle(fontFamily = FontFamily.Monospace),
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth().padding(start = 4.dp).height(IntrinsicSize.Min)
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.Start,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    TextButton(
+                        onClick = {},
+                    ) {
+                        Text(
+                            text = date,
+                            style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 13.sp),
+                        )
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    TextButton(
+                        onClick = {},
+                    ) {
+                        Text(
+                            text = time,
+                            style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 16.sp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+                Row(
+                    horizontalArrangement = Arrangement.End,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    if (!isAutoUpdate) {
+                        IconButton(
+                            onClick = {}
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_history),
+                                contentDescription = "Reset",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_circle_filled),
+                            contentDescription = "Auto Time Update",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(end = 16.dp).size(8.dp)
+                        )
+                    }
+                }
+            }
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()

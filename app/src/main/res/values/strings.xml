@@ -36,4 +36,6 @@
     <string name="current_location">Current location</string>
     <string name="searching_location">Searching location…</string>
     <string name="location_disabled">Location disabled</string>
+
+    <string name="culmination">Culmination</string>
 </resources>
