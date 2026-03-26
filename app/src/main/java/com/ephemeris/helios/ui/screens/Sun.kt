@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Card
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -25,20 +24,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.PathCard
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Coordinates
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
-import java.util.Locale
 import kotlin.collections.toFloatArray
 import kotlin.math.asin
 import kotlin.math.cos
@@ -76,12 +71,12 @@ fun Sun(
         item {
             SmallCardRow(
                 leftCard = {
-                    HeaderEntry(text = "Sunrise & Sunset")
+                    HeaderEntry(text = stringResource(R.string.sunrise_sunset))
                     TextEntry(text1 = "10:30 AM", text2 = "@ 155.0°", icon1 = R.drawable.ic_wb_sunny_filled, desc1 = "Sunrise")
                     TextEntry(text1 = "10:00 PM", text2 = "@ 275.0°", icon1 = R.drawable.ic_wb_twilight_filled, desc1 = "Sunset")
                 },
                 rightCard = {
-                    HeaderEntry(text = "Solar Noon")
+                    HeaderEntry(text = stringResource(R.string.solar_noon))
                     TextEntry(text1 = "12:15 PM", text2 = "@ 180.1°", icon1 = R.drawable.ic_pace, desc1 = "Time of Solar Noon")
                     TextEntry(text1 = "69.2°", icon1 = R.drawable.ic_brightness_7, desc1 = "Altitude at Solar Noon")
                 }
@@ -90,14 +85,14 @@ fun Sun(
         item {
             SmallCardRow(
                 leftCard = {
-                    HeaderEntry(text = "Live Metrics")
+                    HeaderEntry(text = stringResource(R.string.live_metrics))
                     TextEntry(text1 = "1,100", text2 = "W/m²", icon1 = R.drawable.ic_bolt_filled, desc1 = "Current Irradiance")
                     TextEntry(text1 = "UVI 10", text2 = "250 mW/m²", icon1 = R.drawable.ic_beach_access_filled, desc1 = "Current UV Index")
                     TextEntry(text1 = "90,000", text2 = "Lux", icon1 = R.drawable.ic_lightbulb_filled, desc1 = "Current Luminance")
                     TextEntry(text1 = "0.94 : 1", icon1 = R.drawable.ic_ev_shadow_filled, desc1 = "Current Shadow Ratio")
                 },
                 rightCard = {
-                    HeaderEntry(text = "Daily Peaks")
+                    HeaderEntry(text = stringResource(R.string.daily_peaks))
                     TextEntry(text1 = "1,368", text2 = "W/m²", icon1 = R.drawable.ic_bolt, desc1 = "Max Irradiance")
                     TextEntry(text1 = "UVI 12", text2 = "300 mW/m²", icon1 = R.drawable.ic_beach_access, desc1 = "Max UV Index")
                     TextEntry(text1 = "120,000", text2 = "Lux", icon1 = R.drawable.ic_lightbulb, desc1 = "Max Luminance")
@@ -110,14 +105,14 @@ fun Sun(
         item {
             SmallCardRow(
                 leftCard = {
-                    HeaderEntry(text = "Golden Hour", color = goldenHourColor)
-                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = goldenHourColor)
-                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = goldenHourColor)
+                    HeaderEntry(text = stringResource(R.string.golden_hour), color = goldenHourColor)
+                    TextEntryHours(label = "10:30 AM", time = "11:40 PM", duration = "10h 10m", color = goldenHourColor)
+                    TextEntryHours(label = "10:30 AM", time = "11:40 PM", duration = "10h 10m", color = goldenHourColor)
                 },
                 rightCard = {
-                    HeaderEntry(text = "Blue Hour", color = blueHourColor)
-                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = blueHourColor)
-                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = blueHourColor)
+                    HeaderEntry(text = stringResource(R.string.blue_hour), color = blueHourColor)
+                    TextEntryHours(label = "10:30 AM", time = "11:40 PM", duration = "10h 10m", color = blueHourColor)
+                    TextEntryHours(label = "10:30 AM", time = "11:40 PM", duration = "10h 10m", color = blueHourColor)
                 }
             )
         }
@@ -126,14 +121,14 @@ fun Sun(
         item {
             SmallCardRow(
                 leftCard = {
-                    HeaderEntry(text = "Pink Hour", color = pinkHourColor)
-                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = pinkHourColor)
-                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = pinkHourColor)
+                    HeaderEntry(text = stringResource(R.string.pink_hour), color = pinkHourColor)
+                    TextEntryHours(label = "10:30 AM", time = "11:40 PM", duration = "10h 10m", color = pinkHourColor)
+                    TextEntryHours(label = "10:30 AM", time = "11:40 PM", duration = "10h 10m", color = pinkHourColor)
                 },
                 rightCard = {
-                    HeaderEntry(text = "Alpenglow", color = alpenglowColor)
-                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = alpenglowColor)
-                    TextEntryHours(text1 = "10:30 AM", text2 = "11:40 PM", text3 = "10h 10m", color = alpenglowColor)
+                    HeaderEntry(text = stringResource(R.string.alpenglow), color = alpenglowColor)
+                    TextEntryHours(label = "10:30 AM", time = "11:40 PM", duration = "10h 10m", color = alpenglowColor)
+                    TextEntryHours(label = "10:30 AM", time = "11:40 PM", duration = "10h 10m", color = alpenglowColor)
                 }
             )
         }
@@ -142,19 +137,22 @@ fun Sun(
         val nauticalColor = MaterialColors.DeepPurple300
         val astroColor = MaterialColors.DeepPurple500
         val twilightColor = MaterialColors.DeepPurple500
+        val nightColor = MaterialColors.DeepPurple900
         item {
             SmallCardRow(
                 leftCard = {
-                    HeaderEntry(text = "Dawn", color = twilightColor)
-                    TextEntryHours(text1 = "Civil", text2 = "10:30 PM", text3 = "10h 10m", color = civilColor)
-                    TextEntryHours(text1 = "Nautical", text2 = "11:00 PM", text3 = "10h 10m", color = nauticalColor)
-                    TextEntryHours(text1 = "Astro", text2 = "11:30 PM", text3 = "10h 10m", color = astroColor)
+                    HeaderEntry(text = stringResource(R.string.dawn), color = twilightColor)
+                    TextEntryHours(label = stringResource(R.string.civil), time = "10:30 PM", duration = "10h 10m", color = civilColor)
+                    TextEntryHours(label = stringResource(R.string.nautical), time = "11:00 PM", duration = "10h 10m", color = nauticalColor)
+                    TextEntryHours(label = stringResource(R.string.astro), time = "11:30 PM", duration = "10h 10m", color = astroColor)
+                    TextEntryHours(label = stringResource(R.string.night), time = "12:30 AM", duration = "4h 30m", color = nightColor)
                 },
                 rightCard = {
-                    HeaderEntry(text = "Dusk", color = twilightColor)
-                    TextEntryHours(text1 = "Civil", text2 = "10:30 PM", text3 = "10h 10m", color = civilColor)
-                    TextEntryHours(text1 = "Nautical", text2 = "11:00 PM", text3 = "10h 10m", color = nauticalColor)
-                    TextEntryHours(text1 = "Astro", text2 = "11:30 PM", text3 = "10h 10m", color = astroColor)
+                    HeaderEntry(text = stringResource(R.string.dusk), color = twilightColor)
+                    TextEntryHours(label = stringResource(R.string.civil), time = "10:30 PM", duration = "10h 10m", color = civilColor)
+                    TextEntryHours(label = stringResource(R.string.nautical), time = "11:00 PM", duration = "10h 10m", color = nauticalColor)
+                    TextEntryHours(label = stringResource(R.string.astro), time = "11:30 PM", duration = "10h 10m", color = astroColor)
+                    TextEntryHours(label = stringResource(R.string.night), time = stringResource(R.string.not_for_this_day), duration = "", color = nightColor)
                 },
                 modifier = Modifier.padding(bottom = 16.dp)
             )
@@ -214,6 +212,15 @@ fun HeaderEntry(
 }
 
 @Composable
+fun TextVariant(
+    text: String,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    val textStyle = TextStyle(fontSize = 14.sp, fontFamily = FontFamily.Default, color = color)
+    Text(text = text, style = textStyle)
+}
+
+@Composable
 fun TextEntry(
     text1: String,
     text2: String = "",
@@ -233,21 +240,15 @@ fun TextEntry(
     ) {
         if (icon1 != null) Icon(painter = painterResource(id = icon1), contentDescription = desc1, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
         Text(text = text1, style = textStyle)
-        if(text2 != "") Text(text = text2, style = textStyle.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
+        if(text2 != "") TextVariant(text2)
     }
 }
 
 @Composable
 fun TextEntryHours(
-    text1: String,
-    text2: String = "",
-    text3: String = "",
-    icon1: Int? = null,
-    icon2: Int? = null,
-    icon3: Int? = null,
-    desc1: String = "",
-    desc2: String = "",
-    desc3: String = "",
+    label: String,
+    time: String = "",
+    duration: String = "",
     color: Color = DividerDefaults.color
 ) {
     val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default, color = MaterialTheme.colorScheme.onSurface)
@@ -266,53 +267,45 @@ fun TextEntryHours(
             color = color
         )
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row() {
-                if (icon1 != null) Icon(painter = painterResource(id = icon1), contentDescription = desc1, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                Text(text = text1, style = textStyle)
-            }
-            Row() {
-                if (icon2 != null) Icon(painter = painterResource(id = icon2), contentDescription = desc2, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                if(text2 != "") Text(text = text2, style = textStyle)
-            }
+            Text(text = label, style = textStyle)
+            if (time != "") Text(text = time, style = textStyle)
         }
-        val color = DividerDefaults.color
-        // The Curly Brace Separator
-        Canvas(
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(12.dp) // Space for the brace
-                .padding(vertical = 4.dp)
-        ) {
-            val strokeWidth = 1.dp.toPx()
-            val w = size.width
-            val h = size.height
-            val r = 4.dp.toPx() // Curvature radius
+        if (duration != "") {
+            val color = DividerDefaults.color
+            // The Curly Brace Separator
+            Canvas(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(12.dp) // Space for the brace
+                    .padding(vertical = 4.dp)
+            ) {
+                val strokeWidth = 1.dp.toPx()
+                val w = size.width
+                val h = size.height
+                val r = 4.dp.toPx() // Curvature radius
 
-            val path = androidx.compose.ui.graphics.Path().apply {
-                // Top curve
-                moveTo(0f, 0f)
-                quadraticTo(w * 0.5f, 0f, w * 0.5f, r)
-                // Top vertical line
-                lineTo(w * 0.5f, h * 0.5f - r)
-                // Middle point (the tip of the brace)
-                quadraticTo(w * 0.5f, h * 0.5f, w, h * 0.5f)
-                quadraticTo(w * 0.5f, h * 0.5f, w * 0.5f, h * 0.5f + r)
-                // Bottom vertical line
-                lineTo(w * 0.5f, h - r)
-                // Bottom curve
-                quadraticTo(w * 0.5f, h, 0f, h)
+                val path = androidx.compose.ui.graphics.Path().apply {
+                    // Top curve
+                    moveTo(0f, 0f)
+                    quadraticTo(w * 0.5f, 0f, w * 0.5f, r)
+                    // Top vertical line
+                    lineTo(w * 0.5f, h * 0.5f - r)
+                    // Middle point (the tip of the brace)
+                    quadraticTo(w * 0.5f, h * 0.5f, w, h * 0.5f)
+                    quadraticTo(w * 0.5f, h * 0.5f, w * 0.5f, h * 0.5f + r)
+                    // Bottom vertical line
+                    lineTo(w * 0.5f, h - r)
+                    // Bottom curve
+                    quadraticTo(w * 0.5f, h, 0f, h)
+                }
+
+                drawPath(
+                    path = path,
+                    color = color,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
+                )
             }
-
-            drawPath(
-                path = path,
-                color = color,
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
-            )
-        }
-
-        Row() {
-            if (icon3 != null) Icon(painter = painterResource(id = icon3), contentDescription = desc3, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-            if(text3 != "") Text(text = text3, style = textStyle.copy(color = MaterialTheme.colorScheme.onSurfaceVariant))
+            TextVariant(duration)
         }
     }
 }

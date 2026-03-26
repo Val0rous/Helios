@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import com.ephemeris.helios.utils.LocationStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -26,7 +27,7 @@ fun TopBar(onLocationClick: () -> Unit) {
                 Icon(
                     painter = painterResource(id = locationStatus.icon),
                     tint = color,
-                    contentDescription = locationStatus.desc
+                    contentDescription = stringResource(locationStatus.desc)
                 )
             }
         }

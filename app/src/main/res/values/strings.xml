@@ -6,4 +6,34 @@
     <string name="sun">Sun</string>
     <string name="moon">Moon</string>
     <string name="planets">Planets</string>
+
+    <string name="elevation">Elevation</string>
+    <string name="irradiance">Irradiance</string>
+    <string name="uv_intensity">UV Intensity</string>
+    <string name="trajectory">Trajectory</string>
+    <string name="illuminance">Illuminance</string>
+    <string name="shadows">Shadows</string>
+    <string name="air_mass">Air Mass</string>
+
+    <string name="sunrise_sunset">Sunrise &amp; Sunset</string>
+    <string name="solar_noon">Solar Noon</string>
+    <string name="live_metrics">Live Metrics</string>
+    <string name="daily_peaks">Daily Peaks</string>
+    <string name="golden_hour">Golden Hour</string>
+    <string name="blue_hour">Blue Hour</string>
+    <string name="pink_hour">Pink Hour</string>
+    <string name="alpenglow">Alpenglow</string>
+    <string name="dawn">Dawn</string>
+    <string name="dusk">Dusk</string>
+    <string name="civil">Civil</string>
+    <string name="nautical">Nautical</string>
+    <string name="astro">Astro</string>
+    <string name="night">Night</string>
+
+    <string name="all_day">All day</string>
+    <string name="not_for_this_day">Not for this day</string>
+
+    <string name="current_location">Current location</string>
+    <string name="searching_location">Searching location…</string>
+    <string name="location_disabled">Location disabled</string>
 </resources>
