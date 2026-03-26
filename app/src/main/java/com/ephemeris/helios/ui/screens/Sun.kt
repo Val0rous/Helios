@@ -90,14 +90,14 @@ fun Sun(
         item {
             SmallCardRow(
                 leftCard = {
-                    HeaderEntry(text = "UV Index")
-                    TextEntry(text1 = "UVI 12", text2 = "300 mW/m²", icon1 = R.drawable.ic_beach_access_filled, desc1 = "Max UV Index")
-                    TextEntry(text1 = "UVI 10", text2 = "250 mW/m²", icon1 = R.drawable.ic_beach_access, desc1 = "Current UV Index")
+                    HeaderEntry(text = "Live Metrics")
+                    TextEntry(text1 = "1,100", text2 = "W/m²", icon1 = R.drawable.ic_bolt_filled, desc1 = "Current Irradiance")
+                    TextEntry(text1 = "UVI 10", text2 = "250 mW/m²", icon1 = R.drawable.ic_beach_access_filled, desc1 = "Current UV Index")
                 },
                 rightCard = {
-                    HeaderEntry(text = "Solar Power")
-                    TextEntry(text1 = "1,368", text2 = "W/m²", icon1 = R.drawable.ic_bolt_filled, desc1 = "Max Irradiance")
-                    TextEntry(text1 = "1,100", text2 = "W/m²", icon1 = R.drawable.ic_bolt, desc1 = "Current Irradiance")
+                    HeaderEntry(text = "Daily Peaks")
+                    TextEntry(text1 = "1,368", text2 = "W/m²", icon1 = R.drawable.ic_bolt, desc1 = "Max Irradiance")
+                    TextEntry(text1 = "UVI 12", text2 = "300 mW/m²", icon1 = R.drawable.ic_beach_access, desc1 = "Max UV Index")
                 }
             )
         }
@@ -148,7 +148,8 @@ fun Sun(
                     TextEntryHours(text1 = "Civil", text2 = "10:30 PM", text3 = "10h 10m", color = duskColor)
                     TextEntryHours(text1 = "Nautical", text2 = "11:00 PM", text3 = "10h 10m", color = duskColor)
                     TextEntryHours(text1 = "Astro", text2 = "11:30 PM", text3 = "10h 10m", color = duskColor)
-                }
+                },
+                modifier = Modifier.padding(bottom = 16.dp)
             )
         }
     }
@@ -174,10 +175,11 @@ internal fun SmallCard(card: @Composable () -> Unit, modifier: Modifier = Modifi
 @Composable
 internal fun SmallCardRow(
     leftCard: @Composable () -> Unit,
-    rightCard: @Composable () -> Unit
+    rightCard: @Composable () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .padding(horizontal = 8.dp)
