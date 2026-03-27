@@ -34,9 +34,11 @@ import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.PathCard
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Coordinates
+import com.ephemeris.helios.utils.SolarEphemeris
 import com.ephemeris.helios.utils.formatNumber
 import com.ephemeris.helios.utils.round
 import com.ephemeris.helios.utils.roundToSignificant
+import com.ephemeris.helios.utils.timeFormat
 import kotlin.collections.toFloatArray
 import kotlin.math.asin
 import kotlin.math.cos
@@ -65,6 +67,7 @@ fun getAngles(lat: Double, dec: Double, toSin: Boolean = false, toCos: Boolean =
 fun Sun(
     coordinates: Coordinates,
     onLocationChange: (Coordinates) -> Unit,
+    events: SolarEphemeris.DailyEvents
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -75,15 +78,15 @@ fun Sun(
             SmallCardRow(
                 leftCard = {
                     SunriseSunsetEntry(
-                        sunriseTime = "10:30 AM",
-                        sunsetTime = "10:00 PM",
+                        sunriseTime = SolarEphemeris.formatDecimalHours(events.sunrise),
+                        sunsetTime = SolarEphemeris.formatDecimalHours(events.sunset),
                         sunriseAzimuth = 155.0,
                         sunsetAzimuth = 275.0
                     )
                 },
                 rightCard = {
                     SolarNoonEntry(
-                        noonTime = "12:15 PM",
+                        noonTime = SolarEphemeris.formatDecimalHours(events.solarNoon),
                         noonAzimuth = 180.1,
                         noonAltitude = 69.2
                     )

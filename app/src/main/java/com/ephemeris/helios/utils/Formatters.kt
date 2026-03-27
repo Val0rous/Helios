@@ -6,6 +6,9 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.DateFormatSymbols
 import java.text.NumberFormat
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.ceil
@@ -38,4 +41,10 @@ fun Double.roundToSignificant(figures: Int = 3): Double {
     val magnitude = ceil(log10(abs(this)))
     val decimals = (figures - magnitude.toInt()).coerceAtLeast(0)
     return BigDecimal(this).setScale(decimals, RoundingMode.HALF_UP).toDouble()
+}
+
+fun timeFormat(time: LocalDateTime): String {
+    val formatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
+    return time.format(formatter)
+        .replace("\u202F", " ")
 }
