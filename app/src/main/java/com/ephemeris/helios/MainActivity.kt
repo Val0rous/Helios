@@ -27,8 +27,8 @@ import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.Routes
 import com.ephemeris.helios.utils.SolarEphemeris
 import kotlinx.coroutines.delay
-import java.time.LocalDate
-import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
@@ -40,17 +40,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             navController = rememberNavController()
             var startDestination by remember { mutableStateOf(initialStartDestination) }
-            var currentTime by remember { mutableStateOf(LocalDateTime.now()) }
+            var currentTime by remember { mutableStateOf(ZonedDateTime.now()) }
             var isAutoUpdateEnabled by remember { mutableStateOf(true) }
             var coordinates by remember { mutableStateOf(Coordinates(44.24, 11.99)) }
 
-            currentTime = LocalDateTime.of(2026, 3, 27, 15, 0)
+            currentTime = ZonedDateTime.of(2026, 3, 27, 15, 0, 0, 0, ZoneId.of("UTC+1"))
             val events = SolarEphemeris.calculateDailyEvents(
                 date = currentTime.toLocalDate(),
                 latitude = coordinates.latitude,
                 longitude = coordinates.longitude,
                 tzOffsetHours = 1.0
             )
+            var currentSunPosition by remember{ mutableStateOf(SolarEphemeris.calculatePosition(currentTime, coordinates.latitude, coordinates.longitude)) }
 
             HeliosTheme {
                 Scaffold(
@@ -77,7 +78,8 @@ class MainActivity : ComponentActivity() {
                         if (isAutoUpdateEnabled) {
                             while (true) {
                                 delay(12000)
-                                currentTime = LocalDateTime.now()
+                                currentTime = ZonedDateTime.now()
+                                currentSunPosition = SolarEphemeris.calculatePosition(currentTime, coordinates.latitude, coordinates.longitude)
                             }
                         }
                     }
@@ -94,8 +96,9 @@ class MainActivity : ComponentActivity() {
                         }
                         composable(Routes.Sun.route) {
                             Sun(
+                                currentTime = currentTime,
                                 coordinates = coordinates,
-                                onLocationChange = { coordinates = it },
+                                currentPosition = currentSunPosition,
                                 events = events,
                             )
                         }

@@ -38,7 +38,7 @@ import com.ephemeris.helios.utils.SolarEphemeris
 import com.ephemeris.helios.utils.formatNumber
 import com.ephemeris.helios.utils.round
 import com.ephemeris.helios.utils.roundToSignificant
-import com.ephemeris.helios.utils.timeFormat
+import java.time.ZonedDateTime
 import kotlin.collections.toFloatArray
 import kotlin.math.asin
 import kotlin.math.cos
@@ -65,30 +65,39 @@ fun getAngles(lat: Double, dec: Double, toSin: Boolean = false, toCos: Boolean =
 
 @Composable
 fun Sun(
+    currentTime: ZonedDateTime,
     coordinates: Coordinates,
-    onLocationChange: (Coordinates) -> Unit,
+    currentPosition: SolarEphemeris.SolarPosition,
     events: SolarEphemeris.DailyEvents
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize()
     ) {
-        item { PathCard(hours, getAngles(coordinates.latitude, 23.44)) }
+        item {
+            PathCard(
+                xValues = hours,
+                yValues = getAngles(coordinates.latitude, 23.44),
+                events = events,
+                currentHour = currentTime.hour.toFloat() + currentTime.minute.toFloat() / 60f,
+                currentPosition = currentPosition
+            )
+        }
         item {
             SmallCardRow(
                 leftCard = {
                     SunriseSunsetEntry(
                         sunriseTime = SolarEphemeris.formatDecimalHours(events.sunrise),
                         sunsetTime = SolarEphemeris.formatDecimalHours(events.sunset),
-                        sunriseAzimuth = 155.0,
-                        sunsetAzimuth = 275.0
+                        sunriseAzimuth = events.sunriseAzimuth!!.round(),
+                        sunsetAzimuth = events.sunsetAzimuth!!.round()
                     )
                 },
                 rightCard = {
                     SolarNoonEntry(
                         noonTime = SolarEphemeris.formatDecimalHours(events.solarNoon),
-                        noonAzimuth = 180.1,
-                        noonAltitude = 69.2
+                        noonAzimuth = events.solarNoonAzimuth.round(),
+                        noonAltitude = events.solarNoonAltitude.round()
                     )
                 }
             )
@@ -146,26 +155,33 @@ fun Sun(
             )
         }
 
-        val civilColor = MaterialColors.DeepPurple200
-        val nauticalColor = MaterialColors.DeepPurple300
-        val astroColor = MaterialColors.DeepPurple500
-        val twilightColor = MaterialColors.DeepPurple500
-        val nightColor = MaterialColors.DeepPurple900
         item {
             SmallCardRow(
                 leftCard = {
-                    HeaderEntry(text = stringResource(R.string.dawn), color = twilightColor)
-                    TextEntryHours(label = stringResource(R.string.civil), time = "10:30 PM", duration = "10h 10m", color = civilColor)
-                    TextEntryHours(label = stringResource(R.string.nautical), time = "11:00 PM", duration = "10h 10m", color = nauticalColor)
-                    TextEntryHours(label = stringResource(R.string.astro), time = "11:30 PM", duration = "10h 10m", color = astroColor)
-                    TextEntryHours(label = stringResource(R.string.night), time = "12:30 AM", duration = "4h 30m", color = nightColor)
+                    TwilightEntry(
+                        title = R.string.dawn,
+                        civilTime = SolarEphemeris.formatDecimalHours(events.dawnCivil),
+                        civilDuration = "",
+                        nauticalTime = SolarEphemeris.formatDecimalHours(events.dawnNautical),
+                        nauticalDuration = "",
+                        astroTime = SolarEphemeris.formatDecimalHours(events.dawnAstronomical),
+                        astroDuration = "",
+                        nightTime = "",
+                        nightDuration = ""
+                    )
                 },
                 rightCard = {
-                    HeaderEntry(text = stringResource(R.string.dusk), color = twilightColor)
-                    TextEntryHours(label = stringResource(R.string.civil), time = "10:30 PM", duration = "10h 10m", color = civilColor)
-                    TextEntryHours(label = stringResource(R.string.nautical), time = "11:00 PM", duration = "10h 10m", color = nauticalColor)
-                    TextEntryHours(label = stringResource(R.string.astro), time = "11:30 PM", duration = "10h 10m", color = astroColor)
-                    TextEntryHours(label = stringResource(R.string.night), time = stringResource(R.string.not_for_this_day), duration = "", color = nightColor)
+                    TwilightEntry(
+                        title = R.string.dusk,
+                        civilTime = SolarEphemeris.formatDecimalHours(events.duskCivil),
+                        civilDuration = "",
+                        nauticalTime = SolarEphemeris.formatDecimalHours(events.duskNautical),
+                        nauticalDuration = "",
+                        astroTime = SolarEphemeris.formatDecimalHours(events.duskAstronomical),
+                        astroDuration = "",
+                        nightTime = "",
+                        nightDuration = ""
+                    )
                 },
                 modifier = Modifier.padding(bottom = 16.dp)
             )
@@ -327,13 +343,23 @@ fun TextEntryHours(
 fun SunriseSunsetEntry(
     sunriseTime: String = "",
     sunsetTime: String = "",
-    sunriseAzimuth: Double = 0.0,
-    sunsetAzimuth: Double = 0.0
+    sunriseAzimuth: Double?,
+    sunsetAzimuth: Double?
 ) {
     HeaderEntry(text = stringResource(R.string.sunrise_sunset))
     // Todo: implement always above/always below behavior
-    TextEntry(text = sunriseTime, textVariant = "@ $sunriseAzimuth°", icon = R.drawable.ic_wb_sunny_filled, desc = "Sunrise")
-    TextEntry(text = sunsetTime, textVariant = "@ $sunsetAzimuth°", icon = R.drawable.ic_wb_twilight_filled, desc = "Sunset")
+    TextEntry(
+        text = sunriseTime,
+        textVariant = if (sunriseAzimuth != null) "@ $sunriseAzimuth°" else "",
+        icon = R.drawable.ic_wb_sunny_filled,
+        desc = "Sunrise"
+    )
+    TextEntry(
+        text = sunsetTime,
+        textVariant = if (sunsetAzimuth != null) "@ $sunsetAzimuth°" else "",
+        icon = R.drawable.ic_wb_twilight_filled,
+        desc = "Sunset"
+    )
 }
 
 @Composable
@@ -374,4 +400,28 @@ fun DailyPeaksEntry(
     TextEntry(text = "UVI ${uvIntensity.roundToSignificant()}", textVariant = "300 mW/m²", icon = R.drawable.ic_beach_access, desc = "Max UV Index")
     TextEntry(text = formatNumber(luminance.roundToSignificant()), textVariant = "Lux", icon = R.drawable.ic_lightbulb, desc = "Max Luminance")
     TextEntry(text = "${shadowRatio.roundToSignificant()} : 1", icon = R.drawable.ic_ev_shadow, desc = "Min Shadow Ratio")
+}
+
+@Composable
+fun TwilightEntry(
+    title: Int,
+    civilTime: String = "",
+    civilDuration: String = "",
+    nauticalTime: String = "",
+    nauticalDuration: String = "",
+    astroTime: String = "",
+    astroDuration: String = "",
+    nightTime: String = "",
+    nightDuration: String = ""
+) {
+    val civilColor = MaterialColors.DeepPurple200
+    val nauticalColor = MaterialColors.DeepPurple300
+    val astroColor = MaterialColors.DeepPurple500
+    val twilightColor = MaterialColors.DeepPurple500
+    val nightColor = MaterialColors.DeepPurple900
+    HeaderEntry(text = stringResource(title), color = twilightColor)
+    TextEntryHours(label = stringResource(R.string.civil), time = civilTime, duration = civilDuration, color = civilColor)
+    TextEntryHours(label = stringResource(R.string.nautical), time = nauticalTime, duration = nauticalDuration, color = nauticalColor)
+    TextEntryHours(label = stringResource(R.string.astro), time = astroTime, duration = astroDuration, color = astroColor)
+//    TextEntryHours(label = stringResource(R.string.night), time = nightTime, duration = nightDuration, color = nightColor)
 }

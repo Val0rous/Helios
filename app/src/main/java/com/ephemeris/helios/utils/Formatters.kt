@@ -13,6 +13,7 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.log10
+import kotlin.math.roundToInt
 
 // Format hours according to brevity rules
 fun formatHour(hour: Int, isShortFormat: Boolean = false, context: Context): String {
@@ -47,4 +48,24 @@ fun timeFormat(time: LocalDateTime): String {
     val formatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
     return time.format(formatter)
         .replace("\u202F", " ")
+}
+
+fun Double.formatDuration(showSeconds: Boolean = false): String {
+    // Catch the polar extremes directly
+    if (this <= 0.0) return "0:00:00"
+    if (this >= 24.0) return "24:00:00"
+
+    // Convert to total seconds to avoid floating point modulo errors
+    val totalSeconds = (this * 3600.0).roundToInt()
+
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+
+    // %d formats without a leading zero. %02d forces two digits (leading zero if needed).
+    return if (showSeconds) {
+        String.format("%dh %2dm %2ds", hours, minutes, seconds)
+    } else {
+        String.format("%dh %2dm", hours, minutes)
+    }
 }
