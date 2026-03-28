@@ -32,7 +32,7 @@ fun PlutoTimeEntry(morningTime: String = "", eveningTime: String = "") {
         TextEntryHours(label = "Evening", time = eveningTime, color = plutoColor, modifier = Modifier.weight(1f))
     }
     Text(
-        text = "On a clear day, light matches the brightest part of a day on Pluto.",
+        text = stringResource(R.string.pluto_time_desc),
         style = TextStyle(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 11.sp,

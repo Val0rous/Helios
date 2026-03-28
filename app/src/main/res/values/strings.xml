@@ -44,4 +44,6 @@
     <string name="night_length">Night Length</string>
     <string name="night_length_midnight">Night Length &amp; Midnight</string>
     <string name="pluto_times">Pluto Times</string>
+    <!-- Keep this text within 69-70 chars to prevent overflow. Adjust for other languages -->
+    <string name="pluto_time_desc">On a clear day, light matches the brightest part of a day on Pluto.</string>
 </resources>
