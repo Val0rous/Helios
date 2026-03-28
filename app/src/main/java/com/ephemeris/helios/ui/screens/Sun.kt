@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,6 +36,8 @@ import com.ephemeris.helios.ui.composables.entries.DailyPeaksEntry
 import com.ephemeris.helios.ui.composables.entries.DurationEntry
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
 import com.ephemeris.helios.ui.composables.entries.LiveMetricsEntry
+import com.ephemeris.helios.ui.composables.entries.NightEntry
+import com.ephemeris.helios.ui.composables.entries.PlutoTimeEntry
 import com.ephemeris.helios.ui.composables.entries.SolarNoonEntry
 import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
 import com.ephemeris.helios.ui.composables.entries.TextEntryHours
@@ -221,9 +224,31 @@ fun Sun(
                         nightTime = "",
                         nightDuration = ""
                     )
-                },
-                modifier = Modifier.padding(bottom = 16.dp)
+                }
             )
+        }
+
+        item {
+            SmallCardRow(
+                leftCard = {
+                    NightEntry(
+                        duration = durations.night.total.formatDuration(true),
+                        midnightTime = events.solarMidnight.formatDecimalHours(),
+                        midnightAzimuth = events.solarMidnightAzimuth.round(),
+                        midnightAltitude = events.solarMidnightAltitude.round()
+                    )
+                },
+                rightCard = {
+                    PlutoTimeEntry(
+                        morningTime = events.morningPlutoTime.formatDecimalHours(),
+                        eveningTime = events.eveningPlutoTime.formatDecimalHours()
+                    )
+                }
+            )
+        }
+
+        item {
+            Spacer(modifier = Modifier.padding(bottom = 8.dp))
         }
     }
 }

@@ -41,4 +41,7 @@
 
     <string name="start">Start</string>
     <string name="end">End</string>
+    <string name="night_length">Night Length</string>
+    <string name="night_length_midnight">Night Length &amp; Midnight</string>
+    <string name="pluto_times">Pluto Times</string>
 </resources>

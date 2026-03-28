@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun TextEntryHours(
     label: String,
+    modifier: Modifier = Modifier,
     time: String = "",
     duration: String = "",
     color: Color = DividerDefaults.color
@@ -34,7 +35,7 @@ fun TextEntryHours(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
     ) {
