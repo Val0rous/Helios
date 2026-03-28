@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,13 +37,14 @@ import com.ephemeris.helios.ui.composables.PathChart
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.SolarEphemeris
 import com.ephemeris.helios.utils.SunChartTypes
+import com.ephemeris.helios.utils.SunMetrics
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.getSunPhase
 import com.ephemeris.helios.utils.round
 import java.time.ZonedDateTime
-import kotlin.collections.get
 import kotlin.math.round
-import kotlin.text.toDouble
+
+const val X_SIZE = 481 // 480 items
 
 @Composable
 fun PathCard(
@@ -55,18 +55,45 @@ fun PathCard(
 ) {
     var selectedChartType by remember { mutableStateOf(SunChartTypes.ELEVATION) }
     val currentHour: Float by remember { derivedStateOf { currentTime.hour.toFloat() + currentTime.minute / 60f + currentTime.second / 3600f } }
-    val hours = FloatArray(481) { round(it * 5f) / 100f }
-    val azimuths = FloatArray(481) { round(it * 5f) / 100f }
+    val hours = FloatArray(X_SIZE) { round(it * 5f) / 100f }
+    val azimuths = FloatArray(X_SIZE) { round(it * 75f) / 100f }
+    val elevationCalc = DoubleArray(hours.size) {
+        SolarEphemeris.getPositionAtHour(
+            date = currentTime.toLocalDate(),
+            decimalHour = hours[it].toDouble(),
+            latitude = coordinates.latitude,
+            longitude = coordinates.longitude,
+            tzOffsetHours = currentTime.offset.totalSeconds / 3600.0
+        ).altitude
+    }
+    val elevation = FloatArray(X_SIZE) { elevationCalc[it].toFloat() }
+    val irradiance = FloatArray(X_SIZE)
+    val uvIntensity = FloatArray(X_SIZE)
+    val illuminance = FloatArray(X_SIZE)
+    val shadowRatio = FloatArray(X_SIZE)
+    val airMass = FloatArray(X_SIZE)
+
+    SunMetrics.calculateMetrics(
+        sunElevationsDeg = elevationCalc,
+        observerAltitudeMeters = coordinates.altitude ?: 0.0,
+        outIrradiance = irradiance,
+        outUvi = uvIntensity,
+        outIlluminance = illuminance,
+        outShadowRatio = shadowRatio,
+        outAirMass = airMass
+    )
+
     val xValues = when (selectedChartType) {
         SunChartTypes.TRAJECTORY -> azimuths
         else -> hours
     }
-    val elevation = FloatArray(hours.size) {
-        SolarEphemeris.getPositionAtHour(currentTime.toLocalDate(), hours[it].toDouble(), coordinates.latitude, coordinates.longitude, currentTime.offset.totalSeconds / 3600.0).altitude.toFloat()
-    }
     val yValues = when (selectedChartType) {
-        SunChartTypes.ELEVATION -> elevation
-        else -> azimuths // TODO: FIX!!
+        SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> elevation
+        SunChartTypes.IRRADIANCE -> irradiance
+        SunChartTypes.UV_INTENSITY -> uvIntensity
+        SunChartTypes.ILLUMINANCE -> illuminance
+        SunChartTypes.SHADOWS -> shadowRatio
+        SunChartTypes.AIR_MASS -> airMass
     }
 
     OutlinedCard(
