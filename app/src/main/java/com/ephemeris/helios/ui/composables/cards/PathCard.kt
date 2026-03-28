@@ -97,7 +97,7 @@ fun PathCard(
     }
 
     OutlinedCard(
-        modifier = Modifier.Companion
+        modifier = Modifier
             .fillMaxWidth()
 //            .aspectRatio(2f)
             .padding(horizontal = 16.dp)
@@ -105,7 +105,7 @@ fun PathCard(
         Column() {
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.Companion.CenterVertically,
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.Companion.padding(horizontal = 8.dp)
             ) {
                 items(SunChartTypes.entries) { type ->
@@ -120,18 +120,18 @@ fun PathCard(
                 xValues = xValues,
                 yValues = yValues,
                 currentHour = currentHour,
-                modifier = Modifier.Companion
+                modifier = Modifier
                     .aspectRatio(2f)
                     .clip(RoundedCornerShape(12.dp))
                     .padding(vertical = 0.dp)
             )
             Row(
-                modifier = Modifier.Companion
+                modifier = Modifier
                     .fillMaxWidth()
                     .height(IntrinsicSize.Min)
                     .padding(top = 8.dp, bottom = 9.dp, start = 2.dp, end = 5.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Companion.CenterVertically
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 CustomColumn("Day Length", events.dayLength.formatDuration(true))
                 CustomVerticalDivider()
@@ -148,26 +148,26 @@ fun PathCard(
 @Composable
 internal fun CustomVerticalDivider() {
     VerticalDivider(
-        modifier = Modifier.Companion
+        modifier = Modifier
             .fillMaxHeight()
             .padding(vertical = 4.dp),
-        thickness = Dp.Companion.Hairline,
+        thickness = Dp.Hairline,
         color = DividerDefaults.color
     )
 }
 
 @Composable
 internal fun CustomColumn(header: String, value: String) {
-    val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Companion.Default)
+    val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default)
     val verticalSpacing = 4.dp
     Column(
-        horizontalAlignment = Alignment.Companion.CenterHorizontally,
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(verticalSpacing)
     ) {
         Text(
             text = header,
             style = textStyle.copy(
-                fontWeight = FontWeight.Companion.SemiBold,
+                fontWeight = FontWeight.SemiBold,
                 letterSpacing = (0).sp,
                 color = MaterialTheme.colorScheme.primary
             )
