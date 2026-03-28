@@ -27,7 +27,6 @@ import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.Routes
 import com.ephemeris.helios.utils.SolarEphemeris
 import kotlinx.coroutines.delay
-import java.time.ZoneId
 import java.time.ZonedDateTime
 
 class MainActivity : ComponentActivity() {
@@ -44,13 +43,14 @@ class MainActivity : ComponentActivity() {
             var isAutoUpdateEnabled by remember { mutableStateOf(true) }
             var coordinates by remember { mutableStateOf(Coordinates(44.24, 11.99)) }
 
-            currentTime = ZonedDateTime.of(2026, 3, 27, 15, 0, 0, 0, ZoneId.of("UTC+1"))
+//            currentTime = ZonedDateTime.of(2026, 3, 27, 15, 0, 0, 0, ZoneId.of("UTC+1"))
             val events = SolarEphemeris.calculateDailyEvents(
                 date = currentTime.toLocalDate(),
                 latitude = coordinates.latitude,
                 longitude = coordinates.longitude,
                 tzOffsetHours = 1.0
             )
+            val durations = SolarEphemeris.calculateDailyDurations(events)
             var currentSunPosition by remember{ mutableStateOf(SolarEphemeris.calculatePosition(currentTime, coordinates.latitude, coordinates.longitude)) }
 
             HeliosTheme {
@@ -100,6 +100,7 @@ class MainActivity : ComponentActivity() {
                                 coordinates = coordinates,
                                 currentPosition = currentSunPosition,
                                 events = events,
+                                durations = durations
                             )
                         }
                         composable(Routes.Moon.route) {

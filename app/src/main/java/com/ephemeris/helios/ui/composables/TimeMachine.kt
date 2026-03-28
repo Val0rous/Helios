@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,7 +45,7 @@ fun TimeMachine(
 ) {
     val dayOfWeek = time.format(DateTimeFormatter.ofPattern("EEE", Locale.getDefault()))
     val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-    val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
+    val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
     val datePart = time.format(dateFormatter)
     val timePart = time.format(timeFormatter)
     val date = "$dayOfWeek $datePart".replace(",", "").uppercase()
@@ -94,7 +95,7 @@ fun TimeMachine(
                     ) {
                         Text(
                             text = time,
-                            style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 16.sp),
+                            style = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 16.sp, fontWeight = FontWeight.Normal),
                             textAlign = TextAlign.Center
                         )
                     }

@@ -40,8 +40,46 @@ object SolarEphemeris {
         val duskNautical: Double?,
         val dawnAstronomical: Double?,
         val duskAstronomical: Double?,
-        val dayLength: Double
+        val dayLength: Double,
+        val solarMidnightAltitude: Double,
+        val dawnGoldenLower: Double?,
+        val dawnGoldenUpper: Double?,
+        val duskGoldenUpper: Double?,
+        val duskGoldenLower: Double?,
+        val dawnPinkLower: Double?,
+        val dawnPinkUpper: Double?,
+        val duskPinkUpper: Double?,
+        val duskPinkLower: Double?,
+        val dawnBlueLower: Double?,
+        val dawnBlueUpper: Double?,
+        val duskBlueUpper: Double?,
+        val duskBlueLower: Double?,
+        val dawnAlpenglowLower: Double?,
+        val dawnAlpenglowUpper: Double?,
+        val duskAlpenglowUpper: Double?,
+        val duskAlpenglowLower: Double?,
+        val morningPlutoTime: Double?,
+        val eveningPlutoTime: Double?
     )
+
+    data class DailyDurations(
+        val civilTwilight: PhaseDurations,
+        val nauticalTwilight: PhaseDurations,
+        val astronomicalTwilight: PhaseDurations,
+        val night: PhaseDurations,
+        val goldenHour: PhaseDurations,
+        val blueHour: PhaseDurations,
+        val pinkHour: PhaseDurations,
+        val alpenglow: PhaseDurations,
+//        val plutoTime: PhaseDurations // Pluto Time is an exact lux threshold (-2.20deg), not a phase, so it has no duration
+    )
+
+    data class PhaseDurations(
+        val morning: Double,
+        val evening: Double
+    ) {
+        val total: Double get() = morning + evening
+    }
 
     /**
      * Calculates all daily events (sunrise, sunset, twilights) in decimal hours, using iterative refinement for continuous accuracy.
@@ -50,7 +88,8 @@ object SolarEphemeris {
         date: LocalDate,
         latitude: Double,
         longitude: Double,
-        tzOffsetHours: Double
+        tzOffsetHours: Double,
+        prefs: LightPhasePreferences = LightPhasePreferences()
     ): DailyEvents {
         val latRad = Math.toRadians(latitude)
 
@@ -114,6 +153,20 @@ object SolarEphemeris {
         val nautical = findPreciseEventTimes(ALT_NAUTICAL_TWILIGHT)
         val astro = findPreciseEventTimes(ALT_ASTRONOMICAL_TWILIGHT)
 
+        val goldenLower = findPreciseEventTimes(prefs.goldenHourRange.start)
+        val goldenUpper = findPreciseEventTimes(prefs.goldenHourRange.endInclusive)
+
+        val pinkLower = findPreciseEventTimes(prefs.pinkHourRange.start)
+        val pinkUpper = findPreciseEventTimes(prefs.pinkHourRange.endInclusive)
+
+        val blueLower = findPreciseEventTimes(prefs.blueHourRange.start)
+        val blueUpper = findPreciseEventTimes(prefs.blueHourRange.endInclusive)
+
+        val alpenglowLower = findPreciseEventTimes(prefs.alpenglowRange.start)
+        val alpenglowUpper = findPreciseEventTimes(prefs.alpenglowRange.endInclusive)
+
+        val pluto = findPreciseEventTimes(ALT_PLUTO_TIME)
+
         // 3. Populate Azimuths for core events
         val noonPos = getPositionAtHour(date, exactSolarNoon, latitude, longitude, tzOffsetHours)
 
@@ -121,6 +174,24 @@ object SolarEphemeris {
         val sunsetPos = sun?.second?.let { getPositionAtHour(date, it, latitude, longitude, tzOffsetHours) }
 
         val dayLength = getExactDayLength(sun?.first, sun?.second, noonPos.altitude)
+
+        // 4. Iterative Solar Midnight
+        // Start with a rough 12h guess based on noon
+        var exactSolarMidnight = (exactSolarNoon + 12.0) % 24.0
+        // Refine it using the exact Equation of Time at midnight
+        for (i in 1..2) {
+            val midnightT = calculateJulianCentury(date, exactSolarMidnight, tzOffsetHours)
+            val midnightParams = calculateSolarParams(midnightT)
+
+            // The formula is the exact same as Solar Noon, just with +12.0 hours added to the baseline
+            exactSolarMidnight = (12.0 - (longitude / 15.0) - (midnightParams.eotMinutes / 60.0) + tzOffsetHours + 12.0) % 24.0
+        }
+
+        // Now calculate the exact altitude at that precise second
+        val finalMidnightT = calculateJulianCentury(date, exactSolarMidnight, tzOffsetHours)
+        val midnightParams = calculateSolarParams(finalMidnightT)
+        val midnightSinAlt = sin(latRad) * sin(midnightParams.declinationRad) + cos(latRad) * cos(midnightParams.declinationRad) * cos(Math.toRadians(0.0 - 180.0))
+        val solarMidnightAltitude = Math.toDegrees(asin(midnightSinAlt.coerceIn(-1.0, 1.0)))
 
         return DailyEvents(
             solarNoon = exactSolarNoon,
@@ -131,7 +202,129 @@ object SolarEphemeris {
             dawnCivil = civil?.first, duskCivil = civil?.second,
             dawnNautical = nautical?.first, duskNautical = nautical?.second,
             dawnAstronomical = astro?.first, duskAstronomical = astro?.second,
-            dayLength = dayLength
+            dayLength = dayLength,
+            solarMidnightAltitude = solarMidnightAltitude,
+            dawnGoldenLower = goldenLower?.first, dawnGoldenUpper = goldenUpper?.first,
+            duskGoldenUpper = goldenUpper?.second, duskGoldenLower = goldenLower?.second,
+            dawnPinkLower = pinkLower?.first, dawnPinkUpper = pinkUpper?.first,
+            duskPinkUpper = pinkUpper?.second, duskPinkLower = pinkLower?.second,
+            dawnBlueLower = blueLower?.first, dawnBlueUpper = blueUpper?.first,
+            duskBlueUpper = blueUpper?.second, duskBlueLower = blueLower?.second,
+            dawnAlpenglowLower = alpenglowLower?.first, dawnAlpenglowUpper = alpenglowUpper?.first,
+            duskAlpenglowUpper = alpenglowUpper?.second, duskAlpenglowLower = alpenglowLower?.second,
+            morningPlutoTime = pluto?.first, eveningPlutoTime = pluto?.second
+        )
+    }
+
+    fun calculateDailyDurations(
+        events: DailyEvents,
+        prefs: LightPhasePreferences = LightPhasePreferences()
+    ): DailyDurations {
+        val civilDurations = calculatePhaseDuration(
+            lowerBoundAlt = ALT_CIVIL_TWILIGHT,
+            upperBoundAlt = ALT_SUNRISE_SUNSET,
+            morningLowerTime = events.dawnCivil,
+            eveningLowerTime = events.duskCivil,
+            morningUpperTime = events.sunrise,
+            eveningUpperTime = events.sunset,
+            solarNoon = events.solarNoon,
+            solarNoonAltitude = events.solarNoonAltitude,
+            solarMidnightAltitude = events.solarMidnightAltitude
+        )
+
+        val nauticalDurations = calculatePhaseDuration(
+            lowerBoundAlt = ALT_NAUTICAL_TWILIGHT,
+            upperBoundAlt = ALT_CIVIL_TWILIGHT,
+            morningLowerTime = events.dawnNautical,
+            eveningLowerTime = events.duskNautical,
+            morningUpperTime = events.dawnCivil,
+            eveningUpperTime = events.duskCivil,
+            solarNoon = events.solarNoon,
+            solarNoonAltitude = events.solarNoonAltitude,
+            solarMidnightAltitude = events.solarMidnightAltitude
+        )
+
+        val astronomicalDurations = calculatePhaseDuration(
+            lowerBoundAlt = ALT_ASTRONOMICAL_TWILIGHT,
+            upperBoundAlt = ALT_NAUTICAL_TWILIGHT,
+            morningLowerTime = events.dawnAstronomical,
+            eveningLowerTime = events.duskAstronomical,
+            morningUpperTime = events.dawnNautical,
+            eveningUpperTime = events.duskNautical,
+            solarNoon = events.solarNoon,
+            solarNoonAltitude = events.solarNoonAltitude,
+            solarMidnightAltitude = events.solarMidnightAltitude
+        )
+
+        val goldenDurations = calculatePhaseDuration(
+            lowerBoundAlt = prefs.goldenHourRange.start,
+            upperBoundAlt = prefs.goldenHourRange.endInclusive,
+            morningLowerTime = events.dawnGoldenLower,
+            eveningLowerTime = events.duskGoldenLower,
+            morningUpperTime = events.dawnGoldenUpper,
+            eveningUpperTime = events.duskGoldenUpper,
+            solarNoon = events.solarNoon,
+            solarNoonAltitude = events.solarNoonAltitude,
+            solarMidnightAltitude = events.solarMidnightAltitude
+        )
+
+        val pinkDurations = calculatePhaseDuration(
+            lowerBoundAlt = prefs.pinkHourRange.start,
+            upperBoundAlt = prefs.pinkHourRange.endInclusive,
+            morningLowerTime = events.dawnPinkLower,
+            eveningLowerTime = events.duskPinkLower,
+            morningUpperTime = events.dawnPinkUpper,
+            eveningUpperTime = events.duskPinkUpper,
+            solarNoon = events.solarNoon,
+            solarNoonAltitude = events.solarNoonAltitude,
+            solarMidnightAltitude = events.solarMidnightAltitude
+        )
+
+        val blueDurations = calculatePhaseDuration(
+            lowerBoundAlt = prefs.blueHourRange.start,
+            upperBoundAlt = prefs.blueHourRange.endInclusive,
+            morningLowerTime = events.dawnBlueLower,
+            eveningLowerTime = events.duskBlueLower,
+            morningUpperTime = events.dawnBlueUpper,
+            eveningUpperTime = events.duskBlueUpper,
+            solarNoon = events.solarNoon,
+            solarNoonAltitude = events.solarNoonAltitude,
+            solarMidnightAltitude = events.solarMidnightAltitude
+        )
+
+        val alpenglowDurations = calculatePhaseDuration(
+            lowerBoundAlt = prefs.alpenglowRange.start,
+            upperBoundAlt = prefs.alpenglowRange.endInclusive,
+            morningLowerTime = events.dawnAlpenglowLower,
+            eveningLowerTime = events.duskAlpenglowLower,
+            morningUpperTime = events.dawnAlpenglowUpper,
+            eveningUpperTime = events.duskAlpenglowUpper,
+            solarNoon = events.solarNoon,
+            solarNoonAltitude = events.solarNoonAltitude,
+            solarMidnightAltitude = events.solarMidnightAltitude
+        )
+
+        val nightDurations = SolarEphemeris.calculatePhaseDuration(
+            lowerBoundAlt = -90.0, // Absolute bottom
+            upperBoundAlt = SolarEphemeris.ALT_ASTRONOMICAL_TWILIGHT, // -18.0
+            morningLowerTime = null, // Never crosses -90
+            eveningLowerTime = null,
+            morningUpperTime = events.dawnAstronomical,
+            eveningUpperTime = events.duskAstronomical,
+            solarNoon = events.solarNoon,
+            solarNoonAltitude = events.solarNoonAltitude,
+            solarMidnightAltitude = events.solarMidnightAltitude
+        )
+
+        return DailyDurations(
+            civilTwilight = civilDurations,
+            nauticalTwilight = nauticalDurations,
+            astronomicalTwilight = astronomicalDurations,
+            night = nightDurations,
+            goldenHour = goldenDurations,
+            blueHour = blueDurations,
+            pinkHour = pinkDurations,
+            alpenglow = alpenglowDurations
         )
     }
 
@@ -275,29 +468,6 @@ object SolarEphemeris {
     }
 
     /**
-     * Converts decimal hours to "HH:mm" string format.
-     */
-    fun formatDecimalHours(decimalHours: Double?): String {
-        if (decimalHours == null) return "--:--" // Sun never reaches the target angle
-
-        var hoursNormalized = decimalHours % 24.0
-        if (hoursNormalized < 0) hoursNormalized += 24.0
-
-        val hours = hoursNormalized.toInt()
-        val minutes = ((hoursNormalized - hours) * 60).roundToInt()
-
-        // Handle rounding edge case where minutes become 60
-        val finalHours = if (minutes == 60) (hours + 1) % 24 else hours
-        val finalMinutes = if (minutes == 60) 0 else minutes
-
-        val time = LocalTime.of(finalHours, finalMinutes)
-        val formatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
-        return time.format(formatter)
-            .replace("\u202F", " ")
-//        return String.format("%02d:%02d", finalHours, finalMinutes)
-    }
-
-    /**
      * Calculates Delta T (Terrestrial Time - Universal Time) in seconds.
      * Uses the Espenak and Meeus (2006) polynomial approximations.
      */
@@ -388,5 +558,63 @@ object SolarEphemeris {
         }
 
         return durationHours
+    }
+
+    /**
+     * Universally calculates the duration of any solar phase (Twilights, Golden Hour, Night).
+     * Flawlessly handles Polar Day, Polar Night, and mid-phase intersections.
+     */
+    fun calculatePhaseDuration(
+        lowerBoundAlt: Double,
+        upperBoundAlt: Double,
+        morningLowerTime: Double?,
+        eveningLowerTime: Double?,
+        morningUpperTime: Double?,
+        eveningUpperTime: Double?,
+        solarNoon: Double,
+        solarNoonAltitude: Double,
+        solarMidnightAltitude: Double
+    ): PhaseDurations {
+        val mStart = morningLowerTime
+        val mEnd = morningUpperTime
+        val eStart = eveningUpperTime
+        val eEnd = eveningLowerTime
+
+        // Case 1: Standard Day (Crosses both upper and lower boundaries)
+        if (mStart != null && mEnd != null && eStart != null && eEnd != null) {
+            return PhaseDurations(
+                morning = (mEnd - mStart + 24.0) % 24.0,
+                evening = (eEnd - eStart + 24.0) % 24.0
+            )
+        }
+
+        val solarMidnight = (solarNoon + 12.0) % 24.0
+
+        // Case 2: Peaks inside the phase (Crosses lower, but never reaches upper)
+        // Splits the continuous phase at Solar Noon
+        if (mStart != null && eEnd != null && mEnd == null && eStart == null) {
+            return PhaseDurations(
+                morning = (solarNoon - mStart + 24.0) % 24.0,
+                evening = (eEnd - solarNoon + 24.0) % 24.0
+            )
+        }
+
+        // Case 3: Bottoms out inside the phase (Crosses upper, never drops below lower)
+        // Splits the continuous phase at Solar Midnight
+        if (mEnd != null && eStart != null && mStart == null && eEnd == null) {
+            return PhaseDurations(
+                morning = (mEnd - solarMidnight + 24.0) % 24.0,
+                evening = (solarMidnight - eStart + 24.0) % 24.0
+            )
+        }
+
+        // Case 4: Never crosses either boundary.
+        // It is either completely above, completely below, or permanently trapped inside.
+        if (solarNoonAltitude < lowerBoundAlt || solarMidnightAltitude > upperBoundAlt) {
+            return PhaseDurations(0.0, 0.0) // Missed the phase entirely
+        }
+
+        // The sun's 24-hour cycle is permanently trapped inside this phase (e.g., Twilight all day)
+        return PhaseDurations(12.0, 12.0)
     }
 }

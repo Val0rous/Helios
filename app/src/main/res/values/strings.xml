@@ -38,4 +38,7 @@
     <string name="location_disabled">Location disabled</string>
 
     <string name="culmination">Culmination</string>
+
+    <string name="start">Start</string>
+    <string name="end">End</string>
 </resources>
