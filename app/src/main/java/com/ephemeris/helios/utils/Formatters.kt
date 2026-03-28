@@ -45,6 +45,14 @@ fun Double.roundToSignificant(figures: Int = 3): Double {
     return BigDecimal(this).setScale(decimals, RoundingMode.HALF_UP).toDouble()
 }
 
+fun Double.printRounded(decimals: Int = 2): String {
+    if (this == 0.0) return "0"
+    return BigDecimal(this)
+        .setScale(decimals, RoundingMode.HALF_UP)
+        .stripTrailingZeros()
+        .toPlainString()
+}
+
 fun timeFormat(time: LocalDateTime): String {
     val formatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
     return time.format(formatter)

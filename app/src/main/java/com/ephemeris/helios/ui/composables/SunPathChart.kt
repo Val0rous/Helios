@@ -1,6 +1,5 @@
 package com.ephemeris.helios.ui.composables
 
-import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -25,15 +24,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.LocalCustomColors
+import com.ephemeris.helios.utils.SunChartTypes
 import com.ephemeris.helios.utils.formatHour
-import java.text.DateFormatSymbols
-import java.util.Locale
+import com.ephemeris.helios.utils.formatNumber
+import com.ephemeris.helios.utils.printRounded
+import com.ephemeris.helios.utils.roundToSignificant
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.max
+import kotlin.math.pow
 import kotlin.math.round
 
 @Composable
-fun PathChart(
+fun SunPathChart(
     xValues: FloatArray,
     yValues: FloatArray,
+    chartType: SunChartTypes,
     currentHour: Float,
     modifier: Modifier = Modifier
 ) {
@@ -74,18 +80,53 @@ fun PathChart(
 
         val minX = xValues.minOrNull() ?: 0f
         val maxX = xValues.maxOrNull() ?: 24f
-        val minY = -90f
-        val maxY = 90f
+        val minY = when (chartType) {
+            SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> -90f
+            SunChartTypes.COLOR_TEMPERATURE -> 2000f
+            SunChartTypes.AIR_MASS -> 1f
+            else -> 0f
+        }
+        val maxY = when (chartType) {
+            SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> 90f
+            SunChartTypes.IRRADIANCE -> max(1000f, yValues.max())
+            SunChartTypes.UV_INTENSITY -> max(10f, yValues.max())
+            SunChartTypes.ILLUMINANCE -> max(100000f, yValues.max())
+            SunChartTypes.SHADOWS -> 10f
+            SunChartTypes.COLOR_TEMPERATURE -> max(5500f, yValues.max())
+            SunChartTypes.AIR_MASS -> 10f // or 15f
+        }
 
         val verticalPaddingPx = 16.dp.toPx()
         val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
 
+        val isLogScale = when (chartType) {
+            SunChartTypes.ILLUMINANCE, SunChartTypes.SHADOWS, SunChartTypes.AIR_MASS -> true
+            else -> false
+        }
+
         // Helper functions to map mathematical coordinates to Canvas pixels
         fun mapX(x: Float) = ((x - minX) / (maxX - minX)) * width
         // Canvas Y=0 is at the top, so we invert the Y mapping
-        fun mapY(y: Float) = height - verticalPaddingPx - ((y - minY) / (maxY - minY)) * drawHeight
+        fun mapY(y: Float): Float {
+            return if (isLogScale) {
+                // log10(y + 1) safely handles 0 values without throwing negative infinity
+                val logY = log10(y.coerceAtLeast(0f) + 1f)
+                val logMin = log10(minY.coerceAtLeast(0f) + 1f)
+                val logMax = log10(maxY.coerceAtLeast(0f) + 1f)
 
-        val zeroYPixel = mapY(0f)
+                val fraction = if (logMax == logMin) 0f else (logY - logMin) / (logMax - logMin)
+                height - verticalPaddingPx - (fraction * drawHeight)
+            } else {
+                val fraction = if (maxY == minY) 0f else (y - minY) / (maxY - minY)
+                height - verticalPaddingPx - (fraction * drawHeight)
+            }
+        }
+
+        val zeroYPixel = when (chartType) {
+            SunChartTypes.COLOR_TEMPERATURE -> mapY(2000f)
+            SunChartTypes.AIR_MASS -> mapY(1f)
+            else -> mapY(0f)
+        }
         val currentXPx = mapX(currentHour)
 
         // Day Background
@@ -293,7 +334,18 @@ fun PathChart(
         val horizontalGridlineColor = materialTheme.outline.copy(alpha = 0.3f) // Light and subtle
 
         // 5a. Draw Vertical Legend (Y-axis Altitudes)
-        val yLabels = listOf(90f, 60f, 30f, 0f, -30f, -60f, -90f)
+        val yLabels = when (chartType) {
+            SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> (-90 until 91 step 15).map { it.toFloat()}
+            SunChartTypes.IRRADIANCE -> (0 until (maxY.toInt() + 1) step 100).map { it.toFloat() }
+            SunChartTypes.UV_INTENSITY -> (0 until (maxY.toInt() + 1) step floor(maxY / 10f).toInt()).map { it.toFloat() }
+            SunChartTypes.ILLUMINANCE -> listOf(0f) + (0..5).flatMap {
+                val base = 10.0.pow(it.toDouble()).toFloat()
+                listOf(base, base * 3f)
+            }.filter { it <= maxY }
+            SunChartTypes.SHADOWS -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+            SunChartTypes.COLOR_TEMPERATURE -> (2000 until 5501 step 500).map { it.toFloat() }
+            SunChartTypes.AIR_MASS -> listOf(1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+        }
         yLabels.forEach { yVal ->
             val yPx = mapY(yVal)
 //            if (yVal == 0f) return@forEach // Skip the zero
@@ -309,7 +361,14 @@ fun PathChart(
                 )
             }
 
-            val text = "${yVal.toInt()}°"
+            val text = when (chartType) {
+                SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> "${yVal.toInt()}°"
+                SunChartTypes.IRRADIANCE -> "${formatNumber(yVal.toDouble())} W/m²"
+                SunChartTypes.COLOR_TEMPERATURE -> "${yVal.toInt()}K"
+                SunChartTypes.ILLUMINANCE -> "${formatNumber(yVal.toDouble())} lx"
+                SunChartTypes.SHADOWS, SunChartTypes.AIR_MASS -> yVal.toDouble().printRounded(2)
+                else -> "${yVal.toInt()}"
+            }
             val textLayout = textMeasurer.measure(text, labelStyle)
             drawText(
                 textMeasurer = textMeasurer,
@@ -323,9 +382,12 @@ fun PathChart(
         }
 
         // 5b. Draw Horizontal Legend (X-axis Hours)
-        val xLabels = listOf(3, 6, 9, 12, 15, 18, 21)
-        xLabels.forEach { hour ->
-            val xPx = mapX(hour.toFloat())
+        val xLabels = when (chartType) {
+            SunChartTypes.TRAJECTORY -> (30..330 step 30).toList()
+            else -> (3..21 step 3).toList()
+        }
+        xLabels.forEach {
+            val xPx = mapX(it.toFloat())
 
             // Draw vertical dotted grid line
             drawLine(
@@ -336,14 +398,21 @@ fun PathChart(
                 pathEffect = verticalGridDashEffect
             )
 
-            val text = formatHour(hour, true, context)
+            val text = when (chartType) {
+                SunChartTypes.TRAJECTORY -> "$it°"
+                else -> formatHour(it, true, context)
+            }
             val textLayout = textMeasurer.measure(text, labelStyle)
+            val offset = when (chartType) {
+                SunChartTypes.TRAJECTORY -> 2.5f
+                else -> 2f
+            }
             drawText(
                 textMeasurer = textMeasurer,
                 text = text,
                 style = labelStyle,
                 topLeft = Offset(
-                    x = xPx - (textLayout.size.width / 2f), // Centered horizontally on the hour mark
+                    x = xPx - (textLayout.size.width / offset), // Centered horizontally on the hour mark
                     y = height - textLayout.size.height - 2.dp.toPx() // Pinned near the bottom edge of the canvas
                 )
             )
@@ -365,7 +434,7 @@ fun PathChart(
         val currentYPx = mapY(currentY)
 
         // 7. Paint the Sun Icon if above horizon
-        if (currentY >= 0f) {
+        if (currentY >= zeroYPixel) {
             val iconSize = 24.dp.toPx()
 //            val padding = 4.dp.toPx()
 //            val radius = (iconSize / 2) + padding

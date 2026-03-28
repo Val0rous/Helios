@@ -13,6 +13,7 @@
     <string name="trajectory">Trajectory</string>
     <string name="illuminance">Illuminance</string>
     <string name="shadows">Shadows</string>
+    <string name="color_temperature">Color Temp.</string>
     <string name="air_mass">Air Mass</string>
 
     <string name="sunrise_sunset">Sunrise &amp; Sunset</string>
