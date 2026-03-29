@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
@@ -14,6 +15,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -35,6 +37,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.round
+import kotlin.math.roundToInt
 
 @Composable
 fun DailyTimeChart(
@@ -71,7 +74,7 @@ fun DailyTimeChart(
     val dayBackground = MaterialTheme.colorScheme.surface
     val nightBackground = MaterialTheme.colorScheme.surfaceVariant
     val elapsedDayFill = when (chartType) {
-        Charts.Sun.Daily.UvIntensity -> MaterialColors.Gray400.copy(alpha = 0.4f)
+        Charts.Sun.Daily.UvIntensity, Charts.Sun.Daily.ColorTemperature -> MaterialColors.Gray400.copy(alpha = 0.4f)
         else -> colors.elapsedDay
     }
     val elapsedNightFill = colors.elapsedNight
@@ -103,8 +106,8 @@ fun DailyTimeChart(
         }
         val maxY = when (chartType) {
             Charts.Sun.Daily.Elevation -> 90f
-            Charts.Sun.Daily.Irradiance -> max(1000f, yValues.max())
-            Charts.Sun.Daily.UvIntensity -> max(10f, yValues.max())
+            Charts.Sun.Daily.Irradiance -> max(500f, yValues.max())
+            Charts.Sun.Daily.UvIntensity -> max(5f, yValues.max())
             Charts.Sun.Daily.Illuminance -> max(100000f, yValues.max())
             Charts.Sun.Daily.Shadows -> 10f
             Charts.Sun.Daily.ColorTemperature -> max(5500f, yValues.max())
@@ -144,6 +147,17 @@ fun DailyTimeChart(
             else -> mapY(0f)
         }
         val currentXPx = mapX(currentHour)
+
+        val params = ChartData(
+            xValues = xValues,
+            yValues = yValues,
+            minX = minX,
+            maxX = maxX,
+            minY = minY,
+            maxY = maxY,
+            width = width,
+            height = height
+        )
 
         // Day Background
         drawRect(
@@ -314,6 +328,17 @@ fun DailyTimeChart(
                             )
                         }
                     }
+                    Charts.Sun.Daily.ColorTemperature -> {
+                        // --- Vertical Color Temperature Gradient ---
+                        // Maps fractional stops exactly to their Kelvin altitude
+                        val ctBrush = getColorTemperatureBrushGradient(false, ::mapY, params)
+
+                        drawRect(
+                            brush = ctBrush,
+                            topLeft = Offset(0f, 0f),
+                            size = Size(width, zeroYPixel)
+                        )
+                    }
                     else -> {
                         // Normal Day Fill for all other charts
                         drawRect(
@@ -423,8 +448,8 @@ fun DailyTimeChart(
         // 5a. Draw Vertical Legend (Y-axis Altitudes)
         val yLabels = when (chartType) {
             Charts.Sun.Daily.Elevation -> (-90 until 91 step 15).map { it.toFloat()}
-            Charts.Sun.Daily.Irradiance -> (0 until (maxY.toInt() + 1) step 100).map { it.toFloat() }
-            Charts.Sun.Daily.UvIntensity -> (0 until (maxY.toInt() + 1) step floor(maxY / 10f).toInt()).map { it.toFloat() }
+            Charts.Sun.Daily.Irradiance -> (0 until ((maxY / 100.0).roundToInt() * 100 + 1) step 100).map { it.toFloat() }
+            Charts.Sun.Daily.UvIntensity -> (0 until (maxY.roundToInt() + 1) step floor(maxY / 10f).toInt().coerceAtLeast(1)).map { it.toFloat() }
             Charts.Sun.Daily.Illuminance -> listOf(0f) + (0..5).flatMap {
                 val base = 10.0.pow(it.toDouble()).toFloat()
                 listOf(base, base * 3f)
@@ -452,7 +477,7 @@ fun DailyTimeChart(
             val text = when (chartType) {
                 Charts.Sun.Daily.Elevation -> "${yVal.toInt()}°"
                 Charts.Sun.Daily.Irradiance -> "${formatNumber(yVal.toDouble())} W/m²"
-                Charts.Sun.Daily.ColorTemperature -> "${yVal.toInt()}K"
+                Charts.Sun.Daily.ColorTemperature -> "${formatNumber(yVal.toDouble())}K"
                 Charts.Sun.Daily.Illuminance -> "${formatNumber(yVal.toDouble())} lx"
                 Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> yVal.toDouble().printRounded(2)
                 else -> "${yVal.toInt()}"
@@ -585,5 +610,110 @@ fun DailyTimeChart(
                 }
             }
         }
+    }
+}
+
+data class ChartData(
+    val xValues: FloatArray,
+    val yValues: FloatArray,
+    val minX: Float,
+    val maxX: Float,
+    val minY: Float,
+    val maxY: Float,
+    val width: Float,
+    val height: Float,
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as ChartData
+
+        if (minX != other.minX) return false
+        if (maxX != other.maxX) return false
+        if (minY != other.minY) return false
+        if (maxY != other.maxY) return false
+        if (width != other.width) return false
+        if (height != other.height) return false
+        if (!xValues.contentEquals(other.xValues)) return false
+        if (!yValues.contentEquals(other.yValues)) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = minX.hashCode()
+        result = 31 * result + maxX.hashCode()
+        result = 31 * result + minY.hashCode()
+        result = 31 * result + maxY.hashCode()
+        result = 31 * result + width.hashCode()
+        result = 31 * result + height.hashCode()
+        result = 31 * result + xValues.contentHashCode()
+        result = 31 * result + yValues.contentHashCode()
+        return result
+    }
+}
+
+fun getColorTemperatureBrushGradient(
+    isGradientHorizontal: Boolean = false,
+    mapY: (Float) -> Float,
+    params: ChartData
+): Brush {
+    val ct5500 = Color(0xFF81D4FA).copy(alpha = 0.5f) // Daylight Cool Blue
+    val ct4000 = Color(0xFFFFF59D).copy(alpha = 0.5f) // Warm Pale Yellow
+    val ct3000 = Color(0xFFFFB300).copy(alpha = 0.5f) // Golden Amber
+    val ct2000 = Color(0xFFD84315).copy(alpha = 0.5f) // Deep Sunset Red
+
+    return if (!isGradientHorizontal) {
+        Brush.verticalGradient(
+            0.0f to ct5500,
+            ((5500f - 4000f) / 3500f) to ct4000, // ~0.42f
+            ((5500f - 3000f) / 3500f) to ct3000, // ~0.71f
+            1.0f to ct2000,
+            startY = mapY(5500f),
+            endY = mapY(2000f)
+        )
+    } else {
+        // Helper to interpolate exact Kelvin to our defined colors
+        fun getCtColor(temp: Float): Color {
+            return when {
+                temp <= 2000f -> ct2000
+                temp <= 3000f -> lerp(ct2000, ct3000, (temp - 2000f) / 1000f)
+                temp <= 4000f -> lerp(ct3000, ct4000, (temp - 3000f) / 1000f)
+                temp < 5500f -> lerp(ct4000, ct5500, (temp - 4000f) / 1500f)
+                else -> ct5500
+            }
+        }
+
+        // Dynamically generate horizontal stops based on the actual data
+        val ctStops = mutableListOf<Pair<Float, Color>>()
+
+        // Sample points to create a smooth gradient (every ~12 points is plenty for 481 items)
+        val step = max(1, params.xValues.size / 40)
+        for (i in params.xValues.indices step step) {
+            val fraction = ((params.xValues[i] - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
+            ctStops.add(fraction to getCtColor(params.yValues[i]))
+        }
+
+        // Ensure the exact peak temperature is mathematically represented
+        val peakIndex = params.yValues.indices.maxByOrNull { params.yValues[it] } ?: 0
+        val peakFraction = ((params.xValues[peakIndex] - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
+        ctStops.add(peakFraction to getCtColor(params.yValues[peakIndex]))
+
+        // Ensure the very last point is included to reach endX safely
+        val lastFraction = ((params.xValues.last() - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
+        ctStops.add(lastFraction to getCtColor(params.yValues.last()))
+
+        // Skia requires strictly ascending fractions without duplicates
+        val finalStops = ctStops
+            .distinctBy { it.first }
+            .sortedBy { it.first }
+            .toTypedArray()
+
+        Brush.horizontalGradient(
+            *finalStops,
+            startX = 0f,
+            endX = params.width
+        )
     }
 }
