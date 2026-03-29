@@ -2,7 +2,7 @@ package com.ephemeris.helios.utils
 
 import com.ephemeris.helios.R
 
-enum class SunChartTypes(val label: Int, val icon: Int, val filledIcon: Int) {
+enum class DailySunChartTypes(val label: Int, val icon: Int, val filledIcon: Int) {
     ELEVATION(R.string.elevation, R.drawable.ic_sunny, R.drawable.ic_sunny_filled), // Altitude
     IRRADIANCE(R.string.irradiance, R.drawable.ic_bolt, R.drawable.ic_bolt_filled), // Energy
     UV_INTENSITY(R.string.uv_intensity, R.drawable.ic_beach_access, R.drawable.ic_beach_access_filled), // Intensity, UV

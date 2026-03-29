@@ -25,11 +25,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.LocalCustomColors
-import com.ephemeris.helios.utils.SunChartTypes
+import com.ephemeris.helios.utils.DailySunChartTypes
 import com.ephemeris.helios.utils.formatHour
 import com.ephemeris.helios.utils.formatNumber
 import com.ephemeris.helios.utils.printRounded
-import com.ephemeris.helios.utils.roundToSignificant
 import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.log10
@@ -42,7 +41,7 @@ import kotlin.math.round
 fun SunPathChart(
     xValues: FloatArray,
     yValues: FloatArray,
-    chartType: SunChartTypes,
+    chartType: DailySunChartTypes,
     currentHour: Float,
     modifier: Modifier = Modifier
 ) {
@@ -82,34 +81,34 @@ fun SunPathChart(
         val height = size.height
 
         val minX = when (chartType) {
-            SunChartTypes.TRAJECTORY -> 0f
+            DailySunChartTypes.TRAJECTORY -> 0f
             else -> xValues.minOrNull() ?: 0f
         }
         val maxX = when (chartType) {
-            SunChartTypes.TRAJECTORY -> 360f
+            DailySunChartTypes.TRAJECTORY -> 360f
             else -> xValues.maxOrNull() ?: 24f
         }
         val minY = when (chartType) {
-            SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> -90f
-            SunChartTypes.COLOR_TEMPERATURE -> 2000f
-            SunChartTypes.AIR_MASS -> 1f
+            DailySunChartTypes.ELEVATION, DailySunChartTypes.TRAJECTORY -> -90f
+            DailySunChartTypes.COLOR_TEMPERATURE -> 2000f
+            DailySunChartTypes.AIR_MASS -> 1f
             else -> 0f
         }
         val maxY = when (chartType) {
-            SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> 90f
-            SunChartTypes.IRRADIANCE -> max(1000f, yValues.max())
-            SunChartTypes.UV_INTENSITY -> max(10f, yValues.max())
-            SunChartTypes.ILLUMINANCE -> max(100000f, yValues.max())
-            SunChartTypes.SHADOWS -> 10f
-            SunChartTypes.COLOR_TEMPERATURE -> max(5500f, yValues.max())
-            SunChartTypes.AIR_MASS -> 10f // or 15f
+            DailySunChartTypes.ELEVATION, DailySunChartTypes.TRAJECTORY -> 90f
+            DailySunChartTypes.IRRADIANCE -> max(1000f, yValues.max())
+            DailySunChartTypes.UV_INTENSITY -> max(10f, yValues.max())
+            DailySunChartTypes.ILLUMINANCE -> max(100000f, yValues.max())
+            DailySunChartTypes.SHADOWS -> 10f
+            DailySunChartTypes.COLOR_TEMPERATURE -> max(5500f, yValues.max())
+            DailySunChartTypes.AIR_MASS -> 10f // or 15f
         }
 
         val verticalPaddingPx = 16.dp.toPx()
         val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
 
         val isLogScale = when (chartType) {
-            SunChartTypes.ILLUMINANCE, SunChartTypes.SHADOWS, SunChartTypes.AIR_MASS -> true
+            DailySunChartTypes.ILLUMINANCE, DailySunChartTypes.SHADOWS, DailySunChartTypes.AIR_MASS -> true
             else -> false
         }
 
@@ -118,7 +117,7 @@ fun SunPathChart(
         val peakIndex = yValues.indices.maxByOrNull { yValues[it] } ?: 0
         val peakAzimuth = xValues[peakIndex]
         // If it culminates North (near 0 or 360), we shift the chart by 180 degrees
-        val shiftTrajectory = chartType == SunChartTypes.TRAJECTORY && (peakAzimuth !in 90f..270f)
+        val shiftTrajectory = chartType == DailySunChartTypes.TRAJECTORY && (peakAzimuth !in 90f..270f)
 
         // Create a mapped array purely for continuous drawing
         val drawXValues = FloatArray(xValues.size) { i ->
@@ -142,7 +141,7 @@ fun SunPathChart(
                 while (delta > 180f) delta -= 360f
 
                 // If the path goes against physical rotation, it's a backend U-Turn bounce!
-                if (chartType == SunChartTypes.TRAJECTORY && abs(delta) < 90f) {
+                if (chartType == DailySunChartTypes.TRAJECTORY && abs(delta) < 90f) {
                     if (shiftTrajectory && delta > 0f) {
                         // Supposed to decrease, but increased!
                         raw = (360f - raw) % 360f
@@ -180,8 +179,8 @@ fun SunPathChart(
         }
 
         val zeroYPixel = when (chartType) {
-            SunChartTypes.COLOR_TEMPERATURE -> mapY(2000f)
-            SunChartTypes.AIR_MASS -> mapY(1f)
+            DailySunChartTypes.COLOR_TEMPERATURE -> mapY(2000f)
+            DailySunChartTypes.AIR_MASS -> mapY(1f)
             else -> mapY(0f)
         }
         // Ensure the sun icon aligns with the shifted mapping
@@ -210,7 +209,7 @@ fun SunPathChart(
                 moveTo(mapX(drawXValues[0]), mapY(yValues[0]))
                 for (i in 1 until drawXValues.size) {
                     // If the azimuth wraps around 360, pick up the pen and move it!
-                    if (chartType == SunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > wrapThreshold) {
+                    if (chartType == DailySunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > wrapThreshold) {
                         // Mathematically predict the altitude exactly at the 360° / 0° edge
                         val xA = drawXValues[i-1]
                         val xB = drawXValues[i]
@@ -233,7 +232,7 @@ fun SunPathChart(
                 moveTo(mapX(drawXValues[0]), zeroYPixel)
                 lineTo(mapX(drawXValues[0]), mapY(yValues[0]))
                 for (i in 1 until drawXValues.size) {
-                    if (chartType == SunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > wrapThreshold) {
+                    if (chartType == DailySunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > wrapThreshold) {
                         // Calculate edge altitude again
                         val xA = drawXValues[i-1]
                         val xB = drawXValues[i]
@@ -258,7 +257,7 @@ fun SunPathChart(
             }
         }
 
-        if (chartType == SunChartTypes.TRAJECTORY) {
+        if (chartType == DailySunChartTypes.TRAJECTORY) {
             for (i in 0 until xValues.size) {
                 Log.i("(x,y)", "${xValues[i]} ${yValues[i]}")
             }
@@ -341,7 +340,7 @@ fun SunPathChart(
 //                }
             }
 
-            if (chartType == SunChartTypes.TRAJECTORY) {
+            if (chartType == DailySunChartTypes.TRAJECTORY) {
                 // For Trajectory, Y is altitude! Twilights are just simple horizontal bands.
                 clipRect(bottom = zeroYPixel) {
                     drawRect(
@@ -476,16 +475,16 @@ fun SunPathChart(
 
         // 5a. Draw Vertical Legend (Y-axis Altitudes)
         val yLabels = when (chartType) {
-            SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> (-90 until 91 step 15).map { it.toFloat()}
-            SunChartTypes.IRRADIANCE -> (0 until (maxY.toInt() + 1) step 100).map { it.toFloat() }
-            SunChartTypes.UV_INTENSITY -> (0 until (maxY.toInt() + 1) step floor(maxY / 10f).toInt()).map { it.toFloat() }
-            SunChartTypes.ILLUMINANCE -> listOf(0f) + (0..5).flatMap {
+            DailySunChartTypes.ELEVATION, DailySunChartTypes.TRAJECTORY -> (-90 until 91 step 15).map { it.toFloat()}
+            DailySunChartTypes.IRRADIANCE -> (0 until (maxY.toInt() + 1) step 100).map { it.toFloat() }
+            DailySunChartTypes.UV_INTENSITY -> (0 until (maxY.toInt() + 1) step floor(maxY / 10f).toInt()).map { it.toFloat() }
+            DailySunChartTypes.ILLUMINANCE -> listOf(0f) + (0..5).flatMap {
                 val base = 10.0.pow(it.toDouble()).toFloat()
                 listOf(base, base * 3f)
             }.filter { it <= maxY }
-            SunChartTypes.SHADOWS -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
-            SunChartTypes.COLOR_TEMPERATURE -> (2000 until 5501 step 500).map { it.toFloat() }
-            SunChartTypes.AIR_MASS -> listOf(1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+            DailySunChartTypes.SHADOWS -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+            DailySunChartTypes.COLOR_TEMPERATURE -> (2000 until 5501 step 500).map { it.toFloat() }
+            DailySunChartTypes.AIR_MASS -> listOf(1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
         }
         yLabels.forEach { yVal ->
             val yPx = mapY(yVal)
@@ -503,11 +502,11 @@ fun SunPathChart(
             }
 
             val text = when (chartType) {
-                SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> "${yVal.toInt()}°"
-                SunChartTypes.IRRADIANCE -> "${formatNumber(yVal.toDouble())} W/m²"
-                SunChartTypes.COLOR_TEMPERATURE -> "${yVal.toInt()}K"
-                SunChartTypes.ILLUMINANCE -> "${formatNumber(yVal.toDouble())} lx"
-                SunChartTypes.SHADOWS, SunChartTypes.AIR_MASS -> yVal.toDouble().printRounded(2)
+                DailySunChartTypes.ELEVATION, DailySunChartTypes.TRAJECTORY -> "${yVal.toInt()}°"
+                DailySunChartTypes.IRRADIANCE -> "${formatNumber(yVal.toDouble())} W/m²"
+                DailySunChartTypes.COLOR_TEMPERATURE -> "${yVal.toInt()}K"
+                DailySunChartTypes.ILLUMINANCE -> "${formatNumber(yVal.toDouble())} lx"
+                DailySunChartTypes.SHADOWS, DailySunChartTypes.AIR_MASS -> yVal.toDouble().printRounded(2)
                 else -> "${yVal.toInt()}"
             }
             val textLayout = textMeasurer.measure(text, labelStyle)
@@ -524,7 +523,7 @@ fun SunPathChart(
 
         // 5b. Draw Horizontal Legend (X-axis Hours)
         val xLabels = when (chartType) {
-            SunChartTypes.TRAJECTORY -> (30..330 step 30).toList()
+            DailySunChartTypes.TRAJECTORY -> (30..330 step 30).toList()
             else -> (3..21 step 3).toList()
         }
         xLabels.forEach {
@@ -540,7 +539,7 @@ fun SunPathChart(
             )
 
             val text = when (chartType) {
-                SunChartTypes.TRAJECTORY -> {
+                DailySunChartTypes.TRAJECTORY -> {
                     // Reverse the shift just for the label string
                     val realAzimuth = if (shiftTrajectory) (540f - it.toFloat()) % 360 else it.toFloat()
                     val formatted = realAzimuth.toInt()
@@ -550,7 +549,7 @@ fun SunPathChart(
             }
             val textLayout = textMeasurer.measure(text, labelStyle)
             val offset = when (chartType) {
-                SunChartTypes.TRAJECTORY -> 2.5f
+                DailySunChartTypes.TRAJECTORY -> 2.5f
                 else -> 2f
             }
             drawText(
@@ -608,9 +607,9 @@ fun SunPathChart(
 
         // 7. Paint the Sun Icon if above horizon
         val isSunUp = when (chartType) {
-            SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> currentY >= 0f
-            SunChartTypes.COLOR_TEMPERATURE -> currentY > 2000f
-            SunChartTypes.AIR_MASS -> currentY > 1f
+            DailySunChartTypes.ELEVATION, DailySunChartTypes.TRAJECTORY -> currentY >= 0f
+            DailySunChartTypes.COLOR_TEMPERATURE -> currentY > 2000f
+            DailySunChartTypes.AIR_MASS -> currentY > 1f
             else -> currentY > 0f
         }
 

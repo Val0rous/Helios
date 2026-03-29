@@ -1,6 +1,5 @@
 package com.ephemeris.helios.ui.composables.cards
 
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -38,7 +37,7 @@ import com.ephemeris.helios.ui.composables.ChartSelectorChip
 import com.ephemeris.helios.ui.composables.SunPathChart
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.SolarEphemeris
-import com.ephemeris.helios.utils.SunChartTypes
+import com.ephemeris.helios.utils.DailySunChartTypes
 import com.ephemeris.helios.utils.SunMetrics
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.getSunPhase
@@ -55,7 +54,7 @@ fun PathCard(
     events: SolarEphemeris.DailyEvents,
     currentPosition: SolarEphemeris.SolarPosition,
 ) {
-    var selectedChartType by rememberSaveable { mutableStateOf(SunChartTypes.ELEVATION) }
+    var selectedChartType by rememberSaveable { mutableStateOf(DailySunChartTypes.ELEVATION) }
     val currentHour: Float by remember {
         derivedStateOf {
             // Always pass time (0-24). Never pass Azimuth!
@@ -112,17 +111,17 @@ fun PathCard(
     )
 
     val xValues = when (selectedChartType) {
-        SunChartTypes.TRAJECTORY -> azimuths
+        DailySunChartTypes.TRAJECTORY -> azimuths
         else -> hours
     }
     val yValues = when (selectedChartType) {
-        SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> elevation
-        SunChartTypes.IRRADIANCE -> irradiance
-        SunChartTypes.UV_INTENSITY -> uvIntensity
-        SunChartTypes.ILLUMINANCE -> illuminance
-        SunChartTypes.SHADOWS -> shadowRatio
-        SunChartTypes.COLOR_TEMPERATURE -> colorTemp
-        SunChartTypes.AIR_MASS -> airMass
+        DailySunChartTypes.ELEVATION, DailySunChartTypes.TRAJECTORY -> elevation
+        DailySunChartTypes.IRRADIANCE -> irradiance
+        DailySunChartTypes.UV_INTENSITY -> uvIntensity
+        DailySunChartTypes.ILLUMINANCE -> illuminance
+        DailySunChartTypes.SHADOWS -> shadowRatio
+        DailySunChartTypes.COLOR_TEMPERATURE -> colorTemp
+        DailySunChartTypes.AIR_MASS -> airMass
     }
 
     OutlinedCard(
@@ -137,7 +136,7 @@ fun PathCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 8.dp)
             ) {
-                items(SunChartTypes.entries) { type ->
+                items(DailySunChartTypes.entries) { type ->
                     ChartSelectorChip(
                         chartType = type,
                         isSelected = type == selectedChartType,
