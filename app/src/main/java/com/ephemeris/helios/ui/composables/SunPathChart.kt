@@ -167,13 +167,15 @@ fun SunPathChart(
             size = Size(width, height - zeroYPixel)
         )
 
+        val wrapThreshold = 200f // Instantly cuts off erratic backend interpolation
+
         // 1. Build the smooth curve path
         val curvePath = Path().apply {
             if(xValues.isNotEmpty()) {
                 moveTo(mapX(xValues[0]), mapY(yValues[0]))
                 for (i in 1 until xValues.size) {
                     // If the azimuth wraps around 360, pick up the pen and move it!
-                    if (chartType == SunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > 180f) {
+                    if (chartType == SunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > wrapThreshold) {
                         moveTo(mapX(drawXValues[i]), mapY(yValues[i]))
                     }
                     lineTo(mapX(drawXValues[i]), mapY(yValues[i]))
@@ -187,8 +189,8 @@ fun SunPathChart(
                 moveTo(mapX(drawXValues[0]), zeroYPixel)
                 lineTo(mapX(drawXValues[0]), mapY(yValues[0]))
                 for (i in 1 until drawXValues.size) {
-                    if (chartType == SunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > 180f) {
-                        // Drop down and seal the previous chunk
+                    if (chartType == SunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > wrapThreshold) {
+                        // Drop down and seal the previous chunk safely
                         lineTo(mapX(drawXValues[i-1]), zeroYPixel)
                         close()
 
@@ -516,8 +518,8 @@ fun SunPathChart(
             var x1 = xValues[i]
             var x2 = xValues[i+1]
 
-            // Robust wrap handling for both directions (359 -> 1 AND 1 -> 359)
-            if (chartType == SunChartTypes.TRAJECTORY && abs(x1 - x2) > 180f) {
+            // Robust wrap handling for both directions (359 -> 1 AND 1 -> 359), safely skipping erratic data points
+            if (chartType == SunChartTypes.TRAJECTORY && abs(x1 - x2) > wrapThreshold) {
                 if (x1 > x2) {
                     if (currentHour > 180f) x2 += 360f else x1 -= 360f
                 } else {
@@ -541,7 +543,13 @@ fun SunPathChart(
         val currentYPx = mapY(currentY)
 
         // 7. Paint the Sun Icon if above horizon
-        if (currentY >= zeroYPixel) {
+
+        val condition = when (chartType) {
+            SunChartTypes.COLOR_TEMPERATURE -> currentY > (zeroYPixel + 1456f) // Todo: this is the lowest threshold at which it works. Make it become useless
+            else -> currentY >= zeroYPixel
+        }
+
+        if (condition) {
             val iconSize = 24.dp.toPx()
 //            val padding = 4.dp.toPx()
 //            val radius = (iconSize / 2) + padding

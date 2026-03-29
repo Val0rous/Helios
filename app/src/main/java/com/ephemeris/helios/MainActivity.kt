@@ -49,17 +49,17 @@ class MainActivity : ComponentActivity() {
                 date = currentTime.toLocalDate(),
                 latitude = coordinates.latitude,
                 longitude = coordinates.longitude,
-                tzOffsetHours = 1.0
+                tzOffsetHours = currentTime.offset.totalSeconds / 3600.0
             )
             val durations = SolarEphemeris.calculateDailyDurations(events)
             var currentSunPosition by remember{ mutableStateOf(SolarEphemeris.calculatePosition(currentTime, coordinates.latitude, coordinates.longitude)) }
             var dailyPeakMetrics by remember { mutableStateOf(SunMetrics.calculateMetrics(
                 sunElevationDeg = events.solarNoonAltitude,
-                observerAltitudeMeters = coordinates.altitude!!
+                observerAltitudeMeters = coordinates.altitude
             ))}
             var liveMetrics by remember { mutableStateOf(SunMetrics.calculateMetrics(
                 sunElevationDeg = currentSunPosition.altitude,
-                observerAltitudeMeters = coordinates.altitude!!
+                observerAltitudeMeters = coordinates.altitude
             ))}
             var oldDay = currentTime.toLocalDate()
 
