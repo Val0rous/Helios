@@ -118,12 +118,47 @@ fun SunPathChart(
         val peakIndex = yValues.indices.maxByOrNull { yValues[it] } ?: 0
         val peakAzimuth = xValues[peakIndex]
         // If it culminates North (near 0 or 360), we shift the chart by 180 degrees
-        val shiftTrajectory = chartType == SunChartTypes.TRAJECTORY && (peakAzimuth < 90f || peakAzimuth > 270f)
+        val shiftTrajectory = chartType == SunChartTypes.TRAJECTORY && (peakAzimuth !in 90f..270f)
 
         // Create a mapped array purely for continuous drawing
         val drawXValues = FloatArray(xValues.size) { i ->
             // N(0) goes to 180, E(90) stays 90, W(270) stays 270. Time moves left-to-right!
             if (shiftTrajectory) (540f - xValues[i]) % 360f else xValues[i]
+        }
+
+        // --- THE SQUIRCLE KILLER ---
+        // Forces raw azimuth data to be monotonically continuous, intercepting "bounces"
+        val fixedXValues = FloatArray(xValues.size)
+        if (xValues.isNotEmpty()) {
+            var currentUnwrapped = xValues[0]
+            fixedXValues[0] = currentUnwrapped
+
+            for (i in 1 until xValues.size) {
+                var raw = xValues[i]
+                var delta = raw - currentUnwrapped
+
+                // Normalize shortest path
+                while (delta < -180f) delta += 360f
+                while (delta > 180f) delta -= 360f
+
+                // If the path goes against physical rotation, it's a backend U-Turn bounce!
+                if (chartType == SunChartTypes.TRAJECTORY && abs(delta) < 90f) {
+                    if (shiftTrajectory && delta > 0f) {
+                        // Supposed to decrease, but increased!
+                        raw = (360f - raw) % 360f
+                    } else if (!shiftTrajectory && delta < 0f) {
+                        // Supposed to increase, but decreased!
+                        raw = (360f - raw) % 360f
+                    }
+                    // Recalculate normalized delta with fixed raw value
+                    delta = raw - currentUnwrapped
+                    while (delta < -180f) delta += 360f
+                    while (delta > 180f) delta -= 360f
+                }
+
+                currentUnwrapped = (currentUnwrapped + delta + 360f) % 360f
+                fixedXValues[i] = currentUnwrapped
+            }
         }
 
         // Helper functions to map mathematical coordinates to Canvas pixels
@@ -172,11 +207,20 @@ fun SunPathChart(
         // 1. Build the smooth curve path
         val curvePath = Path().apply {
             if(xValues.isNotEmpty()) {
-                moveTo(mapX(xValues[0]), mapY(yValues[0]))
-                for (i in 1 until xValues.size) {
+                moveTo(mapX(drawXValues[0]), mapY(yValues[0]))
+                for (i in 1 until drawXValues.size) {
                     // If the azimuth wraps around 360, pick up the pen and move it!
                     if (chartType == SunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > wrapThreshold) {
-                        moveTo(mapX(drawXValues[i]), mapY(yValues[i]))
+                        // Mathematically predict the altitude exactly at the 360° / 0° edge
+                        val xA = drawXValues[i-1]
+                        val xB = drawXValues[i]
+                        val deltaX = (xB + 360f) - xA
+                        val fraction = if (deltaX != 0f) (360f - xA) / deltaX else 0f
+                        val edgeY = yValues[i-1] + fraction * (yValues[i] - yValues[i-1])
+//                        moveTo(mapX(drawXValues[i]), mapY(yValues[i]))
+                        // Draw perfectly to the right edge, then pick up and move to the left edge
+                        lineTo(mapX(360f), mapY(edgeY))
+                        moveTo(mapX(0f), mapY(edgeY))
                     }
                     lineTo(mapX(drawXValues[i]), mapY(yValues[i]))
                 }
@@ -190,13 +234,21 @@ fun SunPathChart(
                 lineTo(mapX(drawXValues[0]), mapY(yValues[0]))
                 for (i in 1 until drawXValues.size) {
                     if (chartType == SunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > wrapThreshold) {
-                        // Drop down and seal the previous chunk safely
-                        lineTo(mapX(drawXValues[i-1]), zeroYPixel)
+                        // Calculate edge altitude again
+                        val xA = drawXValues[i-1]
+                        val xB = drawXValues[i]
+                        val deltaX = (xB + 360f) - xA
+                        val fraction = if (deltaX != 0f) (360f - xA) / deltaX else 0f
+                        val edgeY = yValues[i-1] + fraction * (yValues[i] - yValues[i-1])
+
+                        // Drop down and seal the previous chunk exactly at the right edge
+                        lineTo(mapX(360f), mapY(edgeY))
+                        lineTo(mapX(360f), zeroYPixel)
                         close()
 
                         // Move to the new edge and start the next chunk
-                        moveTo(mapX(drawXValues[i]), zeroYPixel)
-                        lineTo(mapX(drawXValues[i]), mapY(yValues[i]))
+                        moveTo(mapX(0f), zeroYPixel)
+                        lineTo(mapX(0f), mapY(edgeY))
                     } else {
                         lineTo(mapX(drawXValues[i]), mapY(yValues[i]))
                     }
@@ -252,14 +304,14 @@ fun SunPathChart(
         // 3a. Calculate exact X intersections for vertical stripes
         val thresholds = floatArrayOf(0f, -6f, -12f, -18f)
         val sortedXPoints = mutableListOf<Float>()
-        for (x in xValues) {
+        for (x in fixedXValues) {
             // Add all original X points
             sortedXPoints.add(x)
         }
         // Add all mathematical crossing points
-        for (i in 0 until xValues.size - 1) {
-            val x1 = xValues[i]
-            val x2 = xValues[i+1]
+        for (i in 0 until fixedXValues.size - 1) {
+            val x1 = fixedXValues[i]
+            val x2 = fixedXValues[i+1]
             val y1 = yValues[i]
             val y2 = yValues[i+1]
 
@@ -338,11 +390,11 @@ fun SunPathChart(
 
                     // Interpolate to find the Y altitude at the exact center of this stripe
                     var midY = 0f
-                    for (j in 0 until xValues.size - 1) {
-                        if (midX >= xValues[j] && midX <= xValues[j + 1]) {
-                            val delta = xValues[j + 1] - xValues[j]
+                    for (j in 0 until fixedXValues.size - 1) {
+                        if (midX >= fixedXValues[j] && midX <= fixedXValues[j + 1]) {
+                            val delta = fixedXValues[j + 1] - fixedXValues[j]
                             midY = if (delta > 0f) {
-                                yValues[j] + ((midX - xValues[j]) / delta) * (yValues[j + 1] - yValues[j])
+                                yValues[j] + ((midX - fixedXValues[j]) / delta) * (yValues[j + 1] - yValues[j])
                             } else yValues[j]
                             break
                         }
@@ -514,42 +566,55 @@ fun SunPathChart(
 
         // 6. Calculate exact Y position for the sun at currentHour
         var currentY = 0f
-        for (i in 0 until xValues.size - 1) {
-            var x1 = xValues[i]
-            var x2 = xValues[i+1]
+//        if (chartType == SunChartTypes.TRAJECTORY && fixedXValues.isNotEmpty()) {
+//            for (i in 0 until fixedXValues.size - 1) {
+//                val x1 = fixedXValues[i]
+//                val x2 = fixedXValues[i+1]
+//
+//                // Dynamically unwrap the target to match the local array segment
+//                var tempTarget = currentHour
+//                while (tempTarget < min(x1, x2) - 180f) tempTarget += 360f
+//                while (tempTarget > max(x1, x2) + 180f) tempTarget -= 360f
+//
+//                if (tempTarget in min(x1, x2)..max(x1, x2)) {
+//                    val timeDelta = x2 - x1
+//                    if (timeDelta != 0f) {
+//                        val fraction = (tempTarget - x1) / timeDelta
+//                        currentY = yValues[i] + fraction * (yValues[i+1] - yValues[i])
+//                    }
+//                    break
+//                }
+//            }
+//        } else {
+            // Normal fallback for Time-based charts
+            for (i in 0 until fixedXValues.size - 1) {
+                val x1 = fixedXValues[i]
+                val x2 = fixedXValues[i+1]
+                val minX = min(x1, x2)
+                val maxX = max(x1, x2)
 
-            // Robust wrap handling for both directions (359 -> 1 AND 1 -> 359), safely skipping erratic data points
-            if (chartType == SunChartTypes.TRAJECTORY && abs(x1 - x2) > wrapThreshold) {
-                if (x1 > x2) {
-                    if (currentHour > 180f) x2 += 360f else x1 -= 360f
-                } else {
-                    if (currentHour < 180f) x2 -= 360f else x1 += 360f
+                if (currentHour in minX..maxX) {
+                    val timeDelta = x2 - x1
+                    if (timeDelta != 0f) {
+                        // Linear interpolation to find the exact altitude at this moment
+                        val fraction = (currentHour - x1) / timeDelta
+                        currentY = yValues[i] + fraction * (yValues[i+1] - yValues[i])
+                    }
+                    break
                 }
             }
-
-            val minX = min(x1, x2)
-            val maxX = max(x1, x2)
-
-            if (currentHour in minX..maxX) {
-                val timeDelta = x2 - x1
-                if (timeDelta > 0f) {
-                    // Linear interpolation to find the exact altitude at this moment
-                    val fraction = (currentHour - x1) / timeDelta
-                    currentY = yValues[i] + fraction * (yValues[i+1] - yValues[i])
-                }
-                break
-            }
-        }
+//        }
         val currentYPx = mapY(currentY)
 
         // 7. Paint the Sun Icon if above horizon
-
-        val condition = when (chartType) {
-            SunChartTypes.COLOR_TEMPERATURE -> currentY > (zeroYPixel + 1456f) // Todo: this is the lowest threshold at which it works. Make it become useless
-            else -> currentY >= zeroYPixel
+        val isSunUp = when (chartType) {
+            SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> currentY >= 0f
+            SunChartTypes.COLOR_TEMPERATURE -> currentY > 2000f
+            SunChartTypes.AIR_MASS -> currentY > 1f
+            else -> currentY > 0f
         }
 
-        if (condition) {
+        if (isSunUp) {
             val iconSize = 24.dp.toPx()
 //            val padding = 4.dp.toPx()
 //            val radius = (iconSize / 2) + padding

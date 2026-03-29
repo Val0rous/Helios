@@ -28,6 +28,7 @@ import com.ephemeris.helios.utils.Routes
 import com.ephemeris.helios.utils.SolarEphemeris
 import com.ephemeris.helios.utils.SunMetrics
 import kotlinx.coroutines.delay
+import java.time.ZoneId
 import java.time.ZonedDateTime
 
 class MainActivity : ComponentActivity() {
@@ -44,7 +45,7 @@ class MainActivity : ComponentActivity() {
             var isAutoUpdateEnabled by remember { mutableStateOf(true) }
             var coordinates by remember { mutableStateOf(Coordinates(3.1, 11.99)) }
 
-//            currentTime = ZonedDateTime.of(2026, 3, 27, 15, 0, 0, 0, ZoneId.of("UTC+1"))
+//            currentTime = ZonedDateTime.of(2026, 6, 20, 15, 0, 0, 0, ZoneId.of("UTC+2"))
             val events = SolarEphemeris.calculateDailyEvents(
                 date = currentTime.toLocalDate(),
                 latitude = coordinates.latitude,

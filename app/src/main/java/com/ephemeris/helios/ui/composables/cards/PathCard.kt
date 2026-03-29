@@ -58,10 +58,8 @@ fun PathCard(
     var selectedChartType by rememberSaveable { mutableStateOf(SunChartTypes.ELEVATION) }
     val currentHour: Float by remember {
         derivedStateOf {
-            when (selectedChartType) {
-                SunChartTypes.TRAJECTORY -> currentPosition.azimuth.round().toFloat()
-                else -> currentTime.hour.toFloat() + currentTime.minute / 60f + currentTime.second / 3600f
-            }
+            // Always pass time (0-24). Never pass Azimuth!
+            currentTime.hour.toFloat() + currentTime.minute / 60f + currentTime.second / 3600f
         }
     }
     val hoursCalc = DoubleArray(X_SIZE) { round(it * 5.0) / 100.0 }
