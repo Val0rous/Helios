@@ -47,7 +47,7 @@ fun DailyTimeChart(
     currentHour: Float,
     modifier: Modifier = Modifier
 ) {
-    val sunPainter = painterResource(id = when (chartType) {
+    val mainPainter = painterResource(id = when (chartType) {
         is Charts.Sun -> R.drawable.ic_brightness_empty_filled
         is Charts.Moon -> R.drawable.ic_moon_stars_filled // Todo: change icon
         else -> R.drawable.ic_circle_filled
@@ -588,7 +588,7 @@ fun DailyTimeChart(
                     left = currentXPx - iconSize / 2,
                     top = currentYPx - iconSize / 2
                 ) {
-                    with(sunPainter) {
+                    with(mainPainter) {
                         draw(
                             size = Size(iconSize, iconSize),
                             colorFilter = ColorFilter.tint(sunYellow)
