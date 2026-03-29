@@ -1,5 +1,6 @@
 package com.ephemeris.helios.ui.composables.cards
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -63,20 +64,36 @@ fun PathCard(
             }
         }
     }
-    val hours = FloatArray(X_SIZE) { round(it * 5f) / 100f }
-    val elevationCalc = DoubleArray(hours.size)
+    val hoursCalc = DoubleArray(X_SIZE) { round(it * 5.0) / 100.0 }
+    val elevationCalc = DoubleArray(hoursCalc.size)
     val azimuths = FloatArray(X_SIZE)
-    for (i in 1 until X_SIZE) {
+
+    var nadirIndex = 0 // Track the lowest point of the night (Solar Midnight)
+
+    for (i in 0 until X_SIZE) {
         val position = SolarEphemeris.getPositionAtHour(
             date = currentTime.toLocalDate(),
-            decimalHour = hours[i].toDouble(),
+            decimalHour = hoursCalc[i],
             latitude = coordinates.latitude,
             longitude = coordinates.longitude,
             tzOffsetHours = currentTime.offset.totalSeconds / 3600.0
         )
         elevationCalc[i] = position.altitude
         azimuths[i] = position.azimuth.toFloat()
+
+        // Continually update nadir index
+        if (elevationCalc[i] < elevationCalc[nadirIndex]) {
+            nadirIndex = i
+        }
     }
+
+    for (i in 0..nadirIndex) {
+        if (azimuths[i] < 180f) {
+            azimuths[i] = 360f - azimuths[i]
+        }
+    }
+
+    val hours = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
     val elevation = FloatArray(X_SIZE) { elevationCalc[it].toFloat() }
     val irradiance = FloatArray(X_SIZE)
     val uvIntensity = FloatArray(X_SIZE)

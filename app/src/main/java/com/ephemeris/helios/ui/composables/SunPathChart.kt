@@ -1,5 +1,6 @@
 package com.ephemeris.helios.ui.composables
 
+import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -29,9 +30,11 @@ import com.ephemeris.helios.utils.formatHour
 import com.ephemeris.helios.utils.formatNumber
 import com.ephemeris.helios.utils.printRounded
 import com.ephemeris.helios.utils.roundToSignificant
+import kotlin.math.abs
 import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.round
 
@@ -78,8 +81,14 @@ fun SunPathChart(
         val width = size.width
         val height = size.height
 
-        val minX = xValues.minOrNull() ?: 0f
-        val maxX = xValues.maxOrNull() ?: 24f
+        val minX = when (chartType) {
+            SunChartTypes.TRAJECTORY -> 0f
+            else -> xValues.minOrNull() ?: 0f
+        }
+        val maxX = when (chartType) {
+            SunChartTypes.TRAJECTORY -> 360f
+            else -> xValues.maxOrNull() ?: 24f
+        }
         val minY = when (chartType) {
             SunChartTypes.ELEVATION, SunChartTypes.TRAJECTORY -> -90f
             SunChartTypes.COLOR_TEMPERATURE -> 2000f
@@ -102,6 +111,19 @@ fun SunPathChart(
         val isLogScale = when (chartType) {
             SunChartTypes.ILLUMINANCE, SunChartTypes.SHADOWS, SunChartTypes.AIR_MASS -> true
             else -> false
+        }
+
+        // Dynamic Trajectory Shifting
+        // Find where the sun reaches its highest point
+        val peakIndex = yValues.indices.maxByOrNull { yValues[it] } ?: 0
+        val peakAzimuth = xValues[peakIndex]
+        // If it culminates North (near 0 or 360), we shift the chart by 180 degrees
+        val shiftTrajectory = chartType == SunChartTypes.TRAJECTORY && (peakAzimuth < 90f || peakAzimuth > 270f)
+
+        // Create a mapped array purely for continuous drawing
+        val drawXValues = FloatArray(xValues.size) { i ->
+            // N(0) goes to 180, E(90) stays 90, W(270) stays 270. Time moves left-to-right!
+            if (shiftTrajectory) (540f - xValues[i]) % 360f else xValues[i]
         }
 
         // Helper functions to map mathematical coordinates to Canvas pixels
@@ -127,7 +149,9 @@ fun SunPathChart(
             SunChartTypes.AIR_MASS -> mapY(1f)
             else -> mapY(0f)
         }
-        val currentXPx = mapX(currentHour)
+        // Ensure the sun icon aligns with the shifted mapping
+        val drawCurrentX = if (shiftTrajectory) (540f - currentHour) % 360f else currentHour
+        val currentXPx = mapX(drawCurrentX)
 
         // Day Background
         drawRect(
@@ -148,17 +172,42 @@ fun SunPathChart(
             if(xValues.isNotEmpty()) {
                 moveTo(mapX(xValues[0]), mapY(yValues[0]))
                 for (i in 1 until xValues.size) {
-                    lineTo(mapX(xValues[i]), mapY(yValues[i]))
+                    // If the azimuth wraps around 360, pick up the pen and move it!
+                    if (chartType == SunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > 180f) {
+                        moveTo(mapX(drawXValues[i]), mapY(yValues[i]))
+                    }
+                    lineTo(mapX(drawXValues[i]), mapY(yValues[i]))
                 }
             }
         }
 
         // 2. Build the fill path that closes down to the X-axis
         val fillPath = Path().apply {
-            addPath(curvePath)
-            lineTo(mapX(xValues.last()), zeroYPixel)
-            lineTo(mapX(xValues.first()), zeroYPixel)
-            close()
+            if (drawXValues.isNotEmpty()) {
+                moveTo(mapX(drawXValues[0]), zeroYPixel)
+                lineTo(mapX(drawXValues[0]), mapY(yValues[0]))
+                for (i in 1 until drawXValues.size) {
+                    if (chartType == SunChartTypes.TRAJECTORY && abs(drawXValues[i] - drawXValues[i-1]) > 180f) {
+                        // Drop down and seal the previous chunk
+                        lineTo(mapX(drawXValues[i-1]), zeroYPixel)
+                        close()
+
+                        // Move to the new edge and start the next chunk
+                        moveTo(mapX(drawXValues[i]), zeroYPixel)
+                        lineTo(mapX(drawXValues[i]), mapY(yValues[i]))
+                    } else {
+                        lineTo(mapX(drawXValues[i]), mapY(yValues[i]))
+                    }
+                }
+                lineTo(mapX(drawXValues.last()), zeroYPixel)
+                close()
+            }
+        }
+
+        if (chartType == SunChartTypes.TRAJECTORY) {
+            for (i in 0 until xValues.size) {
+                Log.i("(x,y)", "${xValues[i]} ${yValues[i]}")
+            }
         }
 
         clipRect(bottom = zeroYPixel) {
@@ -238,67 +287,105 @@ fun SunPathChart(
 //                }
             }
 
-            // 2. Night twilights: Vertical stripes extending past currentX
-            var currentBlockColor = Color.Transparent
-            var blockStartX = uniqueXPoints.firstOrNull() ?: 0f
+            if (chartType == SunChartTypes.TRAJECTORY) {
+                // For Trajectory, Y is altitude! Twilights are just simple horizontal bands.
+                clipRect(bottom = zeroYPixel) {
+                    drawRect(
+                        color = dayFill,
+                        topLeft = Offset(0f, 0f),
+                        size = Size(width, zeroYPixel)
+                    )
+                }
+                clipRect(top = zeroYPixel, bottom = mapY(-6f)) {
+                    drawRect(
+                        color = civilTwilightFill,
+                        topLeft = Offset(0f, zeroYPixel),
+                        size = Size(width, mapY(-6f) - zeroYPixel)
+                    )
+                }
+                clipRect(top = mapY(-6f), bottom = mapY(-12f)) {
+                    drawRect(
+                        color = nauticalTwilightFill,
+                        topLeft = Offset(0f, mapY(-6f)),
+                        size = Size(width, mapY(-12f) - mapY(-6f))
+                    )
+                }
+                clipRect(top = mapY(-12f), bottom = mapY(-18f)) {
+                    drawRect(
+                        color = astroTwilightFill,
+                        topLeft = Offset(0f, mapY(-12f)),
+                        size = Size(width, mapY(-18f) - mapY(-12f))
+                    )
+                }
+                clipRect(top = mapY(-18f)) {
+                    drawRect(
+                        color = nightFill,
+                        topLeft = Offset(0f, mapY(-18f)),
+                        size = Size(width, height - mapY(-18f))
+                    )
+                }
+            } else {
+                // 2. Night twilights: Vertical stripes extending past currentX
+                var currentBlockColor = Color.Transparent
+                var blockStartX = uniqueXPoints.firstOrNull() ?: 0f
 
-            for (i in 0 until uniqueXPoints.size - 1) {
-                val xA = uniqueXPoints[i]
-                val xB = uniqueXPoints[i + 1]
-                val midX = (xA + xB) / 2f // Find the center point of this slice
+                for (i in 0 until uniqueXPoints.size - 1) {
+                    val xA = uniqueXPoints[i]
+                    val xB = uniqueXPoints[i + 1]
+                    val midX = (xA + xB) / 2f // Find the center point of this slice
 
-                // Interpolate to find the Y altitude at the exact center of this stripe
-                var midY = 0f
-                for (j in 0 until xValues.size - 1) {
-                    if (midX >= xValues[j] && midX <= xValues[j + 1]) {
-                        val delta = xValues[j + 1] - xValues[j]
-                        midY = if (delta > 0f) {
-                            yValues[j] + ((midX - xValues[j]) / delta) * (yValues[j + 1] - yValues[j])
-                        } else yValues[j]
-                        break
+                    // Interpolate to find the Y altitude at the exact center of this stripe
+                    var midY = 0f
+                    for (j in 0 until xValues.size - 1) {
+                        if (midX >= xValues[j] && midX <= xValues[j + 1]) {
+                            val delta = xValues[j + 1] - xValues[j]
+                            midY = if (delta > 0f) {
+                                yValues[j] + ((midX - xValues[j]) / delta) * (yValues[j + 1] - yValues[j])
+                            } else yValues[j]
+                            break
+                        }
+                    }
+
+                    val sliceColor = when {
+                        midY >= 0f -> Color.Transparent // Day area already drawn above
+                        midY >= -6f -> civilTwilightFill
+                        midY >= -12f -> nauticalTwilightFill
+                        midY >= -18f -> astroTwilightFill
+                        else -> nightFill
+                    }
+
+                    // If the color changes, draw the accumulated block from the previous segments
+                    if (sliceColor != currentBlockColor) {
+                        if (currentBlockColor != Color.Transparent && i > 0) {
+                            // Snap to exact pixels to prevent alpha-stacking artifacts
+                            val startPx = round(mapX(blockStartX))
+                            val endPx = round(mapX(xA))
+                            drawRect(
+                                color = currentBlockColor,
+                                topLeft = Offset(startPx, zeroYPixel),
+                                size = Size(endPx - startPx, height - zeroYPixel)
+                            )
+                        }
+                        // Start tracking the new color block
+                        currentBlockColor = sliceColor
+                        blockStartX = xA
                     }
                 }
 
-                val sliceColor = when {
-                    midY >= 0f -> Color.Transparent // Day area already drawn above
-                    midY >= -6f -> civilTwilightFill
-                    midY >= -12f -> nauticalTwilightFill
-                    midY >= -18f -> astroTwilightFill
-                    else -> nightFill
+                // Draw the final accumulated block that hits the edge of the chart
+                if (currentBlockColor != Color.Transparent) {
+                    val startPx = round(mapX(blockStartX))
+                    val endPx = round(mapX(uniqueXPoints.last()))
+                    drawRect(
+                        color = currentBlockColor,
+                        topLeft = Offset(startPx, zeroYPixel),
+                        size = Size(endPx - startPx, height - zeroYPixel)
+                    )
                 }
-
-                // If the color changes, draw the accumulated block from the previous segments
-                if (sliceColor != currentBlockColor) {
-                    if (currentBlockColor != Color.Transparent && i > 0) {
-                        // Snap to exact pixels to prevent alpha-stacking artifacts
-                        val startPx = round(mapX(blockStartX))
-                        val endPx = round(mapX(xA))
-                        drawRect(
-                            color = currentBlockColor,
-                            topLeft = Offset(startPx, zeroYPixel),
-                            size = Size(endPx - startPx, height - zeroYPixel)
-                        )
-                    }
-                    // Start tracking the new color block
-                    currentBlockColor = sliceColor
-                    blockStartX = xA
-                }
-            }
-
-            // Draw the final accumulated block that hits the edge of the chart
-            if (currentBlockColor != Color.Transparent) {
-                val startPx = round(mapX(blockStartX))
-                val endPx = round(mapX(uniqueXPoints.last()))
-                drawRect(
-                    color = currentBlockColor,
-                    topLeft = Offset(startPx, zeroYPixel),
-                    size = Size(endPx - startPx, height - zeroYPixel)
-                )
             }
 
             // 3. Draw the elapsed time overlay (clipped strictly up to currentHour)
             clipRect(right = currentXPx) {
-
                 // Elapsed Day (Above 0deg)
                 clipRect(bottom = zeroYPixel) {
                     drawPath(path = fillPath, color = elapsedDayFill)
@@ -399,7 +486,12 @@ fun SunPathChart(
             )
 
             val text = when (chartType) {
-                SunChartTypes.TRAJECTORY -> "$it°"
+                SunChartTypes.TRAJECTORY -> {
+                    // Reverse the shift just for the label string
+                    val realAzimuth = if (shiftTrajectory) (540f - it.toFloat()) % 360 else it.toFloat()
+                    val formatted = realAzimuth.toInt()
+                    "${if (formatted == 360 || formatted == 0) 0 else formatted}°"
+                }
                 else -> formatHour(it, true, context)
             }
             val textLayout = textMeasurer.measure(text, labelStyle)
@@ -421,11 +513,26 @@ fun SunPathChart(
         // 6. Calculate exact Y position for the sun at currentHour
         var currentY = 0f
         for (i in 0 until xValues.size - 1) {
-            if (currentHour in xValues[i]..xValues[i+1]) {
-                val timeDelta = xValues[i+1] - xValues[i]
+            var x1 = xValues[i]
+            var x2 = xValues[i+1]
+
+            // Robust wrap handling for both directions (359 -> 1 AND 1 -> 359)
+            if (chartType == SunChartTypes.TRAJECTORY && abs(x1 - x2) > 180f) {
+                if (x1 > x2) {
+                    if (currentHour > 180f) x2 += 360f else x1 -= 360f
+                } else {
+                    if (currentHour < 180f) x2 -= 360f else x1 += 360f
+                }
+            }
+
+            val minX = min(x1, x2)
+            val maxX = max(x1, x2)
+
+            if (currentHour in minX..maxX) {
+                val timeDelta = x2 - x1
                 if (timeDelta > 0f) {
                     // Linear interpolation to find the exact altitude at this moment
-                    val fraction = (currentHour - xValues[i]) / timeDelta
+                    val fraction = (currentHour - x1) / timeDelta
                     currentY = yValues[i] + fraction * (yValues[i+1] - yValues[i])
                 }
                 break
