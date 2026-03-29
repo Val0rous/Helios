@@ -22,6 +22,7 @@ import com.ephemeris.helios.ui.composables.entries.TwilightEntry
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.SolarEphemeris
+import com.ephemeris.helios.utils.SunMetrics
 import com.ephemeris.helios.utils.formatDecimalHours
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.round
@@ -33,7 +34,9 @@ fun Sun(
     coordinates: Coordinates,
     currentPosition: SolarEphemeris.SolarPosition,
     events: SolarEphemeris.DailyEvents,
-    durations: SolarEphemeris.DailyDurations
+    durations: SolarEphemeris.DailyDurations,
+    dailyPeakMetrics: SunMetrics.SunMetricsResult,
+    liveMetrics: SunMetrics.SunMetricsResult
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -70,18 +73,18 @@ fun Sun(
             SmallCardRow(
                 leftCard = {
                     LiveMetricsEntry(
-                        irradiance = 1100.0,
-                        uvIntensity = 10.0,
-                        luminance = 90000.0,
-                        shadowRatio = 0.94
+                        irradiance = liveMetrics.irradiance,
+                        uvIntensity = liveMetrics.uvIntensity,
+                        luminance = liveMetrics.luminance,
+                        shadowRatio = liveMetrics.shadowRatio
                     )
                 },
                 rightCard = {
                     DailyPeaksEntry(
-                        irradiance = 1368.0,
-                        uvIntensity = 12.0,
-                        luminance = 120000.0,
-                        shadowRatio = 0.38
+                        irradiance = dailyPeakMetrics.irradiance,
+                        uvIntensity = dailyPeakMetrics.uvIntensity,
+                        luminance = dailyPeakMetrics.luminance,
+                        shadowRatio = dailyPeakMetrics.shadowRatio
                     )
                 }
             )

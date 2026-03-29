@@ -26,6 +26,7 @@ import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.Routes
 import com.ephemeris.helios.utils.SolarEphemeris
+import com.ephemeris.helios.utils.SunMetrics
 import kotlinx.coroutines.delay
 import java.time.ZonedDateTime
 
@@ -52,6 +53,15 @@ class MainActivity : ComponentActivity() {
             )
             val durations = SolarEphemeris.calculateDailyDurations(events)
             var currentSunPosition by remember{ mutableStateOf(SolarEphemeris.calculatePosition(currentTime, coordinates.latitude, coordinates.longitude)) }
+            var dailyPeakMetrics by remember { mutableStateOf(SunMetrics.calculateMetrics(
+                sunElevationDeg = events.solarNoonAltitude,
+                observerAltitudeMeters = coordinates.altitude!!
+            ))}
+            var liveMetrics by remember { mutableStateOf(SunMetrics.calculateMetrics(
+                sunElevationDeg = currentSunPosition.altitude,
+                observerAltitudeMeters = coordinates.altitude!!
+            ))}
+            var oldDay = currentTime.toLocalDate()
 
             HeliosTheme {
                 Scaffold(
@@ -80,6 +90,11 @@ class MainActivity : ComponentActivity() {
                                 delay(12000)
                                 currentTime = ZonedDateTime.now()
                                 currentSunPosition = SolarEphemeris.calculatePosition(currentTime, coordinates.latitude, coordinates.longitude)
+                                if (oldDay != currentTime.toLocalDate()) {
+                                    dailyPeakMetrics = SunMetrics.calculateMetrics(currentSunPosition.altitude, coordinates.altitude!!)
+                                    oldDay = currentTime.toLocalDate()
+                                }
+                                liveMetrics = SunMetrics.calculateMetrics(currentSunPosition.altitude, coordinates.altitude!!)
                             }
                         }
                     }
@@ -100,7 +115,9 @@ class MainActivity : ComponentActivity() {
                                 coordinates = coordinates,
                                 currentPosition = currentSunPosition,
                                 events = events,
-                                durations = durations
+                                durations = durations,
+                                dailyPeakMetrics = dailyPeakMetrics,
+                                liveMetrics = liveMetrics
                             )
                         }
                         composable(Routes.Moon.route) {

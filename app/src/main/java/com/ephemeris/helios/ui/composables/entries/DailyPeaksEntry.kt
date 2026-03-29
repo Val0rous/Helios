@@ -8,10 +8,10 @@ import com.ephemeris.helios.utils.roundToSignificant
 
 @Composable
 fun DailyPeaksEntry(
-    irradiance: Double = 0.0,
-    uvIntensity: Double = 0.0,
-    luminance: Double = 0.0,
-    shadowRatio: Double = 0.0
+    irradiance: Double,
+    uvIntensity: Double,
+    luminance: Double,
+    shadowRatio: Double
 ) {
     HeaderEntry(text = stringResource(R.string.daily_peaks))
     TextEntry(text = "${irradiance.roundToSignificant()}", textVariant = "W/m²", icon = R.drawable.ic_bolt, desc = "Max Irradiance")

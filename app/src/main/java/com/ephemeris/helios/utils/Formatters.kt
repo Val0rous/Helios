@@ -41,7 +41,7 @@ fun Double.round(decimals: Int = 1): Double {
 fun Double.roundToSignificant(figures: Int = 3): Double {
     if (this == 0.0) return 0.0
     val magnitude = ceil(log10(abs(this)))
-    val decimals = (figures - magnitude.toInt()).coerceAtLeast(0)
+    val decimals = (figures - magnitude.toInt()).coerceIn(0, 4)
     return BigDecimal(this).setScale(decimals, RoundingMode.HALF_UP).toDouble()
 }
 

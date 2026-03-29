@@ -8,10 +8,10 @@ import com.ephemeris.helios.utils.roundToSignificant
 
 @Composable
 fun LiveMetricsEntry(
-    irradiance: Double = 0.0,
-    uvIntensity: Double = 0.0,
-    luminance: Double = 0.0,
-    shadowRatio: Double = 0.0
+    irradiance: Double,
+    uvIntensity: Double,
+    luminance: Double,
+    shadowRatio: Double
 ) {
     HeaderEntry(text = stringResource(R.string.live_metrics))
     TextEntry(text = "${irradiance.roundToSignificant()}", textVariant = "W/m²", icon = R.drawable.ic_bolt_filled, desc = "Current Irradiance")

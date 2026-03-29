@@ -1,6 +1,5 @@
 package com.ephemeris.helios.utils
 
-import kotlin.Float.Companion.NaN
 import kotlin.math.*
 
 object SunMetrics {
@@ -11,6 +10,49 @@ object SunMetrics {
     private const val DIRECT_BEAM_IRRADIANCE_CONSTANT = 1
     private const val GLOBAL_HORIZONTAL_IRRADIANCE_CONSTANT = 1.125 // +10-15%
     // Todo: let users choose their preferred irradiance calc, default is 1 (direct) for solar panels and 1.125 for photography/cinematic purposes
+
+    data class SunMetricsResult(
+        val irradiance: Double,
+        val uvIntensity: Double,
+        val luminance: Double,
+        val shadowRatio: Double,
+        val airMass: Double,
+        val colorTemp: Double
+    )
+
+    fun calculateMetrics(
+        sunElevationDeg: Double,
+        observerAltitudeMeters: Double,
+        ozoneDU: Double = DEFAULT_OZONE_DU
+    ): SunMetricsResult {
+        val outIrradiance = FloatArray(1)
+        val outUvi = FloatArray(1)
+        val outIlluminance = FloatArray(1)
+        val outShadowRatio = FloatArray(1)
+        val outAirMass = FloatArray(1)
+        val outColorTemp = FloatArray(1)
+
+        calculateMetrics(
+            sunElevationsDeg = doubleArrayOf(sunElevationDeg),
+            observerAltitudeMeters = observerAltitudeMeters,
+            ozoneDU = ozoneDU,
+            outIrradiance = outIrradiance,
+            outUvi = outUvi,
+            outIlluminance = outIlluminance,
+            outShadowRatio = outShadowRatio,
+            outAirMass = outAirMass,
+            outColorTemp = outColorTemp
+        )
+        return SunMetricsResult(
+            irradiance = outIrradiance[0].toDouble(),
+            uvIntensity = outUvi[0].toDouble(),
+            luminance = outIlluminance[0].toDouble(),
+            shadowRatio = outShadowRatio[0].toDouble(),
+            airMass = outAirMass[0].toDouble(),
+            colorTemp = outColorTemp[0].toDouble()
+        )
+    }
+
     /**
      * Calculates all metrics in a single pass to maximize CPU cache efficiency.
      * @param sunElevationsDeg Input array of sun altitudes in degrees.
