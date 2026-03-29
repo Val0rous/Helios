@@ -9,10 +9,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.ephemeris.helios.utils.DailySunChartTypes
+import com.ephemeris.helios.utils.Charts
 
 @Composable
-fun ChartSelectorChip(chartType: DailySunChartTypes, isSelected: Boolean, onSelectedChartTypeChange: (DailySunChartTypes) -> Unit) {
+fun ChartSelectorChip(chartType: Charts, isSelected: Boolean, onSelectedChartTypeChange: (Charts) -> Unit) {
     FilterChip(
         selected = isSelected,
         onClick = { onSelectedChartTypeChange(chartType) },

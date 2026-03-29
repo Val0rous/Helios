@@ -1,16 +1,589 @@
 package com.ephemeris.helios.ui.composables.charts
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.ephemeris.helios.utils.DailySunChartTypes
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.ephemeris.helios.R
+import com.ephemeris.helios.ui.theme.LocalCustomColors
+import com.ephemeris.helios.ui.theme.MaterialColors
+import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.formatHour
+import com.ephemeris.helios.utils.formatNumber
+import com.ephemeris.helios.utils.printRounded
+import kotlin.math.floor
+import kotlin.math.log10
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.round
 
 @Composable
 fun DailyTimeChart(
     xValues: FloatArray,
     yValues: FloatArray,
-    chartType: DailySunChartTypes,
+    chartType: Charts,
     currentHour: Float,
     modifier: Modifier = Modifier
 ) {
+    val sunPainter = painterResource(id = when (chartType) {
+        is Charts.Sun -> R.drawable.ic_brightness_empty_filled
+        is Charts.Moon -> R.drawable.ic_moon_stars_filled // Todo: change icon
+        else -> R.drawable.ic_circle_filled
+    })
+    val indicatorPainter = painterResource(id = R.drawable.ic_circle_filled)
 
+    val colors = LocalCustomColors.current
+    val sunYellow = colors.sun
+    val dayFill = colors.day
+    val civilTwilightFill = colors.civilTwilight
+    val nauticalTwilightFill = colors.nauticalTwilight
+    val astroTwilightFill = colors.astronomicalTwilight
+    val nightFill = colors.night
+
+    val uvDarkGreen = Color(0xFF2E7D32).copy(alpha = 0.5f)
+    val uvGreen = Color(0xFF4CAF50).copy(alpha = 0.5f)
+    val uvYellow = Color(0xFFFFEB3B).copy(alpha = 0.5f)
+    val uvAmber = Color(0xFFFFC107).copy(alpha = 0.5f)
+    val uvOrange = Color(0xFFFF9800).copy(alpha = 0.5f)
+    val uvRed = Color(0xFFF44336).copy(alpha = 0.5f)
+    val uvDarkRed = Color(0xFFB71C1C).copy(alpha = 0.5f)
+    val uvPurple = Color(0xFF673AB7).copy(alpha = 0.5f)
+
+    val dayBackground = MaterialTheme.colorScheme.surface
+    val nightBackground = MaterialTheme.colorScheme.surfaceVariant
+    val elapsedDayFill = when (chartType) {
+        Charts.Sun.Daily.UvIntensity -> MaterialColors.Gray400.copy(alpha = 0.4f)
+        else -> colors.elapsedDay
+    }
+    val elapsedNightFill = colors.elapsedNight
+
+    val backgroundColor = MaterialTheme.colorScheme.surface
+    val materialTheme = MaterialTheme.colorScheme
+    val context = LocalContext.current
+    // Text Measurer and styling for the legends
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = TextStyle(
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+        fontSize = (9.5).sp,
+        fontFamily = FontFamily.Monospace
+    )
+
+    Canvas(modifier = modifier) {
+        if (xValues.isEmpty() || yValues.isEmpty()) return@Canvas
+
+        val width = size.width
+        val height = size.height
+
+        val minX = xValues.minOrNull() ?: 0f
+        val maxX = xValues.maxOrNull() ?: 24f
+        val minY = when (chartType) {
+            Charts.Sun.Daily.Elevation -> -90f
+            Charts.Sun.Daily.ColorTemperature -> 2000f
+            Charts.Sun.Daily.AirMass -> 1f
+            else -> 0f
+        }
+        val maxY = when (chartType) {
+            Charts.Sun.Daily.Elevation -> 90f
+            Charts.Sun.Daily.Irradiance -> max(1000f, yValues.max())
+            Charts.Sun.Daily.UvIntensity -> max(10f, yValues.max())
+            Charts.Sun.Daily.Illuminance -> max(100000f, yValues.max())
+            Charts.Sun.Daily.Shadows -> 10f
+            Charts.Sun.Daily.ColorTemperature -> max(5500f, yValues.max())
+            Charts.Sun.Daily.AirMass -> 10f // or 15f
+            else -> 90f // Todo: Change
+        }
+
+        val verticalPaddingPx = 16.dp.toPx()
+        val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
+
+        val isLogScale = when (chartType) {
+            Charts.Sun.Daily.Illuminance, Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> true
+            else -> false
+        }
+
+        // Helper functions to map mathematical coordinates to Canvas pixels
+        fun mapX(x: Float) = ((x - minX) / (maxX - minX)) * width
+        // Canvas Y=0 is at the top, so we invert the Y mapping
+        fun mapY(y: Float): Float {
+            return if (isLogScale) {
+                // log10(y + 1) safely handles 0 values without throwing negative infinity
+                val logY = log10(y.coerceAtLeast(0f) + 1f)
+                val logMin = log10(minY.coerceAtLeast(0f) + 1f)
+                val logMax = log10(maxY.coerceAtLeast(0f) + 1f)
+
+                val fraction = if (logMax == logMin) 0f else (logY - logMin) / (logMax - logMin)
+                height - verticalPaddingPx - (fraction * drawHeight)
+            } else {
+                val fraction = if (maxY == minY) 0f else (y - minY) / (maxY - minY)
+                height - verticalPaddingPx - (fraction * drawHeight)
+            }
+        }
+
+        val zeroYPixel = when (chartType) {
+            Charts.Sun.Daily.ColorTemperature -> mapY(2000f)
+            Charts.Sun.Daily.AirMass -> mapY(1f)
+            else -> mapY(0f)
+        }
+        val currentXPx = mapX(currentHour)
+
+        // Day Background
+        drawRect(
+            color = dayBackground,
+            topLeft = Offset(0f, 0f),
+            size = Size(width, zeroYPixel)
+        )
+
+        // Night Background
+        drawRect(
+            color = nightBackground,
+            topLeft = Offset(0f, zeroYPixel),
+            size = Size(width, height - zeroYPixel)
+        )
+
+        val wrapThreshold = 200f // Instantly cuts off erratic backend interpolation
+
+        // 1. Build the smooth curve path
+        val curvePath = Path().apply {
+            moveTo(mapX(xValues[0]), mapY(yValues[0]))
+            for (i in 1 until xValues.size) {
+                lineTo(mapX(xValues[i]), mapY(yValues[i]))
+            }
+        }
+
+        // 2. Build the fill path that closes down to the X-axis
+        val fillPath = Path().apply {
+            moveTo(mapX(xValues[0]), zeroYPixel)
+            lineTo(mapX(xValues[0]), mapY(yValues[0]))
+            for (i in 1 until xValues.size) {
+                lineTo(mapX(xValues[i]), mapY(yValues[i]))
+            }
+            lineTo(mapX(xValues.last()), zeroYPixel)
+            close()
+        }
+
+        clipRect(bottom = zeroYPixel) {
+            drawPath(path = fillPath, color = dayBackground.copy(alpha = 1.0f))
+        }
+
+        clipRect(top = zeroYPixel) {
+            drawPath(path = fillPath, color = nightBackground.copy(alpha = 1.0f))
+        }
+
+//        // 3. Draw the colored areas (clipped strictly up to currentHour)
+//        clipRect(right = currentXPx) {
+//
+//            // Day (Above 0deg)
+//            clipRect(bottom = zeroYPixel) {
+//                drawPath(path = fillPath, color = dayOrangeFill)
+//            }
+//
+//            // Civil Twilight (0deg to -6deg)
+//            clipRect(top = zeroYPixel, bottom = civilYPixel) {
+//                drawPath(path = fillPath, color = civilTwilightFill)
+//            }
+//
+//            // Nautical Twilight (-6deg to -12deg)
+//            clipRect(top = civilYPixel, bottom = nauticalYPixel) {
+//                drawPath(path = fillPath, color = nauticalTwilightFill)
+//            }
+//
+//            // Astronomical Twilight (-12deg to -18deg)
+//            clipRect(top = nauticalYPixel, bottom = astroYPixel) {
+//                drawPath(path = fillPath, color = astroTwilightFill)
+//            }
+//
+//            // Night (Below -18deg)
+//            clipRect(top = astroYPixel, bottom = height) {
+//                drawPath(path = fillPath, color = deepNightFill)
+//            }
+//        }
+
+        // 3a. Calculate exact X intersections for vertical stripes
+        val thresholds = when(chartType) {
+            Charts.Sun.Daily.UvIntensity -> floatArrayOf(0f, 2f, 3f, 5f, 6f, 8f, 10f, 11f)
+            else -> floatArrayOf(0f, -6f, -12f, -18f)
+        }
+        val sortedXPoints = mutableListOf<Float>()
+        for (x in xValues) {
+            // Add all original X points
+            sortedXPoints.add(x)
+        }
+        // Add all mathematical crossing points
+        for (i in 0 until xValues.size - 1) {
+            val x1 = xValues[i]
+            val x2 = xValues[i+1]
+            val y1 = yValues[i]
+            val y2 = yValues[i+1]
+
+            for (th in thresholds) {
+                if ((y1 < th && y2 > th) || (y1 > th && y2 < th)) {
+                    // Linear interpolation to find the exact X coordinate of the threshold
+                    val fraction = (th - y1) / (y2 - y1)
+                    val x = x1 + fraction * (x2 - x1)
+                    sortedXPoints.add(x)
+                }
+            }
+        }
+        sortedXPoints.sort()
+        val uniqueXPoints = sortedXPoints.distinct()
+
+        // --- NEW: Draw the clipped vertical stripes ---
+        clipPath(fillPath) {
+
+            // 1. Day area: Removed 'right = currentXPx' so sunset is always visible by default
+            clipRect(bottom = zeroYPixel) {
+//                if (zeroYPixel > 0f) {
+                when (chartType) {
+                    Charts.Sun.Daily.UvIntensity -> {
+                        // --- UV Slicing Logic ---
+                        var currentBlockColor = Color.Transparent
+                        var blockStartX = uniqueXPoints.firstOrNull() ?: 0f
+
+                        for (i in 0 until uniqueXPoints.size - 1) {
+                            val xA = uniqueXPoints[i]
+                            val xB = uniqueXPoints[i + 1]
+                            val midX = (xA + xB) / 2f
+
+                            // Interpolate to find UV Index at the exact center of this stripe
+                            var midY = 0f
+                            for (j in 0 until xValues.size - 1) {
+                                if (midX >= xValues[j] && midX <= xValues[j + 1]) {
+                                    val delta = xValues[j + 1] - xValues[j]
+                                    midY = if (delta > 0f) {
+                                        yValues[j] + ((midX - xValues[j]) / delta) * (yValues[j + 1] - yValues[j])
+                                    } else yValues[j]
+                                    break
+                                }
+                            }
+
+                            val sliceColor = when {
+                                midY < 0.01f -> Color.Transparent // Nighttime/Zero UV
+                                midY < 2f -> uvDarkGreen
+                                midY < 3f -> uvGreen
+                                midY < 5f -> uvYellow
+                                midY < 6f -> uvAmber
+                                midY < 8f -> uvOrange
+                                midY < 10f -> uvRed
+                                midY < 11f -> uvDarkRed
+                                else -> uvPurple
+                            }
+
+                            // Draw the block if the color changes
+                            if (sliceColor != currentBlockColor) {
+                                if (currentBlockColor != Color.Transparent && i > 0) {
+                                    val startPx = round(mapX(blockStartX))
+                                    val endPx = round(mapX(xA))
+                                    drawRect(
+                                        color = currentBlockColor,
+                                        topLeft = Offset(startPx, 0f), // Starts at very top of canvas
+                                        size = Size(endPx - startPx, zeroYPixel) // Extends down to horizon line
+                                    )
+                                }
+                                currentBlockColor = sliceColor
+                                blockStartX = xA
+                            }
+                        }
+
+                        // Draw the final accumulated UV block
+                        if (currentBlockColor != Color.Transparent) {
+                            val startPx = round(mapX(blockStartX))
+                            val endPx = round(mapX(uniqueXPoints.last()))
+                            drawRect(
+                                color = currentBlockColor,
+                                topLeft = Offset(startPx, 0f),
+                                size = Size(endPx - startPx, zeroYPixel)
+                            )
+                        }
+                    }
+                    else -> {
+                        // Normal Day Fill for all other charts
+                        drawRect(
+                            color = dayFill,
+                            topLeft = Offset(0f, 0f),
+                            size = Size(width, zeroYPixel)
+                        )
+                    }
+                }
+//                }
+            }
+
+            // 2. Night twilights: Vertical stripes extending past currentX
+            var currentBlockColor = Color.Transparent
+            var blockStartX = uniqueXPoints.firstOrNull() ?: 0f
+
+            for (i in 0 until uniqueXPoints.size - 1) {
+                val xA = uniqueXPoints[i]
+                val xB = uniqueXPoints[i + 1]
+                val midX = (xA + xB) / 2f // Find the center point of this slice
+
+                // Interpolate to find the Y altitude at the exact center of this stripe
+                var midY = 0f
+                for (j in 0 until xValues.size - 1) {
+                    if (midX >= xValues[j] && midX <= xValues[j + 1]) {
+                        val delta = xValues[j + 1] - xValues[j]
+                        midY = if (delta > 0f) {
+                            yValues[j] + ((midX - xValues[j]) / delta) * (yValues[j + 1] - yValues[j])
+                        } else yValues[j]
+                        break
+                    }
+                }
+
+                val sliceColor = when {
+                    midY >= 0f -> Color.Transparent // Day area already drawn above
+                    midY >= -6f -> civilTwilightFill
+                    midY >= -12f -> nauticalTwilightFill
+                    midY >= -18f -> astroTwilightFill
+                    else -> nightFill
+                }
+
+                // If the color changes, draw the accumulated block from the previous segments
+                if (sliceColor != currentBlockColor) {
+                    if (currentBlockColor != Color.Transparent && i > 0) {
+                        // Snap to exact pixels to prevent alpha-stacking artifacts
+                        val startPx = round(mapX(blockStartX))
+                        val endPx = round(mapX(xA))
+                        drawRect(
+                            color = currentBlockColor,
+                            topLeft = Offset(startPx, zeroYPixel),
+                            size = Size(endPx - startPx, height - zeroYPixel)
+                        )
+                    }
+                    // Start tracking the new color block
+                    currentBlockColor = sliceColor
+                    blockStartX = xA
+                }
+            }
+
+            // Draw the final accumulated block that hits the edge of the chart
+            if (currentBlockColor != Color.Transparent) {
+                val startPx = round(mapX(blockStartX))
+                val endPx = round(mapX(uniqueXPoints.last()))
+                drawRect(
+                    color = currentBlockColor,
+                    topLeft = Offset(startPx, zeroYPixel),
+                    size = Size(endPx - startPx, height - zeroYPixel)
+                )
+            }
+
+            // 3. Draw the elapsed time overlay (clipped strictly up to currentHour)
+            clipRect(right = currentXPx) {
+                // Elapsed Day (Above 0deg)
+                clipRect(bottom = zeroYPixel) {
+                    drawPath(path = fillPath, color = elapsedDayFill)
+                }
+
+                // Elapsed Night (Below 0deg)
+                clipRect(top = zeroYPixel) {
+                    drawPath(path = fillPath, color = elapsedNightFill)
+                }
+            }
+        }
+
+        // 4. Draw the full unclipped curve line for all values
+        drawPath(
+            path = curvePath,
+            color = materialTheme.onSurfaceVariant,
+            style = Stroke(width = (1.5).dp.toPx())
+        )
+
+        // 5. Draw a subtle X-Axis line to visually separate the zones
+        drawLine(
+            color = materialTheme.outline,
+            start = Offset(0f, zeroYPixel),
+            end = Offset(width, zeroYPixel),
+            strokeWidth = (1.5).dp.toPx()
+        )
+
+        // Define the dotted path effect and grid color ---
+        // floatArrayOf(on, off) in pixels. Using dp ensures consistent dot spacing on all screens.
+        val verticalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 0.dp.toPx()), 0f)
+        val horizontalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx()), 0f)
+        val verticalGridlineColor = materialTheme.outlineVariant.copy(alpha = 0.15f) // Light and subtle
+        val horizontalGridlineColor = materialTheme.outline.copy(alpha = 0.3f) // Light and subtle
+
+        // 5a. Draw Vertical Legend (Y-axis Altitudes)
+        val yLabels = when (chartType) {
+            Charts.Sun.Daily.Elevation -> (-90 until 91 step 15).map { it.toFloat()}
+            Charts.Sun.Daily.Irradiance -> (0 until (maxY.toInt() + 1) step 100).map { it.toFloat() }
+            Charts.Sun.Daily.UvIntensity -> (0 until (maxY.toInt() + 1) step floor(maxY / 10f).toInt()).map { it.toFloat() }
+            Charts.Sun.Daily.Illuminance -> listOf(0f) + (0..5).flatMap {
+                val base = 10.0.pow(it.toDouble()).toFloat()
+                listOf(base, base * 3f)
+            }.filter { it <= maxY }
+            Charts.Sun.Daily.Shadows -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+            Charts.Sun.Daily.ColorTemperature -> (2000 until 5501 step 500).map { it.toFloat() }
+            Charts.Sun.Daily.AirMass -> listOf(1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+            else -> emptyList()
+        }
+        yLabels.forEach { yVal ->
+            val yPx = mapY(yVal)
+//            if (yVal == 0f) return@forEach // Skip the zero
+
+            // Draw horizontal dotted grid line (Skip 0f to avoid drawing over the solid horizon line)
+            if (yVal != 0f) {
+                drawLine(
+                    color = horizontalGridlineColor,
+                    start = Offset(0f, yPx),
+                    end = Offset(width, yPx),
+                    strokeWidth = 1.dp.toPx(),
+                    pathEffect = horizontalGridDashEffect
+                )
+            }
+
+            val text = when (chartType) {
+                Charts.Sun.Daily.Elevation -> "${yVal.toInt()}°"
+                Charts.Sun.Daily.Irradiance -> "${formatNumber(yVal.toDouble())} W/m²"
+                Charts.Sun.Daily.ColorTemperature -> "${yVal.toInt()}K"
+                Charts.Sun.Daily.Illuminance -> "${formatNumber(yVal.toDouble())} lx"
+                Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> yVal.toDouble().printRounded(2)
+                else -> "${yVal.toInt()}"
+            }
+            val textLayout = textMeasurer.measure(text, labelStyle)
+            drawText(
+                textMeasurer = textMeasurer,
+                text = text,
+                style = labelStyle,
+                topLeft = Offset(
+                    x = 4.dp.toPx(), // Slight padding from the left edge
+                    y = yPx - (textLayout.size.height / 2f) // Perfectly centered vertically on the line
+                )
+            )
+        }
+
+        // 5b. Draw Horizontal Legend (X-axis Hours)
+        val xLabels = (3..21 step 3).toList()
+        xLabels.forEach {
+            val xPx = mapX(it.toFloat())
+
+            // Draw vertical dotted grid line
+            drawLine(
+                color = verticalGridlineColor,
+                start = Offset(xPx, 0f),
+                end = Offset(xPx, height), // Spans the entire canvas height
+                strokeWidth = 1.dp.toPx(),
+                pathEffect = verticalGridDashEffect
+            )
+
+            val text = formatHour(it, true, context)
+            val textLayout = textMeasurer.measure(text, labelStyle)
+
+            drawText(
+                textMeasurer = textMeasurer,
+                text = text,
+                style = labelStyle,
+                topLeft = Offset(
+                    x = xPx - (textLayout.size.width / 2f), // Centered horizontally on the hour mark
+                    y = height - textLayout.size.height - 2.dp.toPx() // Pinned near the bottom edge of the canvas
+                )
+            )
+        }
+
+        // 6. Calculate exact Y position for the sun at currentHour
+        var currentY = 0f
+//        if (chartType == SunChartTypes.TRAJECTORY && fixedXValues.isNotEmpty()) {
+//            for (i in 0 until fixedXValues.size - 1) {
+//                val x1 = fixedXValues[i]
+//                val x2 = fixedXValues[i+1]
+//
+//                // Dynamically unwrap the target to match the local array segment
+//                var tempTarget = currentHour
+//                while (tempTarget < min(x1, x2) - 180f) tempTarget += 360f
+//                while (tempTarget > max(x1, x2) + 180f) tempTarget -= 360f
+//
+//                if (tempTarget in min(x1, x2)..max(x1, x2)) {
+//                    val timeDelta = x2 - x1
+//                    if (timeDelta != 0f) {
+//                        val fraction = (tempTarget - x1) / timeDelta
+//                        currentY = yValues[i] + fraction * (yValues[i+1] - yValues[i])
+//                    }
+//                    break
+//                }
+//            }
+//        } else {
+        // Normal fallback for Time-based charts
+        for (i in 0 until xValues.size - 1) {
+            val x1 = xValues[i]
+            val x2 = xValues[i+1]
+            val minX = min(x1, x2)
+            val maxX = max(x1, x2)
+
+            if (currentHour in minX..maxX) {
+                val timeDelta = x2 - x1
+                if (timeDelta != 0f) {
+                    // Linear interpolation to find the exact altitude at this moment
+                    val fraction = (currentHour - x1) / timeDelta
+                    currentY = yValues[i] + fraction * (yValues[i+1] - yValues[i])
+                }
+                break
+            }
+        }
+//        }
+        val currentYPx = mapY(currentY)
+
+        // 7. Paint the Sun Icon if above horizon
+        val isSunUp = when (chartType) {
+            Charts.Sun.Daily.Elevation -> currentY >= 0f
+            Charts.Sun.Daily.ColorTemperature -> currentY > 2000f
+            Charts.Sun.Daily.AirMass -> currentY > 1f
+            else -> currentY > 0f
+        }
+
+        if (isSunUp) {
+            val iconSize = 24.dp.toPx()
+//            val padding = 4.dp.toPx()
+//            val radius = (iconSize / 2) + padding
+
+//            drawCircle(
+//                color = backgroundColor,
+//                radius = radius,
+//                center = Offset(currentXPx, currentYPx)
+//            )
+
+            clipRect(bottom = (zeroYPixel - 2f)) {
+                translate(
+                    left = currentXPx - iconSize / 2,
+                    top = currentYPx - iconSize / 2
+                ) {
+                    with(sunPainter) {
+                        draw(
+                            size = Size(iconSize, iconSize),
+                            colorFilter = ColorFilter.tint(sunYellow)
+                        )
+                    }
+                }
+            }
+        } else {
+            val iconSize = 12.dp.toPx()
+            translate(
+                left = currentXPx - iconSize / 2,
+                top = currentYPx - iconSize / 2
+            ) {
+                with(indicatorPainter) {
+                    draw(
+                        size = Size(iconSize, iconSize),
+                        colorFilter = ColorFilter.tint(sunYellow.copy(alpha = 0.5f))
+                    )
+                }
+            }
+        }
+    }
 }

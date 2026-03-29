@@ -34,10 +34,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.composables.ChartSelectorChip
-import com.ephemeris.helios.ui.composables.SunPathChart
+import com.ephemeris.helios.ui.composables.charts.DailyAzimuthChart
+import com.ephemeris.helios.ui.composables.charts.DailyTimeChart
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.SolarEphemeris
-import com.ephemeris.helios.utils.DailySunChartTypes
+import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.SunMetrics
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.getSunPhase
@@ -54,7 +55,7 @@ fun PathCard(
     events: SolarEphemeris.DailyEvents,
     currentPosition: SolarEphemeris.SolarPosition,
 ) {
-    var selectedChartType by rememberSaveable { mutableStateOf(DailySunChartTypes.ELEVATION) }
+    var selectedChartType by rememberSaveable { mutableStateOf<Charts>(Charts.Sun.Daily.Elevation) }
     val currentHour: Float by remember {
         derivedStateOf {
             // Always pass time (0-24). Never pass Azimuth!
@@ -101,7 +102,7 @@ fun PathCard(
 
     SunMetrics.calculateMetrics(
         sunElevationsDeg = elevationCalc,
-        observerAltitudeMeters = coordinates.altitude ?: 0.0,
+        observerAltitudeMeters = coordinates.altitude,
         outIrradiance = irradiance,
         outUvi = uvIntensity,
         outIlluminance = illuminance,
@@ -111,17 +112,18 @@ fun PathCard(
     )
 
     val xValues = when (selectedChartType) {
-        DailySunChartTypes.TRAJECTORY -> azimuths
+        Charts.Sun.Daily.Trajectory -> azimuths
         else -> hours
     }
     val yValues = when (selectedChartType) {
-        DailySunChartTypes.ELEVATION, DailySunChartTypes.TRAJECTORY -> elevation
-        DailySunChartTypes.IRRADIANCE -> irradiance
-        DailySunChartTypes.UV_INTENSITY -> uvIntensity
-        DailySunChartTypes.ILLUMINANCE -> illuminance
-        DailySunChartTypes.SHADOWS -> shadowRatio
-        DailySunChartTypes.COLOR_TEMPERATURE -> colorTemp
-        DailySunChartTypes.AIR_MASS -> airMass
+        Charts.Sun.Daily.Elevation, Charts.Sun.Daily.Trajectory -> elevation
+        Charts.Sun.Daily.Irradiance -> irradiance
+        Charts.Sun.Daily.UvIntensity -> uvIntensity
+        Charts.Sun.Daily.Illuminance -> illuminance
+        Charts.Sun.Daily.Shadows -> shadowRatio
+        Charts.Sun.Daily.ColorTemperature -> colorTemp
+        Charts.Sun.Daily.AirMass -> airMass
+        else -> FloatArray(X_SIZE)
     }
 
     OutlinedCard(
@@ -136,7 +138,7 @@ fun PathCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 8.dp)
             ) {
-                items(DailySunChartTypes.entries) { type ->
+                items(Charts.Sun.Daily.entries) { type ->
                     ChartSelectorChip(
                         chartType = type,
                         isSelected = type == selectedChartType,
@@ -144,16 +146,27 @@ fun PathCard(
                     )
                 }
             }
-            SunPathChart(
-                xValues = xValues,
-                yValues = yValues,
-                currentHour = currentHour,
-                chartType = selectedChartType,
-                modifier = Modifier
-                    .aspectRatio(2f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .padding(vertical = 0.dp)
-            )
+            when (selectedChartType) {
+                Charts.Sun.Daily.Trajectory -> DailyAzimuthChart(
+                    xValues = xValues,
+                    yValues = yValues,
+                    chartType = selectedChartType,
+                    currentAzimuth = currentPosition.azimuth.toFloat(),
+                    currentAltitude = currentPosition.altitude.toFloat(),
+                    modifier = Modifier
+                        .aspectRatio(2f)
+                )
+                else -> DailyTimeChart(
+                    xValues = xValues,
+                    yValues = yValues,
+                    currentHour = currentHour,
+                    chartType = selectedChartType,
+                    modifier = Modifier
+                        .aspectRatio(2f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .padding(vertical = 0.dp)
+                )
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
