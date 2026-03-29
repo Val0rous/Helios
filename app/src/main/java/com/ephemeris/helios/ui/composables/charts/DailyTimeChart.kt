@@ -71,11 +71,29 @@ fun DailyTimeChart(
     val uvDarkRed = Color(0xFFB71C1C).copy(alpha = 0.5f)
     val uvPurple = Color(0xFF673AB7).copy(alpha = 0.5f)
 
+    // --- NEW: Gradient Theme Colors ---
+    // Air Mass (Clear Sky to Hazy Horizon)
+    val amZenith = Color(0xFF29B6F6).copy(alpha = 0.5f) // Clear Light Blue
+    val amHorizon = Color(0xFFCFD8DC).copy(alpha = 0.5f) // Hazy Grey/White
+
+    // Shadows (Light/Short to Dark/Long)
+    val shadowShort = Color(0xFFE0E0E0).copy(alpha = 0.5f)
+    val shadowLong = Color(0xFF424242).copy(alpha = 0.5f)
+
+    // Illuminance (Blinding Light to Dim)
+    val luxBright = Color(0xFFFFF59D).copy(alpha = 0.6f) // Glowing Pale Yellow
+    val luxDim = Color(0xFF5C6BC0).copy(alpha = 0.3f)   // Dim Twilight Blue
+
+    // Irradiance Heat Map (Warm to Hot)
+    val irrLow = Color(0xFFFFCC80).copy(alpha = 0.4f)   // Soft Dawn Gold
+    val irrMid = Color(0xFFFF9800).copy(alpha = 0.5f)   // Orange Energy
+    val irrHigh = Color(0xFFE65100).copy(alpha = 0.6f)  // Intense Heat Red
+
     val dayBackground = MaterialTheme.colorScheme.surface
     val nightBackground = MaterialTheme.colorScheme.surfaceVariant
     val elapsedDayFill = when (chartType) {
-        Charts.Sun.Daily.UvIntensity, Charts.Sun.Daily.ColorTemperature -> MaterialColors.Gray400.copy(alpha = 0.4f)
-        else -> colors.elapsedDay
+        Charts.Sun.Daily.Elevation -> colors.elapsedDay
+        else -> MaterialColors.Gray400.copy(alpha = 0.4f)
     }
     val elapsedNightFill = colors.elapsedNight
 
@@ -338,6 +356,94 @@ fun DailyTimeChart(
                             topLeft = Offset(0f, 0f),
                             size = Size(width, zeroYPixel)
                         )
+                    }
+                    Charts.Sun.Daily.AirMass -> {
+//                        val amBrush = Brush.verticalGradient(
+//                            0.0f to amZenith,
+//                            1.0f to amHorizon,
+//                            startY = mapY(1f),
+//                            endY = mapY(10f) // Maps to the standard visual limit
+//                        )
+                        val amBrush = createHorizontalBrush({value ->
+                            // Air Mass goes from 1 (Zenith) to ~10+ (Horizon)
+                            // We lerp from Clear Blue to Hazy Gray
+                            val fraction = ((value.coerceIn(1f, 10f) - 1f) / 9f)
+                            lerp(amZenith, amHorizon, fraction)
+                        }, params)
+                        drawRect(brush = amBrush, topLeft = Offset(0f, 0f), size = Size(width, zeroYPixel))
+                    }
+                    Charts.Sun.Daily.Shadows -> {
+//                        val shadowBrush = Brush.verticalGradient(
+//                            0.0f to shadowShort, // Top = Short shadows
+//                            1.0f to shadowLong,  // Bottom = Long shadows
+//                            startY = mapY(0f),
+//                            endY = mapY(10f)
+//                        )
+                        val shadowBrush = createHorizontalBrush({ value ->
+                            // Shadows go from 0 (Short) to ~10+ (Long)
+                            // We lerp from Light Silver to Deep Charcoal
+                            val fraction = (value.coerceIn(0f, 10f) / 10f)
+                            lerp(shadowShort, shadowLong, fraction)
+                        }, params)
+                        drawRect(brush = shadowBrush, topLeft = Offset(0f, 0f), size = Size(width, zeroYPixel))
+                    }
+                    Charts.Sun.Daily.Illuminance -> {
+                        val luxBrush = Brush.verticalGradient(
+                            0.0f to luxBright, // Top = Max brightness
+                            1.0f to luxDim,    // Bottom = Dim 0 lux
+                            startY = mapY(maxY),
+                            endY = zeroYPixel
+                        )
+                        drawRect(brush = luxBrush, topLeft = Offset(0f, 0f), size = Size(width, zeroYPixel))
+                    }
+                    Charts.Sun.Daily.Irradiance -> {
+//                        // Horizontal Heat Map using Lerp
+//                        fun getIrrColor(value: Float): Color {
+//                            val maxIrr = maxY.coerceAtLeast(1f)
+//                            val fraction = (value / maxIrr).coerceIn(0f, 1f)
+//                            return when {
+//                                fraction <= 0.5f -> lerp(irrLow, irrMid, fraction * 2f)
+//                                else -> lerp(irrMid, irrHigh, (fraction - 0.5f) * 2f)
+//                            }
+//                        }
+//
+//                        val irrStops = mutableListOf<Pair<Float, Color>>()
+//                        val step = max(1, xValues.size / 40)
+//
+//                        for (i in xValues.indices step step) {
+//                            val fraction = ((xValues[i] - minX) / (maxX - minX)).coerceIn(0f, 1f)
+//                            irrStops.add(fraction to getIrrColor(yValues[i]))
+//                        }
+//
+//                        val peakIndex = yValues.indices.maxByOrNull { yValues[it] } ?: 0
+//                        val peakFraction = ((xValues[peakIndex] - minX) / (maxX - minX)).coerceIn(0f, 1f)
+//                        irrStops.add(peakFraction to getIrrColor(yValues[peakIndex]))
+//
+//                        val lastFraction = ((xValues.last() - minX) / (maxX - minX)).coerceIn(0f, 1f)
+//                        irrStops.add(lastFraction to getIrrColor(yValues.last()))
+//
+//                        val finalStops = irrStops
+//                            .distinctBy { it.first }
+//                            .sortedBy { it.first }
+//                            .toTypedArray()
+
+//                        val irrBrush = Brush.horizontalGradient(
+//                            *finalStops,
+//                            startX = 0f,
+//                            endX = width
+//                        )
+
+                        val irrBrush = createHorizontalBrush({ value ->
+                            // Heat Map: Soft Gold -> Orange -> Intense Red
+                            val maxIrr = maxY.coerceAtLeast(1f)
+                            val fraction = (value / maxIrr).coerceIn(0f, 1f)
+                            when {
+                                fraction <= 0.5f -> lerp(irrLow, irrMid, fraction * 2f)
+                                else -> lerp(irrMid, irrHigh, (fraction - 0.5f) * 2f)
+                            }
+                        }, params)
+
+                        drawRect(brush = irrBrush, topLeft = Offset(0f, 0f), size = Size(width, zeroYPixel))
                     }
                     else -> {
                         // Normal Day Fill for all other charts
@@ -652,6 +758,34 @@ data class ChartData(
         result = 31 * result + yValues.contentHashCode()
         return result
     }
+}
+
+// --- HELPER: Reusable Horizontal Gradient Generator ---
+// Extracts the complex stop-generation logic to keep code DRY
+fun createHorizontalBrush(getColor: (Float) -> Color, params: ChartData): Brush {
+    val stops = mutableListOf<Pair<Float, Color>>()
+    val step = max(1, params.xValues.size / 40)
+
+    for (i in params.xValues.indices step step) {
+        val fraction = ((params.xValues[i] - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
+        stops.add(fraction to getColor(params.yValues[i]))
+    }
+
+    // Always map the peak explicitly so gradients peak perfectly
+    val peakIndex = params.yValues.indices.maxByOrNull { params.yValues[it] } ?: 0
+    val peakFraction = ((params.xValues[peakIndex] - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
+    stops.add(peakFraction to getColor(params.yValues[peakIndex]))
+
+    // Always map the end explicitly
+    val lastFraction = ((params.xValues.last() - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
+    stops.add(lastFraction to getColor(params.yValues.last()))
+
+    val finalStops = stops
+        .distinctBy { it.first }
+        .sortedBy { it.first }
+        .toTypedArray()
+
+    return Brush.horizontalGradient(*finalStops, startX = 0f, endX = params.width)
 }
 
 fun getColorTemperatureBrushGradient(
