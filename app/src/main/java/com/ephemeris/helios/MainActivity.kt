@@ -21,10 +21,12 @@ import androidx.navigation.compose.rememberNavController
 import com.ephemeris.helios.ui.composables.Navbar
 import com.ephemeris.helios.ui.composables.TimeMachine
 import com.ephemeris.helios.ui.composables.TopBar
+import com.ephemeris.helios.ui.screens.Home
 import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.Routes
+import com.ephemeris.helios.utils.SeasonalEphemeris
 import com.ephemeris.helios.utils.SolarEphemeris
 import com.ephemeris.helios.utils.SunMetrics
 import kotlinx.coroutines.delay
@@ -43,7 +45,7 @@ class MainActivity : ComponentActivity() {
             var startDestination by remember { mutableStateOf(initialStartDestination) }
             var currentTime by remember { mutableStateOf(ZonedDateTime.now()) }
             var isAutoUpdateEnabled by remember { mutableStateOf(true) }
-            var coordinates by remember { mutableStateOf(Coordinates(44.24, 11.99)) }
+            var coordinates by remember { mutableStateOf(Coordinates(3.1, 11.99)) }
 
 //            currentTime = ZonedDateTime.of(2026, 6, 20, 15, 0, 0, 0, ZoneId.of("UTC+2"))
             val events = SolarEphemeris.calculateDailyEvents(
@@ -63,6 +65,22 @@ class MainActivity : ComponentActivity() {
                 observerAltitudeMeters = coordinates.altitude
             ))}
             var oldDay = currentTime.toLocalDate()
+            val seasonalEvents = SeasonalEphemeris.getSeasonalEvents(currentTime.year, ZoneId.systemDefault())
+            val mEq = SeasonalEphemeris.getDaily(seasonalEvents.marchEquinox, coordinates)
+            val jSo = SeasonalEphemeris.getDaily(seasonalEvents.juneSolstice, coordinates)
+            val sEq = SeasonalEphemeris.getDaily(seasonalEvents.septemberEquinox, coordinates)
+            val dSo = SeasonalEphemeris.getDaily(seasonalEvents.decemberSolstice, coordinates)
+
+            val seasonalDailyEvents = SeasonalEphemeris.SeasonalDailyEvents(
+                marchEquinoxDaylight = mEq.dayLength,
+                juneSolsticeDaylight = jSo.dayLength,
+                septemberEquinoxDaylight = sEq.dayLength,
+                decemberSolsticeDaylight = dSo.dayLength,
+                marchEquinoxSunAngle = mEq.solarNoonAltitude,
+                juneSolsticeSunAngle = jSo.solarNoonAltitude,
+                septemberEquinoxSunAngle = sEq.solarNoonAltitude,
+                decemberSolsticeSunAngle = dSo.solarNoonAltitude
+            )
 
             HeliosTheme {
                 Scaffold(
@@ -105,7 +123,10 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(paddingValues = paddingValues)
                     ) {
                         composable(Routes.Home.route) {
-                            //Home()
+                            Home(
+                                seasonalEvents = seasonalEvents,
+                                seasonalDailyEvents = seasonalDailyEvents
+                            )
                         }
                         composable(Routes.Exposure.route) {
                             //UV()

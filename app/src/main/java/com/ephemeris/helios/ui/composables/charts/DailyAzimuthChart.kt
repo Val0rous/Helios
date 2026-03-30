@@ -259,16 +259,16 @@ fun DailyAzimuthChart(
                 )
             }
 
-            // Day & Night Isolated Elapsed Time
-            // Elapsed Day (Above 0deg)
-            clipRect(bottom = zeroYPixel) {
-                drawPath(path = elapsedFillPath, color = elapsedDayFill)
-            }
-
-            // Elapsed Night (Below 0deg)
-            clipRect(top = zeroYPixel) {
-                drawPath(path = elapsedFillPath, color = elapsedNightFill)
-            }
+//            // Day & Night Isolated Elapsed Time
+//            // Elapsed Day (Above 0deg)
+//            clipRect(bottom = zeroYPixel) {
+//                drawPath(path = elapsedFillPath, color = elapsedDayFill)
+//            }
+//
+//            // Elapsed Night (Below 0deg)
+//            clipRect(top = zeroYPixel) {
+//                drawPath(path = elapsedFillPath, color = elapsedNightFill)
+//            }
         }
 
         // 4. Draw the full unclipped curve line for all values

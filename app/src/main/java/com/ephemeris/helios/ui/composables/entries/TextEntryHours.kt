@@ -46,7 +46,10 @@ fun TextEntryHours(
             thickness = (1.5).dp,
             color = color
         )
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.weight(1f)
+        ) {
             Text(text = label, style = textStyle)
             if (time != "") Text(text = time, style = textStyle)
         }
@@ -85,7 +88,12 @@ fun TextEntryHours(
                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeWidth)
                 )
             }
-            TextEntryVariant(duration)
+            Column(
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.weight(1f)
+            ) {
+                TextEntryVariant(duration)
+            }
         }
     }
 }

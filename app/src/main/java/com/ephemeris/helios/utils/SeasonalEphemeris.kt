@@ -5,6 +5,30 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 
 object SeasonalEphemeris {
+    data class SeasonalEvents(
+        val marchEquinox: ZonedDateTime,
+        val juneSolstice: ZonedDateTime,
+        val septemberEquinox: ZonedDateTime,
+        val decemberSolstice: ZonedDateTime
+    )
+
+    data class SeasonalDailyEvents(
+        val marchEquinoxDaylight: Double,
+        val juneSolsticeDaylight: Double,
+        val septemberEquinoxDaylight: Double,
+        val decemberSolsticeDaylight: Double,
+        val marchEquinoxSunAngle: Double,
+        val juneSolsticeSunAngle: Double,
+        val septemberEquinoxSunAngle: Double,
+        val decemberSolsticeSunAngle: Double
+    )
+
+    fun getDaily(dt: ZonedDateTime, coordinates: Coordinates): SolarEphemeris.DailyEvents = SolarEphemeris.calculateDailyEvents(
+        date = dt.toLocalDate(),
+        latitude = coordinates.latitude,
+        longitude = coordinates.longitude,
+        tzOffsetHours = dt.offset.totalSeconds / 3600.0
+    )
 
     /**
      * Calculates the exact time of the March Equinox for a given year.
@@ -39,7 +63,37 @@ object SeasonalEphemeris {
         return julianToZonedTime(jde0, zoneId)
     }
 
-    // --- Core Helper ---
+    /**
+     * Calculates the exact time of the September Equinox.
+     * Often referred to as the Autumnal Equinox in the Northern Hemisphere.
+     */
+    fun getSeptemberEquinox(year: Int, zoneId: ZoneId): ZonedDateTime {
+        val m = (year - 2000) / 1000.0
+
+        val jde0 = 2451810.21715 +
+                365242.01767 * m -
+                0.11575 * (m * m) +
+                0.00337 * (m * m * m) +
+                0.00078 * (m * m * m * m)
+
+        return julianToZonedTime(jde0, zoneId)
+    }
+
+    /**
+     * Calculates the exact time of the December Solstice.
+     * Often referred to as the Winter Solstice in the Northern Hemisphere.
+     */
+    fun getDecemberSolstice(year: Int, zoneId: ZoneId): ZonedDateTime {
+        val m = (year - 2000) / 1000.0
+
+        val jde0 = 2451900.05952 +
+                365242.74049 * m -
+                0.06223 * (m * m) -
+                0.00823 * (m * m * m) +
+                0.00032 * (m * m * m * m)
+
+        return julianToZonedTime(jde0, zoneId)
+    }
 
     /**
      * Converts a Julian Ephemeris Day into a usable Java/Kotlin ZonedDateTime.
@@ -51,5 +105,13 @@ object SeasonalEphemeris {
 
         val instant = Instant.ofEpochMilli((unixTimeSeconds * 1000).toLong())
         return ZonedDateTime.ofInstant(instant, zoneId)
+    }
+
+    fun getSeasonalEvents(year: Int, zoneId: ZoneId): SeasonalEvents {
+        val marchEquinox = getMarchEquinox(year, zoneId)
+        val juneSolstice = getJuneSolstice(year, zoneId)
+        val septemberEquinox = getSeptemberEquinox(year, zoneId)
+        val decemberSolstice = getDecemberSolstice(year, zoneId)
+        return SeasonalEvents(marchEquinox, juneSolstice, septemberEquinox, decemberSolstice)
     }
 }
