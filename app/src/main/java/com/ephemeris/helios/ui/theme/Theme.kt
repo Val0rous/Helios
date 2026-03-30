@@ -1,6 +1,5 @@
 package com.ephemeris.helios.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -37,45 +36,57 @@ private val LightColorScheme = lightColorScheme(
 )
 
 data class CustomColorScheme(
-    val day: Color,
-    val night: Color,
+    val dayBackground: Color,
+    val nightBackground: Color,
     val civilTwilight: Color,
     val nauticalTwilight: Color,
     val astronomicalTwilight: Color,
     val elapsedDay: Color,
     val elapsedNight: Color,
-    val dayBackground: Color,
-    val nightBackground: Color,
+//    val dayBackground: Color,
+//    val nightBackground: Color,
     val sun: Color,
     val moon: Color,
+    val nightPrimary: Color,
+    val nightOnPrimary: Color,
+    val nightPrimaryContainer: Color,
+    val nightOnPrimaryContainer: Color,
 )
 
 private val DarkCustomColors = CustomColorScheme(
-    day = MaterialColors.LightBlue50.copy(alpha = 0.7f),
-    night = MaterialColors.Gray900.copy(alpha = 0.7f),
+    dayBackground = MaterialColors.LightBlue50.copy(alpha = 0.7f),
+    nightBackground = MaterialColors.Gray900.copy(alpha = 0.7f),
     civilTwilight = MaterialColors.BlueGray200.copy(alpha = 0.7f),
     nauticalTwilight = MaterialColors.BlueGray500.copy(alpha = 0.7f),
     astronomicalTwilight = MaterialColors.Gray700.copy(alpha = 0.7f),
     elapsedDay = MaterialColors.Yellow500.copy(alpha = 0.5f),
     elapsedNight = MaterialColors.Gray600.copy(alpha = 0.25f),
-    dayBackground = MaterialColors.Yellow50.copy(alpha = 0.15f),
-    nightBackground = MaterialColors.Indigo50.copy(alpha = 0.15f),
+//    dayBackground = MaterialColors.Yellow50.copy(alpha = 0.15f),
+//    nightBackground = MaterialColors.Indigo50.copy(alpha = 0.15f),
     sun = MaterialColors.Yellow700,
-    moon = MaterialColors.Gray500
+    moon = MaterialColors.Gray500,
+    nightPrimary = Color(0xFFC7BFFF),
+    nightOnPrimary = Color(0xFF2F285F),
+    nightPrimaryContainer = Color(0xFFE5DEFF),
+    nightOnPrimaryContainer = Color(0xFF463F77)
 )
 
 private val LightCustomColors = CustomColorScheme(
-    day = MaterialColors.LightBlue50.copy(alpha = 0.6f),
-    night = MaterialColors.Gray900.copy(alpha = 0.6f),
+    dayBackground = MaterialColors.LightBlue50.copy(alpha = 0.6f),
+    nightBackground = MaterialColors.Gray900.copy(alpha = 0.6f),
     civilTwilight = MaterialColors.BlueGray200.copy(alpha = 0.6f),
     nauticalTwilight = MaterialColors.BlueGray500.copy(alpha = 0.6f),
     astronomicalTwilight = MaterialColors.Gray700.copy(alpha = 0.6f),
     elapsedDay = MaterialColors.Yellow500.copy(alpha = 0.35f),
     elapsedNight = MaterialColors.Gray400.copy(alpha = 0.3f),
-    dayBackground = MaterialColors.Yellow50.copy(alpha = 0.2f),
-    nightBackground = MaterialColors.Indigo50.copy(alpha = 0.2f),
+//    dayBackground = MaterialColors.Yellow50.copy(alpha = 0.2f),
+//    nightBackground = MaterialColors.Indigo50.copy(alpha = 0.2f),
     sun = MaterialColors.Amber600,
-    moon = MaterialColors.Gray700
+    moon = MaterialColors.Gray700,
+    nightPrimary = Color(0xFF5E5791),
+    nightOnPrimary = Color(0xFFFFFFFF),
+    nightPrimaryContainer = Color(0xFF463F77),
+    nightOnPrimaryContainer = Color(0xFFE5DEFF)
 )
 
 internal val LocalCustomColors = staticCompositionLocalOf<CustomColorScheme> {

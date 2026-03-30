@@ -8,7 +8,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -17,14 +16,12 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
@@ -51,11 +48,11 @@ fun DailyTimeChart(
 
     val colors = LocalCustomColors.current
     val sunYellow = colors.sun
-    val dayFill = colors.day
+    val dayFill = colors.dayBackground
     val civilTwilightFill = colors.civilTwilight
     val nauticalTwilightFill = colors.nauticalTwilight
     val astroTwilightFill = colors.astronomicalTwilight
-    val nightFill = colors.night
+    val nightFill = colors.nightBackground
 
     val uvDarkGreen = Color(0xFF2E7D32).copy(alpha = 0.5f)
     val uvGreen = Color(0xFF4CAF50).copy(alpha = 0.5f)
