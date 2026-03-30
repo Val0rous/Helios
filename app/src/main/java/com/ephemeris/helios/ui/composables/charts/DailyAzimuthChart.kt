@@ -30,6 +30,7 @@ import kotlin.math.abs
 fun DailyAzimuthChart(
     xValues: FloatArray,
     yValues: FloatArray,
+    currentHour: Float,
     chartType: Charts,
     currentAzimuth: Float,
     currentAltitude: Float,
@@ -85,9 +86,11 @@ fun DailyAzimuthChart(
         // If it culminates North (near 0 or 360), we shift the chart by 180 degrees
         val shiftTrajectory = (peakAzimuth !in 90f..270f)
 
+        // --- PURE SHIFT MAPPING ---
+        // Keeps North(0) at the center, naturally preserving Right-To-Left motion!
         // Create a mapped array purely for continuous drawing
         val drawXValues = FloatArray(xValues.size) { i ->
-            if (shiftTrajectory) (540f - xValues[i]) % 360f else xValues[i]
+            if (shiftTrajectory) (xValues[i] + 180f) % 360f else xValues[i]
         }
 
         // Helper functions to map mathematical coordinates to Canvas pixels
@@ -101,43 +104,37 @@ fun DailyAzimuthChart(
         val zeroYPixel = mapY(0f)
 
         // Ensure the sun icon aligns with the physical inputs
-        val drawCurrentX = if (shiftTrajectory) (540f - currentAzimuth) % 360f else currentAzimuth
+        val drawCurrentX = if (shiftTrajectory) (currentAzimuth + 180f) % 360f else currentAzimuth
         val currentXPx = mapX(drawCurrentX)
         val currentYPx = mapY(currentAltitude)
 
-        // Find the chronological index of the current time based on nearest coordinates
-        var bestIndex = 0
-        var minDistance = Float.MAX_VALUE
-        for (i in xValues.indices) {
-            var dx = xValues[i] - currentAzimuth
-            while (dx < -180f) dx += 360f
-            while (dx > 180f) dx -= 360f
-            val dy = yValues[i] - currentAltitude
-            val dist = dx * dx + dy * dy
-            if (dist < minDistance) {
-                minDistance = dist
-                bestIndex = i
-            }
-        }
+        // --- FLAWLESS CHRONOLOGICAL INDEX ---
+        // Mathematically maps current local time directly to the array index
+        val exactIndex = (currentHour / 24f) * (xValues.size - 1)
+        val bestIndex = exactIndex.toInt().coerceIn(0, xValues.size - 1)
+
+        // Visual Nadir Tracing
+        // Find Solar Midnight to avoid showing early AM disconnected leftovers
+        val nadirIndex = yValues.indices.minByOrNull { yValues[it] } ?: 0
 
         // --- DIRECTION-AWARE PATH BUILDER ---
         // Generates flawless polygons regardless of left-to-right or right-to-left tracing
-        fun buildDynamicPath(endIndex: Int, isFill: Boolean): Path {
+        fun buildDynamicPath(startIndex: Int, endIndex: Int, isFill: Boolean): Path {
             return Path().apply {
-                if (endIndex < 0 || drawXValues.isEmpty()) return@apply
+                if (startIndex !in 0..endIndex || drawXValues.isEmpty()) return@apply
 
                 if (isFill) {
-                    moveTo(mapX(drawXValues[0]), zeroYPixel)
-                    lineTo(mapX(drawXValues[0]), mapY(yValues[0]))
+                    moveTo(mapX(drawXValues[startIndex]), zeroYPixel)
+                    lineTo(mapX(drawXValues[startIndex]), mapY(yValues[startIndex]))
                 } else {
-                    moveTo(mapX(drawXValues[0]), mapY(yValues[0]))
+                    moveTo(mapX(drawXValues[startIndex]), mapY(yValues[startIndex]))
                 }
 
-                for (i in 1..endIndex) {
+                for (i in (startIndex + 1)..endIndex) {
                     val xA = drawXValues[i-1]
                     val xB = drawXValues[i]
 
-                    if (abs(xB - xA) > 200f) { // wrapThreshold
+                    if (abs(xB - xA) > 200f) { // wrapThreshold seamlessly catches 360 wraps in BOTH directions
                         // Calculate exact crossing direction
                         val wrapForward = xA > 180f && xB < 180f
                         val edgeX = if (wrapForward) 360f else 0f
@@ -168,14 +165,15 @@ fun DailyAzimuthChart(
         }
 
         // 1. Build the smooth curve path
-        val curvePath = buildDynamicPath(drawXValues.size - 1, false)
+        val curvePath = buildDynamicPath(0, drawXValues.size - 1, false)
 
         // 2. Build the fill path that closes down to the X-axis
-        val fillPath = buildDynamicPath(drawXValues.size - 1, true)
+        val fillPath = buildDynamicPath(0, drawXValues.size - 1, true)
 
         // --- CHRONOLOGICAL ELAPSED FILL ---
         // Stops exactly at 'bestIndex', naturally tracking from midnight up to current time
-        val elapsedFillPath = buildDynamicPath(bestIndex, true)
+        val elapsedStartIndex = if (bestIndex >= nadirIndex) nadirIndex else 0
+        val elapsedFillPath = buildDynamicPath(elapsedStartIndex, bestIndex, true)
 
         // Day Background
         drawRect(
@@ -346,7 +344,8 @@ fun DailyAzimuthChart(
                 pathEffect = verticalGridDashEffect
             )
 
-            val realAzimuth = if (shiftTrajectory) (540f - it.toFloat()) % 360 else it.toFloat()
+            // Mathematically reverse the shift for the label
+            val realAzimuth = if (shiftTrajectory) (it.toFloat() + 180f) % 360 else it.toFloat()
             val formatted = realAzimuth.toInt()
             val text = "${if (formatted == 360 || formatted == 0) 0 else formatted}°"
 

@@ -66,8 +66,6 @@ fun PathCard(
     val elevationCalc = DoubleArray(hoursCalc.size)
     val azimuths = FloatArray(X_SIZE)
 
-    var nadirIndex = 0 // Track the lowest point of the night (Solar Midnight)
-
     for (i in 0 until X_SIZE) {
         val position = SolarEphemeris.getPositionAtHour(
             date = currentTime.toLocalDate(),
@@ -78,17 +76,6 @@ fun PathCard(
         )
         elevationCalc[i] = position.altitude
         azimuths[i] = position.azimuth.toFloat()
-
-        // Continually update nadir index
-        if (elevationCalc[i] < elevationCalc[nadirIndex]) {
-            nadirIndex = i
-        }
-    }
-
-    for (i in 0..nadirIndex) {
-        if (azimuths[i] < 180f) {
-            azimuths[i] = 360f - azimuths[i]
-        }
     }
 
     val hours = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
@@ -150,11 +137,14 @@ fun PathCard(
                 Charts.Sun.Daily.Trajectory -> DailyAzimuthChart(
                     xValues = xValues,
                     yValues = yValues,
+                    currentHour = currentHour,
                     chartType = selectedChartType,
                     currentAzimuth = currentPosition.azimuth.toFloat(),
                     currentAltitude = currentPosition.altitude.toFloat(),
                     modifier = Modifier
                         .aspectRatio(2f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .padding(vertical = 0.dp)
                 )
                 else -> DailyTimeChart(
                     xValues = xValues,

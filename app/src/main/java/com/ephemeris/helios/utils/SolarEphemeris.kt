@@ -448,7 +448,11 @@ object SolarEphemeris {
 
         // 2. Calculate True Solar Time (TST) and Hour Angle
         val tst = (decimalHour * 60.0) + params.eotMinutes + (4.0 * longitude) - (60.0 * tzOffsetHours)
-        val hourAngleDeg = (tst / 4.0) - 180.0
+        var hourAngleDeg = (tst / 4.0) - 180.0
+        // Hour Angle Normalization
+        // Prevents local midnight from breaking the Morning/Afternoon detector
+        while (hourAngleDeg < -180.0) hourAngleDeg += 360.0
+        while (hourAngleDeg > 180.0) hourAngleDeg -= 360.0
         val hourAngleRad = Math.toRadians(hourAngleDeg)
 
         // 3. Calculate Altitude

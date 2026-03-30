@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
             var startDestination by remember { mutableStateOf(initialStartDestination) }
             var currentTime by remember { mutableStateOf(ZonedDateTime.now()) }
             var isAutoUpdateEnabled by remember { mutableStateOf(true) }
-            var coordinates by remember { mutableStateOf(Coordinates(3.1, 11.99)) }
+            var coordinates by remember { mutableStateOf(Coordinates(44.24, 11.99)) }
 
 //            currentTime = ZonedDateTime.of(2026, 6, 20, 15, 0, 0, 0, ZoneId.of("UTC+2"))
             val events = SolarEphemeris.calculateDailyEvents(
