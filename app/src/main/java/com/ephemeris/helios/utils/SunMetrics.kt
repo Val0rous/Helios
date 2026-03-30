@@ -95,7 +95,7 @@ object SunMetrics {
 
             // If the sun is below the horizon, all light metrics are strictly 0.
             if (sunElevDeg <= 0.0) {
-                outAirMass[i] = 1f // 1f aligns it to chart minimum
+                outAirMass[i] = 0f // 0f (instead of old 1f) aligns it to chart minimum
                 outIrradiance[i] = 0f
                 outIlluminance[i] = 0f
                 outUvi[i] = 0f

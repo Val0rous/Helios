@@ -28,6 +28,7 @@ import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.formatHour
 import com.ephemeris.helios.utils.formatNumber
 import com.ephemeris.helios.utils.printRounded
+import kotlin.collections.emptyList
 import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.max
@@ -112,7 +113,7 @@ fun DailyTimeChart(
         val minY = when (chartType) {
             Charts.Sun.Daily.Elevation -> -90f
             Charts.Sun.Daily.ColorTemperature -> 2000f
-            Charts.Sun.Daily.AirMass -> 1f
+//            Charts.Sun.Daily.AirMass -> 0f
             else -> 0f
         }
         val maxY = when (chartType) {
@@ -154,7 +155,8 @@ fun DailyTimeChart(
 
         val zeroYPixel = when (chartType) {
             Charts.Sun.Daily.ColorTemperature -> mapY(2000f)
-            Charts.Sun.Daily.AirMass -> mapY(1f)
+//            Charts.Sun.Daily.AirMass -> mapY(1f)
+//            Charts.Sun.Daily.AirMass -> mapY(0f)
             else -> mapY(0f)
         }
         val currentXPx = mapX(currentHour)
@@ -562,9 +564,22 @@ fun DailyTimeChart(
                 val base = 10.0.pow(it.toDouble()).toFloat()
                 listOf(base, base * 3f)
             }.filter { it <= maxY }
-            Charts.Sun.Daily.Shadows -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+            Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
             Charts.Sun.Daily.ColorTemperature -> (2000 until 5501 step 500).map { it.toFloat() }
-            Charts.Sun.Daily.AirMass -> listOf(1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+//            Charts.Sun.Daily.AirMass -> {
+//                val base = mutableListOf(0f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+//                when (minY) {
+//                    in 0.5f..1f -> {
+//                        base.add(0, 0.5f)
+//                        base
+//                    }
+//                    in 0f..0.5f -> {
+//                        base.add(0, 0.5f)
+//                        base.add(0, 0f)
+//                    }
+//                }
+//                base.toList()
+//            }
             else -> emptyList()
         }
         yLabels.forEach { yVal ->
