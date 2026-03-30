@@ -36,12 +36,7 @@ fun DailyAzimuthChart(
     currentAltitude: Float,
     modifier: Modifier = Modifier
 ) {
-    val mainPainter = painterResource(id = when (chartType) {
-        is Charts.Sun -> R.drawable.ic_brightness_empty_filled
-        is Charts.Moon -> R.drawable.ic_moon_stars_filled // Todo: change icon
-        else -> R.drawable.ic_circle_filled
-    })
-    val indicatorPainter = painterResource(id = R.drawable.ic_circle_filled)
+    val drawChartIcon = rememberChartIconDrawer(chartType)
 
     val colors = LocalCustomColors.current
     val sunYellow = colors.sun
@@ -378,12 +373,7 @@ fun DailyAzimuthChart(
                     left = currentXPx - iconSize / 2,
                     top = currentYPx - iconSize / 2
                 ) {
-                    with(mainPainter) {
-                        draw(
-                            size = Size(iconSize, iconSize),
-                            colorFilter = ColorFilter.tint(sunYellow)
-                        )
-                    }
+                    drawChartIcon(iconSize, false)
                 }
             }
         } else {
@@ -392,12 +382,7 @@ fun DailyAzimuthChart(
                 left = currentXPx - iconSize / 2,
                 top = currentYPx - iconSize / 2
             ) {
-                with(indicatorPainter) {
-                    draw(
-                        size = Size(iconSize, iconSize),
-                        colorFilter = ColorFilter.tint(sunYellow.copy(alpha = 0.5f))
-                    )
-                }
+                drawChartIcon(iconSize, true)
             }
         }
     }

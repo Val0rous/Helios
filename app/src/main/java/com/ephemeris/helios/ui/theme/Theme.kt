@@ -74,7 +74,7 @@ private val LightCustomColors = CustomColorScheme(
     elapsedNight = MaterialColors.Gray400.copy(alpha = 0.3f),
     dayBackground = MaterialColors.Yellow50.copy(alpha = 0.2f),
     nightBackground = MaterialColors.Indigo50.copy(alpha = 0.2f),
-    sun = MaterialColors.Amber700,
+    sun = MaterialColors.Amber600,
     moon = MaterialColors.Gray700
 )
 
