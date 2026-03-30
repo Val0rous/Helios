@@ -4,9 +4,12 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -14,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
@@ -32,10 +36,20 @@ import com.ephemeris.helios.utils.SeasonalEphemeris
 import com.ephemeris.helios.utils.SolarEphemeris
 import com.ephemeris.helios.utils.SunMetrics
 import com.ephemeris.helios.utils.datastore.LocationDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.ZoneId
 import java.time.ZonedDateTime
+
+data class DayEphemerisData(
+    val events: SolarEphemeris.DailyEvents,
+    val durations: SolarEphemeris.DailyDurations,
+    val dailyPeakMetrics: SunMetrics.SunMetricsResult,
+    val seasonalEvents: SeasonalEphemeris.SeasonalEvents,
+    val seasonalDailyEvents: SeasonalEphemeris.SeasonalDailyEvents
+)
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
@@ -56,40 +70,60 @@ class MainActivity : ComponentActivity() {
                 initial = Coordinates(-33.8623, 151.2077)
             )
 
-//            currentTime = ZonedDateTime.of(2026, 6, 20, 15, 0, 0, 0, ZoneId.of("UTC+2"))
-            val events = SolarEphemeris.calculateDailyEvents(
-                date = currentTime.toLocalDate(),
-                latitude = coordinates.latitude,
-                longitude = coordinates.longitude,
-                tzOffsetHours = currentTime.offset.totalSeconds / 3600.0
-            )
-            val durations = SolarEphemeris.calculateDailyDurations(events)
-            var currentSunPosition by remember{ mutableStateOf(SolarEphemeris.calculatePosition(currentTime, coordinates.latitude, coordinates.longitude)) }
-            var dailyPeakMetrics by remember { mutableStateOf(SunMetrics.calculateMetrics(
-                sunElevationDeg = events.solarNoonAltitude,
-                observerAltitudeMeters = coordinates.altitude
-            ))}
-            var liveMetrics by remember { mutableStateOf(SunMetrics.calculateMetrics(
-                sunElevationDeg = currentSunPosition.altitude,
-                observerAltitudeMeters = coordinates.altitude
-            ))}
-            var oldDay = currentTime.toLocalDate()
-            val seasonalEvents = SeasonalEphemeris.getSeasonalEvents(currentTime.year, ZoneId.systemDefault())
-            val mEq = SeasonalEphemeris.getDaily(seasonalEvents.marchEquinox, coordinates)
-            val jSo = SeasonalEphemeris.getDaily(seasonalEvents.juneSolstice, coordinates)
-            val sEq = SeasonalEphemeris.getDaily(seasonalEvents.septemberEquinox, coordinates)
-            val dSo = SeasonalEphemeris.getDaily(seasonalEvents.decemberSolstice, coordinates)
+            var dayData by remember { mutableStateOf<DayEphemerisData?>(null)}
+            var currentSunPosition by remember{ mutableStateOf<SolarEphemeris.SolarPosition?>(null) }
+            var liveMetrics by remember { mutableStateOf<SunMetrics.SunMetricsResult?>(null)}
 
-            val seasonalDailyEvents = SeasonalEphemeris.SeasonalDailyEvents(
-                marchEquinoxDaylight = mEq.dayLength,
-                juneSolsticeDaylight = jSo.dayLength,
-                septemberEquinoxDaylight = sEq.dayLength,
-                decemberSolsticeDaylight = dSo.dayLength,
-                marchEquinoxSunAngle = mEq.solarNoonAltitude,
-                juneSolsticeSunAngle = jSo.solarNoonAltitude,
-                septemberEquinoxSunAngle = sEq.solarNoonAltitude,
-                decemberSolsticeSunAngle = dSo.solarNoonAltitude
-            )
+            // 1. Heavy Daily Math: Only recalculates when the DATE or LOCATION changes
+            LaunchedEffect(coordinates, currentTime.toLocalDate()) {
+                withContext(Dispatchers.Default) {
+                    val date = currentTime.toLocalDate()
+                    val tzOffsetHours = currentTime.offset.totalSeconds / 3600.0
+
+                    val events = SolarEphemeris.calculateDailyEvents(date, coordinates.latitude, coordinates.longitude, tzOffsetHours)
+                    val durations = SolarEphemeris.calculateDailyDurations(events)
+                    val dailyPeakMetrics = SunMetrics.calculateMetrics(events.solarNoonAltitude, coordinates.altitude)
+
+                    val seasonalEvents = SeasonalEphemeris.getSeasonalEvents(currentTime.year, ZoneId.systemDefault())
+                    val mEq = SeasonalEphemeris.getDaily(seasonalEvents.marchEquinox, coordinates)
+                    val jSo = SeasonalEphemeris.getDaily(seasonalEvents.juneSolstice, coordinates)
+                    val sEq = SeasonalEphemeris.getDaily(seasonalEvents.septemberEquinox, coordinates)
+                    val dSo = SeasonalEphemeris.getDaily(seasonalEvents.decemberSolstice, coordinates)
+
+                    val seasonalDailyEvents = SeasonalEphemeris.SeasonalDailyEvents(
+                        marchEquinoxDaylight = mEq.dayLength,
+                        juneSolsticeDaylight = jSo.dayLength,
+                        septemberEquinoxDaylight = sEq.dayLength,
+                        decemberSolsticeDaylight = dSo.dayLength,
+                        marchEquinoxSunAngle = mEq.solarNoonAltitude,
+                        juneSolsticeSunAngle = jSo.solarNoonAltitude,
+                        septemberEquinoxSunAngle = sEq.solarNoonAltitude,
+                        decemberSolsticeSunAngle = dSo.solarNoonAltitude
+                    )
+
+                    // Assignment to Compose state is thread-safe
+                    dayData = DayEphemerisData(events, durations, dailyPeakMetrics, seasonalEvents, seasonalDailyEvents)
+                }
+            }
+
+            // 2. Lightweight Ticker: Runs every 12 seconds for live UI updates
+            LaunchedEffect(isAutoUpdateEnabled, coordinates) {
+                if (isAutoUpdateEnabled) {
+                    while (true) {
+                        withContext(Dispatchers.Default) {
+                            val newTime = ZonedDateTime.now()
+                            val pos = SolarEphemeris.calculatePosition(newTime, coordinates.latitude, coordinates.longitude)
+                            val metrics = SunMetrics.calculateMetrics(pos.altitude, coordinates.altitude)
+
+                            // Update states to trigger recomposition
+                            currentTime = newTime
+                            currentSunPosition = pos
+                            liveMetrics = metrics
+                        }
+                        delay(12000)
+                    }
+                }
+            }
 
             HeliosTheme {
                 Scaffold(
@@ -119,20 +153,14 @@ class MainActivity : ComponentActivity() {
                             startDestination = savedRoute
                         }
                     }
-                    LaunchedEffect(isAutoUpdateEnabled) {
-                        if (isAutoUpdateEnabled) {
-                            while (true) {
-                                delay(12000)
-                                currentTime = ZonedDateTime.now()
-                                currentSunPosition = SolarEphemeris.calculatePosition(currentTime, coordinates.latitude, coordinates.longitude)
-                                if (oldDay != currentTime.toLocalDate()) {
-                                    dailyPeakMetrics = SunMetrics.calculateMetrics(currentSunPosition.altitude, coordinates.altitude!!)
-                                    oldDay = currentTime.toLocalDate()
-                                }
-                                liveMetrics = SunMetrics.calculateMetrics(currentSunPosition.altitude, coordinates.altitude!!)
-                            }
+                    // Guard clause: Don't render the heavy UI until the background threads finish their first pass
+                    if (dayData == null || currentSunPosition == null || liveMetrics == null) {
+                        Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
                         }
+                        return@Scaffold
                     }
+
                     NavHost(
                         navController = navController,
                         startDestination = startDestination,
@@ -140,8 +168,8 @@ class MainActivity : ComponentActivity() {
                     ) {
                         composable(Routes.Home.route) {
                             Home(
-                                seasonalEvents = seasonalEvents,
-                                seasonalDailyEvents = seasonalDailyEvents
+                                seasonalEvents = dayData!!.seasonalEvents,
+                                seasonalDailyEvents = dayData!!.seasonalDailyEvents
                             )
                         }
                         composable(Routes.Exposure.route) {
@@ -151,11 +179,11 @@ class MainActivity : ComponentActivity() {
                             Sun(
                                 currentTime = currentTime,
                                 coordinates = coordinates,
-                                currentPosition = currentSunPosition,
-                                events = events,
-                                durations = durations,
-                                dailyPeakMetrics = dailyPeakMetrics,
-                                liveMetrics = liveMetrics
+                                currentPosition = currentSunPosition!!,
+                                events = dayData!!.events,
+                                durations = dayData!!.durations,
+                                dailyPeakMetrics = dayData!!.dailyPeakMetrics,
+                                liveMetrics = liveMetrics!!
                             )
                         }
                         composable(Routes.Moon.route) {
