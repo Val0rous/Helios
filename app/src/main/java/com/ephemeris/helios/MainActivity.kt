@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,6 +30,7 @@ import com.ephemeris.helios.utils.Routes
 import com.ephemeris.helios.utils.SeasonalEphemeris
 import com.ephemeris.helios.utils.SolarEphemeris
 import com.ephemeris.helios.utils.SunMetrics
+import com.ephemeris.helios.utils.datastore.LocationDataStore
 import kotlinx.coroutines.delay
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -40,12 +42,17 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val initialStartDestination = intent.getStringExtra("startDestination") ?: Routes.Home.route
+        // Initialize DataStore repository
+        val locationDataStore = LocationDataStore(this)
+
         setContent {
             navController = rememberNavController()
             var startDestination by remember { mutableStateOf(initialStartDestination) }
             var currentTime by remember { mutableStateOf(ZonedDateTime.now()) }
             var isAutoUpdateEnabled by remember { mutableStateOf(true) }
-            var coordinates by remember { mutableStateOf(Coordinates(3.1, 11.99)) }
+            val coordinates by locationDataStore.coordinatesFlow.collectAsState(
+                initial = Coordinates(-33.8623, 151.2077)
+            )
 
 //            currentTime = ZonedDateTime.of(2026, 6, 20, 15, 0, 0, 0, ZoneId.of("UTC+2"))
             val events = SolarEphemeris.calculateDailyEvents(
