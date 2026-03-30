@@ -91,6 +91,7 @@ fun DailyTimeChart(
 
     val backgroundColor = MaterialTheme.colorScheme.surface
     val materialTheme = MaterialTheme.colorScheme
+    val localCustomColors = LocalCustomColors.current
     val context = LocalContext.current
     // Text Measurer and styling for the legends
     val textMeasurer = rememberTextMeasurer()
@@ -528,6 +529,15 @@ fun DailyTimeChart(
             style = Stroke(width = (1.5).dp.toPx())
         )
 
+        // --- Draw the elapsed path line on top
+        clipRect(right = currentXPx) {
+            drawPath(
+                path = curvePath,
+                color = localCustomColors.sunPath,
+                style = Stroke(width = 2.dp.toPx())
+            )
+        }
+
         // 5. Draw a subtle X-Axis line to visually separate the zones
         drawLine(
             color = materialTheme.outline,
@@ -661,6 +671,14 @@ fun DailyTimeChart(
         }
 //        }
         val currentYPx = mapY(currentY)
+
+        // --- Draw vertical drop line from Sun to Horizon (X-axis) ---
+        drawLine(
+            color = localCustomColors.dropLine,
+            start = Offset(currentXPx, currentYPx),
+            end = Offset(currentXPx, zeroYPixel),
+            strokeWidth = 1.dp.toPx()
+        )
 
         // 7. Paint the Sun Icon if above horizon
         val isSunUp = when (chartType) {

@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -20,6 +21,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
+import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
 import kotlin.math.abs
 
@@ -48,6 +50,7 @@ fun DailyAzimuthChart(
     val elapsedNightFill = colors.elapsedNight
     val backgroundColor = MaterialTheme.colorScheme.surface
     val materialTheme = MaterialTheme.colorScheme
+    val localCustomColors = LocalCustomColors.current
     val context = LocalContext.current
     // Text Measurer and styling for the legends
     val textMeasurer = rememberTextMeasurer()
@@ -167,6 +170,9 @@ fun DailyAzimuthChart(
         val elapsedStartIndex = if (bestIndex >= nadirIndex) nadirIndex else 0
         val elapsedFillPath = buildDynamicPath(elapsedStartIndex, bestIndex, true)
 
+        // --- CHRONOLOGICAL ELAPSED LINE ---
+        val elapsedLinePath = buildDynamicPath(elapsedStartIndex, bestIndex, false)
+
         // Day Background
         drawRect(
             color = dayBackground,
@@ -278,6 +284,13 @@ fun DailyAzimuthChart(
             style = Stroke(width = (1.5).dp.toPx())
         )
 
+        // --- Draw the elapsed path line on top ---
+        drawPath(
+            path = elapsedLinePath,
+            color = localCustomColors.sunPath,
+            style = Stroke(width = 2.dp.toPx()) // I recommend 2.dp so it pops slightly over the base line
+        )
+
         // 5. Draw a subtle X-Axis line to visually separate the zones (Horizon Line)
         drawLine(
             color = materialTheme.outline,
@@ -352,6 +365,14 @@ fun DailyAzimuthChart(
                 )
             )
         }
+
+        // 6. Draw vertical drop line from Sun to Horizon (X-axis)
+        drawLine(
+            color = localCustomColors.dropLine,
+            start = Offset(currentXPx, currentYPx),
+            end = Offset(currentXPx, zeroYPixel),
+            strokeWidth = 1.dp.toPx() // Using 1.dp keeps it crisp but visible across screen densities
+        )
 
         // 7. Paint the Sun Icon if above horizon
         if (currentAltitude >= 0f) {

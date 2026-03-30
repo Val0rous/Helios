@@ -4,6 +4,30 @@ import com.ephemeris.helios.R
 import java.io.Serializable
 
 sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serializable {
+    // This ensures that when an 'object' is deserialized,
+    // it returns the existing Singleton instance instead of creating a new one.
+    protected fun readResolve(): Any = when (this) {
+        // Sun Charts
+        is Sun.Daily.Elevation -> Sun.Daily.Elevation
+        is Sun.Daily.Irradiance -> Sun.Daily.Irradiance
+        is Sun.Daily.UvIntensity -> Sun.Daily.UvIntensity
+        is Sun.Daily.Trajectory -> Sun.Daily.Trajectory
+        is Sun.Daily.Illuminance -> Sun.Daily.Illuminance
+        is Sun.Daily.Shadows -> Sun.Daily.Shadows
+        is Sun.Daily.ColorTemperature -> Sun.Daily.ColorTemperature
+        is Sun.Daily.AirMass -> Sun.Daily.AirMass
+
+        // Moon Charts
+        is Moon.Daily.Elevation -> Moon.Daily.Elevation
+
+        // Planet Charts
+        is Venus.Daily.Elevation -> Venus.Daily.Elevation
+        is Mars.Daily.Elevation -> Mars.Daily.Elevation
+        is Jupiter.Daily.Elevation -> Jupiter.Daily.Elevation
+        is Saturn.Daily.Elevation -> Saturn.Daily.Elevation
+        is Mercury.Daily.Elevation -> Mercury.Daily.Elevation
+    }
+
     sealed class Sun(label: Int, icon: Int, filledIcon: Int) : Charts(label, icon, filledIcon) {
         sealed class Daily(label: Int, icon: Int, filledIcon: Int) : Sun(label, icon, filledIcon) {
             object Elevation: Daily(R.string.elevation, R.drawable.ic_sunny, R.drawable.ic_sunny_filled) // Altitude
