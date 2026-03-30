@@ -15,6 +15,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -32,6 +33,7 @@ import com.ephemeris.helios.utils.SolarEphemeris
 import com.ephemeris.helios.utils.SunMetrics
 import com.ephemeris.helios.utils.datastore.LocationDataStore
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
@@ -92,7 +94,14 @@ class MainActivity : ComponentActivity() {
             HeliosTheme {
                 Scaffold(
                     //modifier
-                    topBar = { TopBar({}) },
+                    topBar = { TopBar(
+                        coordinates = coordinates,
+                        onSaveCoordinates = { newCoordinates ->
+                            lifecycleScope.launch {
+                                locationDataStore.saveCoordinates(newCoordinates)
+                            }
+                        },
+                        onLocationClick = {}) },
                     bottomBar = {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             TimeMachine(

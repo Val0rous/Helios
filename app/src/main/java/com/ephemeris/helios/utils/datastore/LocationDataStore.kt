@@ -16,26 +16,26 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "se
 class LocationDataStore(private val context: Context) {
 
     // 1. Define the keys to store each property
-    private val LATITUDE_KEY = doublePreferencesKey("latitude")
-    private val LONGITUDE_KEY = doublePreferencesKey("longitude")
-    private val ALTITUDE_KEY = doublePreferencesKey("altitude")
+    private val latitudeKey = doublePreferencesKey("latitude")
+    private val longitudeKey = doublePreferencesKey("longitude")
+    private val altitudeKey = doublePreferencesKey("altitude")
 
     // 2. Expose a Flow to read the coordinates
     val coordinatesFlow: Flow<Coordinates> = context.dataStore.data
         .map { preferences ->
             // Read values, providing a default fallback (e.g., your 3.1, 11.99)
-            val lat = preferences[LATITUDE_KEY] ?: 3.1
-            val lon = preferences[LONGITUDE_KEY] ?: 11.99
-            val alt = preferences[ALTITUDE_KEY] ?: 0.0
+            val lat = preferences[latitudeKey] ?: 3.1
+            val lon = preferences[longitudeKey] ?: 11.99
+            val alt = preferences[altitudeKey] ?: 0.0
             Coordinates(lat, lon, alt)
         }
 
     // 3. Function to save new coordinates
     suspend fun saveCoordinates(coordinates: Coordinates) {
         context.dataStore.edit { preferences ->
-            preferences[LATITUDE_KEY] = coordinates.latitude
-            preferences[LONGITUDE_KEY] = coordinates.longitude
-            preferences[ALTITUDE_KEY] = coordinates.altitude
+            preferences[latitudeKey] = coordinates.latitude
+            preferences[longitudeKey] = coordinates.longitude
+            preferences[altitudeKey] = coordinates.altitude
         }
     }
 }
