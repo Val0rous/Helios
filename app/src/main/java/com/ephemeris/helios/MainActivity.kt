@@ -112,16 +112,30 @@ class MainActivity : ComponentActivity() {
                 if (isAutoUpdateEnabled) {
                     while (true) {
                         withContext(Dispatchers.Default) {
-                            val newTime = ZonedDateTime.now()
-                            val pos = SolarEphemeris.calculatePosition(newTime, coordinates.latitude, coordinates.longitude)
+//                            val newTime = ZonedDateTime.now()
+//                            val pos = SolarEphemeris.calculatePosition(newTime, coordinates.latitude, coordinates.longitude)
+                            val pos = SolarEphemeris.calculatePosition(currentTime, coordinates.latitude, coordinates.longitude)
                             val metrics = SunMetrics.calculateMetrics(pos.altitude, coordinates.altitude)
 
                             // Update states to trigger recomposition
-                            currentTime = newTime
+//                            currentTime = newTime
                             currentSunPosition = pos
                             liveMetrics = metrics
                         }
                         delay(12000)
+                    }
+                }
+            }
+
+            // 3. Calculate time every second to update TimeMachine clock
+            LaunchedEffect(isAutoUpdateEnabled, coordinates) {
+                if (isAutoUpdateEnabled) {
+                    while(true) {
+                        withContext(Dispatchers.Default) {
+                            val newTime = ZonedDateTime.now()
+                            currentTime = newTime
+                        }
+                        delay(1000)
                     }
                 }
             }

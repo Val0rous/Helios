@@ -95,10 +95,10 @@ fun TimeMachine(
                     ) {
                         Text(
                             text = date,
-                            color = MaterialTheme.colorScheme.secondary,
+                            color = MaterialTheme.colorScheme.primary,
                             style = TextStyle(
                                 fontFamily = FontFamily.Default,
-                                fontSize = 13.sp
+                                fontSize = 13.sp,
                             ),
                         )
                     }
@@ -116,7 +116,7 @@ fun TimeMachine(
                             style = TextStyle(
                                 fontFamily = FontFamily.Default,
                                 fontSize = 16.sp,
-                                fontWeight = FontWeight.Normal
+                                fontWeight = FontWeight.SemiBold
                             ),
                             textAlign = TextAlign.Center
                         )
