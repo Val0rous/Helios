@@ -19,12 +19,10 @@ import com.ephemeris.helios.ui.composables.entries.PlutoTimeEntry
 import com.ephemeris.helios.ui.composables.entries.SolarNoonEntry
 import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
 import com.ephemeris.helios.ui.composables.entries.TwilightEntry
-import com.ephemeris.helios.ui.theme.CustomColorScheme
-import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Coordinates
-import com.ephemeris.helios.utils.SolarEphemeris
-import com.ephemeris.helios.utils.SunMetrics
+import com.ephemeris.helios.utils.calc.SolarEphemeris
+import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.formatDecimalHours
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.round

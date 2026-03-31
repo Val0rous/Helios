@@ -1,4 +1,4 @@
-package com.ephemeris.helios.utils
+package com.ephemeris.helios.utils.calc
 
 import kotlin.math.*
 

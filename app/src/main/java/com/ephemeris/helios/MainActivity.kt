@@ -33,9 +33,9 @@ import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.Routes
-import com.ephemeris.helios.utils.SeasonalEphemeris
-import com.ephemeris.helios.utils.SolarEphemeris
-import com.ephemeris.helios.utils.SunMetrics
+import com.ephemeris.helios.utils.calc.SeasonalEphemeris
+import com.ephemeris.helios.utils.calc.SolarEphemeris
+import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.datastore.LocationDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

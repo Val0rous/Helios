@@ -11,8 +11,7 @@ import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.entries.SeasonalEntry
 import com.ephemeris.helios.ui.theme.LocalCustomColors
-import com.ephemeris.helios.utils.SeasonalEphemeris
-import com.ephemeris.helios.utils.formatDuration
+import com.ephemeris.helios.utils.calc.SeasonalEphemeris
 
 @Composable
 fun Home(

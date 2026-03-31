@@ -1,8 +1,10 @@
-package com.ephemeris.helios.utils
+package com.ephemeris.helios.utils.calc
 
+import com.ephemeris.helios.utils.Coordinates
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
 import kotlin.math.cos
 
 object SeasonalEphemeris {
@@ -13,24 +15,33 @@ object SeasonalEphemeris {
         val decemberSolstice: ZonedDateTime
     )
 
-    // A static array of the top 15 highest-impact perturbation terms from Meeus Table 27.C.
+    // The strictly accurate 24 periodic perturbation terms from Meeus Table 27.C.
     // Format: [A, B, C]
     private val PERIODIC_TERMS = arrayOf(
-        doubleArrayOf(485.0, 324.96, 1934.136),
-        doubleArrayOf(203.0, 337.23, 32964.467),
-        doubleArrayOf(199.0, 342.08, 20.186),
-        doubleArrayOf(182.0, 27.85, 445267.112),
-        doubleArrayOf(156.0, 73.14, 45036.886),
-        doubleArrayOf(136.0, 171.52, 22518.443),
-        doubleArrayOf(77.0, 222.54, 65928.934),
-        doubleArrayOf(74.0, 296.72, 3034.906),
-        doubleArrayOf(70.0, 343.98, 83996.857),
-        doubleArrayOf(58.0, 119.81, 529.691),
-        doubleArrayOf(52.0, 297.65, 71430.700),
-        doubleArrayOf(50.0, 320.81, 156.980),
-        doubleArrayOf(45.0, 227.73, 4282.660),
-        doubleArrayOf(40.0, 312.59, 5273.629),
-        doubleArrayOf(18.0, 302.77, 10813.62)
+        doubleArrayOf(485.0, 324.96,   1934.136),
+        doubleArrayOf(203.0, 337.23,  32964.467),
+        doubleArrayOf(199.0, 342.08,     20.186),
+        doubleArrayOf(182.0,  27.85, 445267.112),
+        doubleArrayOf(156.0,  73.14,  45036.886),
+        doubleArrayOf(136.0, 171.52,  22518.443),
+        doubleArrayOf( 77.0, 222.54,  65928.934),
+        doubleArrayOf( 74.0, 296.72,   3034.906),
+        doubleArrayOf( 70.0, 243.58,   9037.513),
+        doubleArrayOf( 58.0, 119.81,  33718.147),
+        doubleArrayOf( 52.0, 297.17,    150.678),
+        doubleArrayOf( 50.0,  21.02,   2281.226),
+        doubleArrayOf( 45.0, 247.54,  29929.562),
+        doubleArrayOf( 44.0, 325.15,  31555.956),
+        doubleArrayOf( 29.0,  60.93,   4443.417),
+        doubleArrayOf( 18.0, 155.12,  67555.328),
+        doubleArrayOf( 17.0, 288.79,   4562.452),
+        doubleArrayOf( 16.0, 198.04,  62894.029),
+        doubleArrayOf( 14.0, 199.76,  31436.921),
+        doubleArrayOf( 12.0,  95.39,  14577.848),
+        doubleArrayOf( 12.0, 287.11,  31931.756),
+        doubleArrayOf( 12.0, 320.81,  34777.259),
+        doubleArrayOf(  9.0, 227.73,   1222.114),
+        doubleArrayOf(  8.0,  15.45,  16859.074)
     )
 
     data class SeasonalDailyEvents(
@@ -51,6 +62,10 @@ object SeasonalEphemeris {
         tzOffsetHours = dt.offset.totalSeconds / 3600.0
     )
 
+    private fun calculateTime(jde0: Double, zoneId: ZoneId): ZonedDateTime {
+        return julianToZonedTime(getTrueEquinoxSolstice(jde0), zoneId)
+    }
+
     /**
      * Calculates the exact time of the March Equinox for a given year.
      * Returns a ZonedDateTime adjusted to the user's local timezone.
@@ -67,7 +82,7 @@ object SeasonalEphemeris {
                 0.00057 * (m * m * m * m)
 
         // 3. Convert Julian Days back to standard Unix time
-        return julianToZonedTime(jde0, zoneId)
+        return calculateTime(jde0, zoneId)
     }
 
     /**
@@ -81,7 +96,7 @@ object SeasonalEphemeris {
                 0.00888 * (m * m * m) -
                 0.00030 * (m * m * m * m)
 
-        return julianToZonedTime(jde0, zoneId)
+        return calculateTime(jde0, zoneId)
     }
 
     /**
@@ -97,7 +112,7 @@ object SeasonalEphemeris {
                 0.00337 * (m * m * m) +
                 0.00078 * (m * m * m * m)
 
-        return julianToZonedTime(jde0, zoneId)
+        return calculateTime(jde0, zoneId)
     }
 
     /**
@@ -113,7 +128,7 @@ object SeasonalEphemeris {
                 0.00823 * (m * m * m) +
                 0.00032 * (m * m * m * m)
 
-        return julianToZonedTime(jde0, zoneId)
+        return calculateTime(jde0, zoneId)
     }
 
     /**
@@ -148,8 +163,13 @@ object SeasonalEphemeris {
      * Converts a Julian Ephemeris Day into a usable ZonedDateTime (UTC).
      */
     private fun julianToZonedTime(jde: Double, zoneId: ZoneId): ZonedDateTime {
-        // Delta T approximation (roughly 69 seconds for the 2020s)
-        val deltaTSeconds = 69.0
+        // Reverse-engineer the year from the Julian Day to calculate Delta T
+        val year = ((jde - 2451545.0) / 365.25) + 2000.0
+        val y = year - 2000.0
+
+        // Dynamic Delta T approximation polynomial for the 21st Century (2005 - 2050)
+        // Returns the difference between Universal Time and Dynamical Time in seconds.
+        val deltaTSeconds = 62.92 + 0.32217 * y + 0.005589 * (y * y)
         val deltaTDays = deltaTSeconds / 86400.0
 
         // Convert Terrestrial Time to Universal Time by subtracting Delta T

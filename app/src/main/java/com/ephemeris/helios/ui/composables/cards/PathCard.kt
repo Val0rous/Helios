@@ -18,7 +18,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
@@ -42,9 +41,9 @@ import com.ephemeris.helios.ui.composables.ChartSelectorChip
 import com.ephemeris.helios.ui.composables.charts.DailyAzimuthChart
 import com.ephemeris.helios.ui.composables.charts.DailyTimeChart
 import com.ephemeris.helios.utils.Coordinates
-import com.ephemeris.helios.utils.SolarEphemeris
+import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.Charts
-import com.ephemeris.helios.utils.SunMetrics
+import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.getSunPhase
 import com.ephemeris.helios.utils.round

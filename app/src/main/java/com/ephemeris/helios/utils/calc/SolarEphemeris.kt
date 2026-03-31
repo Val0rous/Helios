@@ -1,11 +1,8 @@
-package com.ephemeris.helios.utils
+package com.ephemeris.helios.utils.calc
 
+import com.ephemeris.helios.utils.LightPhasePreferences
 import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import kotlin.math.*
 
 object SolarEphemeris {
@@ -308,9 +305,9 @@ object SolarEphemeris {
             solarMidnightAltitude = events.solarMidnightAltitude
         )
 
-        val nightDurations = SolarEphemeris.calculatePhaseDuration(
+        val nightDurations = calculatePhaseDuration(
             lowerBoundAlt = -90.0, // Absolute bottom
-            upperBoundAlt = SolarEphemeris.ALT_ASTRONOMICAL_TWILIGHT, // -18.0
+            upperBoundAlt = ALT_ASTRONOMICAL_TWILIGHT, // -18.0
             morningLowerTime = null, // Never crosses -90
             eveningLowerTime = null,
             morningUpperTime = events.dawnAstronomical,
