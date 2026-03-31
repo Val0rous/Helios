@@ -216,7 +216,7 @@ fun PathCard(
                         currentAltitude = currentPosition.altitude.toFloat(),
                         modifier = Modifier
                             .aspectRatio(2f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
                             .padding(vertical = 0.dp)
                     )
 
@@ -227,7 +227,7 @@ fun PathCard(
                         chartType = selectedChartType,
                         modifier = Modifier
                             .aspectRatio(2f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
                             .padding(vertical = 0.dp)
                     )
                 }

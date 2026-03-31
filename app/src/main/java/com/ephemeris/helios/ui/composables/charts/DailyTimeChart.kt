@@ -118,8 +118,8 @@ fun DailyTimeChart(
         }
         val maxY = when (chartType) {
             Charts.Sun.Daily.Elevation -> 90f
-            Charts.Sun.Daily.Irradiance -> max(500f, yValues.max())
-            Charts.Sun.Daily.UvIntensity -> max(5f, yValues.max())
+            Charts.Sun.Daily.Irradiance -> max(500f, (yValues.max() / 100.0).roundToInt() * 100f)
+            Charts.Sun.Daily.UvIntensity -> max(5f, yValues.max().roundToInt().toFloat())
             Charts.Sun.Daily.Illuminance -> max(100000f, yValues.max())
             Charts.Sun.Daily.Shadows -> 10f
             Charts.Sun.Daily.ColorTemperature -> max(5500f, yValues.max())
