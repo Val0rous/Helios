@@ -209,6 +209,8 @@ fun PathCard(
                     else -> FloatArray(X_SIZE)
                 }
 
+                val cornerRadius = 12.dp
+
                 when (selectedChartType) {
                     Charts.Sun.Daily.Trajectory -> DailyAzimuthChart(
                         xValues = xValues,
@@ -219,7 +221,7 @@ fun PathCard(
                         currentAltitude = currentPosition.altitude.toFloat(),
                         modifier = Modifier
                             .aspectRatio(2f)
-                            .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                            .clip(RoundedCornerShape(bottomStart = cornerRadius, bottomEnd = cornerRadius))
                             .padding(vertical = 0.dp)
                     )
 
@@ -230,7 +232,7 @@ fun PathCard(
                         chartType = selectedChartType,
                         modifier = Modifier
                             .aspectRatio(2f)
-                            .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                            .clip(RoundedCornerShape(bottomStart = cornerRadius, bottomEnd = cornerRadius))
                             .padding(vertical = 0.dp)
                     )
                 }
