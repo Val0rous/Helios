@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -147,6 +148,7 @@ class MainActivity : ComponentActivity() {
                             Navbar(navController)
                         }
                     },
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer
                 ) { paddingValues ->
                     LaunchedEffect(Unit) {
                         savedInstanceState?.getString("NAVIGATION_STATE")?.let { savedRoute ->

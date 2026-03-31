@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.MaterialTheme
@@ -164,11 +166,12 @@ fun PathCard(
         }
     }
 
-    OutlinedCard(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
 //            .aspectRatio(2f)
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = 16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column() {
             LazyRow(
