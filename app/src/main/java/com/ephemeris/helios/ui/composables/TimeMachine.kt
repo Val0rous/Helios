@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -160,12 +161,18 @@ fun TimeMachine(
                                     TimeMachineFilter.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
                                     else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                                 },
-                                colors = ToggleButtonDefaults.toggleButtonColors(),
-                                modifier = Modifier.size(40.dp) // Matching your previous FilterChip size
+                                border = ButtonDefaults.outlinedButtonBorder(),
+                                colors = ToggleButtonDefaults.toggleButtonColors(
+                                    checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                ),
+                                contentPadding = PaddingValues(0.dp),
+                                modifier = Modifier.size(32.dp) // Matching your previous FilterChip size
                             ) {
                                 Text(
                                     text = stringResource(id = filter.label),
-                                    textAlign = TextAlign.Center
+                                    textAlign = TextAlign.Center,
+                                    fontSize = 13.sp
                                 )
                             }
                         }
