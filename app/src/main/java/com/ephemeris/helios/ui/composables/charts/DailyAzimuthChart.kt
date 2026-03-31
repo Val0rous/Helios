@@ -165,13 +165,13 @@ fun DailyAzimuthChart(
         // 2. Build the fill path that closes down to the X-axis
         val fillPath = buildDynamicPath(0, drawXValues.size - 1, true)
 
-        // --- CHRONOLOGICAL ELAPSED FILL ---
-        // Stops exactly at 'bestIndex', naturally tracking from midnight up to current time
-        val elapsedStartIndex = if (bestIndex >= nadirIndex) nadirIndex else 0
-        val elapsedFillPath = buildDynamicPath(elapsedStartIndex, bestIndex, true)
+//        // --- CHRONOLOGICAL ELAPSED FILL ---
+//        // Stops exactly at 'bestIndex', naturally tracking from midnight up to current time
+//        val elapsedStartIndex = if (bestIndex >= nadirIndex) nadirIndex else 0
+//        val elapsedFillPath = buildDynamicPath(elapsedStartIndex, bestIndex, true)
 
         // --- CHRONOLOGICAL ELAPSED LINE ---
-        val elapsedLinePath = buildDynamicPath(elapsedStartIndex, bestIndex, false)
+        val elapsedLinePath = buildDynamicPath(0, bestIndex, false)
 
         // Day Background
         drawRect(
