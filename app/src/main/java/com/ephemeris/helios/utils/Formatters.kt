@@ -60,6 +60,8 @@ fun timeFormat(time: LocalDateTime): String {
 }
 
 fun Double.formatDuration(showSeconds: Boolean = false): String {
+    if (this.isNaN()) return ""
+
     // Catch the polar extremes directly
     if (this <= 0.0) return "0h"
     if (this >= 24.0) return "24h"
@@ -97,7 +99,7 @@ fun getDuration(startTime: Double, endTime: Double): Double {
  * Converts decimal hours to "HH:mm" string format.
  */
 fun Double?.formatDecimalHours(): String {
-    if (this == null) return "--:--" // Sun never reaches the target angle
+    if (this == null || this.isNaN()) return "--:--" // Sun never reaches the target angle
 
     var hoursNormalized = this % 24.0
     if (hoursNormalized < 0) hoursNormalized += 24.0
