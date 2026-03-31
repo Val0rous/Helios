@@ -1,9 +1,17 @@
 package com.ephemeris.helios.ui.composables
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -34,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.LocationStatus
 import java.util.Locale
+import androidx.compose.ui.platform.LocalLocale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,8 +62,8 @@ fun TopBar(
     TopAppBar(
         title = {
             TextButton(onClick = { showBottomSheet = true }) {
-                val formattedLat = String.format(Locale.getDefault(), "%.4f", coordinates.latitude)
-                val formattedLon = String.format(Locale.getDefault(), "%.4f", coordinates.longitude)
+                val formattedLat = String.format(LocalLocale.current.platformLocale, "%.4f", coordinates.latitude)
+                val formattedLon = String.format(LocalLocale.current.platformLocale, "%.4f", coordinates.longitude)
                 Text("$formattedLat, $formattedLon")
             }
         },
@@ -84,80 +93,128 @@ fun TopBar(
                     .padding(horizontal = 24.dp, vertical = 16.dp)
                     .padding(bottom = 32.dp) // Extra padding for system navigation bar
             ) {
-                if (isEditing) {
-                    // --- EDIT MODE ---
-                    // Local states to hold the text input before saving
-                    var latInput by remember { mutableStateOf(coordinates.latitude.toString()) }
-                    var lonInput by remember { mutableStateOf(coordinates.longitude.toString()) }
-                    var altInput by remember { mutableStateOf(coordinates.altitude.toString()) }
+                AnimatedContent(
+                    targetState = isEditing,
+                    transitionSpec = {
+                        // Smooth slide-and-fade transition
+                        (fadeIn(animationSpec = tween(220, delayMillis = 90)) + slideInVertically(initialOffsetY = { 90 }))
+                            .togetherWith(fadeOut(animationSpec = tween(90)))
+                            .using(SizeTransform(clip = false))
+                    },
+                    label = "EditViewTransition"
+                ) { targetIsEditing ->
+                    if (targetIsEditing) {
+                        // --- EDIT MODE ---
+                        // Local states to hold the text input before saving
+                        var latInput by remember { mutableStateOf(coordinates.latitude.toString()) }
+                        var lonInput by remember { mutableStateOf(coordinates.longitude.toString()) }
+                        var altInput by remember { mutableStateOf(coordinates.altitude.toString()) }
 
-                    Text("Edit Coordinates", style = MaterialTheme.typography.titleLarge)
-                    Spacer(modifier = Modifier.height(16.dp))
+                        // 1. Validation Logic
+                        val latDouble = latInput.toDoubleOrNull()
+                        val lonDouble = lonInput.toDoubleOrNull()
+                        val altDouble = altInput.toDoubleOrNull()
 
-                    OutlinedTextField(
-                        value = latInput,
-                        onValueChange = { latInput = it },
-                        label = { Text("Latitude (Decimal Degrees)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = lonInput,
-                        onValueChange = { lonInput = it },
-                        label = { Text("Longitude (Decimal Degrees)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = altInput,
-                        onValueChange = { altInput = it },
-                        label = { Text("Altitude (Meters)") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                        val isLatError = latDouble == null || latDouble !in -90.0..90.0
+                        val isLonError = lonDouble == null || lonDouble !in -180.0..180.0
+                        val isAltError = altDouble == null || altDouble !in -500.0..20000.0
+                        val isSaveEnabled = !isLatError && !isLonError && !isAltError
 
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        TextButton(onClick = { isEditing = false }) {
-                            Text("Cancel")
+                        // 2. Sanitization Regex: Allows optional minus sign, numbers, and one optional decimal point
+                        val decimalRegex = Regex("^-?[0-9]*\\.?[0-9]*$")
+                        Column {
+
+                            Text("Edit Coordinates", style = MaterialTheme.typography.titleLarge)
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            OutlinedTextField(
+                                value = latInput,
+                                onValueChange = { if (it.matches(decimalRegex)) latInput = it },
+                                label = { Text("Latitude (Decimal Degrees)") },
+                                isError = isLatError,
+                                supportingText = { if (isLatError) Text("Must be between -90° and 90°") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = lonInput,
+                                onValueChange = { if (it.matches(decimalRegex)) lonInput = it },
+                                label = { Text("Longitude (Decimal Degrees)") },
+                                isError = isAltError,
+                                supportingText = { if (isLonError) Text("Must be between -180° and 180°") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            OutlinedTextField(
+                                value = altInput,
+                                onValueChange = { if (it.matches(decimalRegex)) altInput = it },
+                                label = { Text("Altitude (Meters)") },
+                                isError = isAltError,
+                                supportingText = { if (isAltError) Text("Must be between -500m and 20,000m") },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                TextButton(onClick = { isEditing = false }) {
+                                    Text("Cancel")
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(
+                                    onClick = {
+                                        // Trigger the save callback
+                                        // We know these aren't null because the button is enabled
+                                        onSaveCoordinates(
+                                            Coordinates(
+                                                latDouble!!,
+                                                lonDouble!!,
+                                                altDouble!!
+                                            )
+                                        )
+                                        // Return to view mode
+                                        isEditing = false
+                                    },
+                                    enabled = isSaveEnabled
+                                ) {
+                                    Text("Save")
+                                }
+                            }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = {
-                            // Safely parse strings back to doubles, falling back to old values if invalid
-                            val newLat = latInput.toDoubleOrNull() ?: coordinates.latitude
-                            val newLon = lonInput.toDoubleOrNull() ?: coordinates.longitude
-                            val newAlt = altInput.toDoubleOrNull() ?: 0.0
+                    } else {
+                        // --- VIEW MODE ---
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Text("Location Details", style = MaterialTheme.typography.titleLarge)
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                            // Trigger the save callback
-                            onSaveCoordinates(Coordinates(newLat, newLon, newAlt))
-                            // Return to view mode
-                            isEditing = false
-                        }) {
-                            Text("Save")
+                            Text(
+                                "Latitude: ${coordinates.latitude}°",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "Longitude: ${coordinates.longitude}°",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                "Altitude: ${coordinates.altitude} m",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Button(
+                                onClick = { isEditing = true },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Edit Coordinates")
+                            }
                         }
-                    }
-                } else {
-                    // --- VIEW MODE ---
-                    Text("Location Details", style = MaterialTheme.typography.titleLarge)
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text("Latitude: ${coordinates.latitude}°", style = MaterialTheme.typography.bodyLarge)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Longitude: ${coordinates.longitude}°", style = MaterialTheme.typography.bodyLarge)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text("Altitude: ${coordinates.altitude} m", style = MaterialTheme.typography.bodyLarge)
-
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = { isEditing = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Edit Coordinates")
                     }
                 }
             }
