@@ -95,6 +95,7 @@ fun TimeMachine(
                     ) {
                         Text(
                             text = date,
+                            color = MaterialTheme.colorScheme.secondary,
                             style = TextStyle(
                                 fontFamily = FontFamily.Default,
                                 fontSize = 13.sp
@@ -111,6 +112,7 @@ fun TimeMachine(
                     ) {
                         Text(
                             text = time,
+                            color = MaterialTheme.colorScheme.primary,
                             style = TextStyle(
                                 fontFamily = FontFamily.Default,
                                 fontSize = 16.sp,
