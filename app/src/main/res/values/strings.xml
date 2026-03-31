@@ -42,6 +42,10 @@
     <string name="equinoxes">Equinoxes</string>
     <string name="solstices">Solstices</string>
 
+    <string name="hour_abbreviation">H</string>
+    <string name="day_abbreviation">D</string>
+    <string name="year_abbreviation">Y</string>
+
     <string name="start">Start</string>
     <string name="end">End</string>
     <string name="night_length">Night Length</string>
