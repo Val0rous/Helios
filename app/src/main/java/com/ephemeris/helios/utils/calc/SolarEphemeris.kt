@@ -476,7 +476,7 @@ object SolarEphemeris {
      * Calculates Delta T (Terrestrial Time - Universal Time) in seconds.
      * Uses the Espenak and Meeus (2006) polynomial approximations.
      */
-    private fun calculateDeltaT(year: Int, month: Int): Double {
+    internal fun calculateDeltaT(year: Int, month: Int): Double {
         // Fractional year for polynomial calculation
         val y = year + (month - 0.5) / 12.0
 
