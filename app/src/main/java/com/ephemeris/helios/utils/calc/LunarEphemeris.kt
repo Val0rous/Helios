@@ -384,7 +384,7 @@ object LunarEphemeris {
     private fun calculateJulianCentury(year: Int, month: Int, day: Int, decimalHour: Double, tzOffsetHours: Double): Double {
         val jdExact = calculateJulianDay(year, month, day, decimalHour, tzOffsetHours)
         // Fetch Delta T from your SolarEphemeris (or a shared Utils file)
-        val deltaTSeconds = SolarEphemeris.calculateDeltaT(year, month)
+        val deltaTSeconds = calculateDeltaT(year, month)
         val ttJdExact = jdExact + (deltaTSeconds / 86400.0) // Convert seconds to days and add
         return (ttJdExact - 2451545.0) / 36525.0
     }

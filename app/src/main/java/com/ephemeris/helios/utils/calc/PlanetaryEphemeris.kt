@@ -363,7 +363,7 @@ object PlanetaryEphemeris {
 
     private fun calculateJulianMillennium(year: Int, month: Int, day: Int, decimalHour: Double, tzOffsetHours: Double): Double {
         val jdExact = calculateJulianDay(year, month, day, decimalHour, tzOffsetHours)
-        val deltaTSeconds = SolarEphemeris.calculateDeltaT(year, month)
+        val deltaTSeconds = calculateDeltaT(year, month)
         val ttJdExact = jdExact + (deltaTSeconds / 86400.0)
         // VSOP87 strictly requires Julian Millennia from J2000.0 (Tau)
         return (ttJdExact - 2451545.0) / 365250.0

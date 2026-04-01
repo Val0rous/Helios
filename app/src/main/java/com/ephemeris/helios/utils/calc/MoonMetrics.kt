@@ -182,7 +182,7 @@ object MoonMetrics {
         val utcDecimalHour = decimalHour - tzOffsetHours
         val jdExact = jdMidnight + (utcDecimalHour / 24.0)
         // Fetch Delta T from your SolarEphemeris (or a shared Utils file)
-        val deltaTSeconds = SolarEphemeris.calculateDeltaT(year, month)
+        val deltaTSeconds = calculateDeltaT(year, month)
         val ttJdExact = jdExact + (deltaTSeconds / 86400.0) // Convert seconds to days and add
         return (ttJdExact - 2451545.0) / 36525.0
     }
