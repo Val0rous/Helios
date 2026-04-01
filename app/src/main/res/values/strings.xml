@@ -28,6 +28,14 @@
 
 
     <string name="solar_noon">Solar Noon</string>
+    <string name="solar_noon_time">Time of Solar Noon</string>
+    <string name="solar_noon_altitude">Altitude at Solar Noon</string>
+    <string name="lunar_culmination">Lunar Culmination</string>
+    <string name="lunar_culmination_time">Time of Lunar Culmination</string>
+    <string name="lunar_culmination_altitude">Altitude at Lunar Culmination</string>
+    <string name="culmination">Culmination</string>
+    <string name="culmination_time">Time of Culmination</string>
+    <string name="culmination_altitude">Altitude at Culmination</string>
     <string name="live_metrics">Live Metrics</string>
     <string name="daily_peaks">Daily Peaks</string>
     <string name="golden_hour">Golden Hour</string>
@@ -48,7 +56,6 @@
     <string name="searching_location">Searching location…</string>
     <string name="location_disabled">Location disabled</string>
 
-    <string name="culmination">Culmination</string>
     <string name="equinoxes">Equinoxes</string>
     <string name="solstices">Solstices</string>
 
