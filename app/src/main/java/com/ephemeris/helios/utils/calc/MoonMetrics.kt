@@ -22,14 +22,31 @@ object MoonMetrics {
         val phase: LunarPhase,
         val distanceKm: Double,          // Earth-Moon distance in kilometers
         val angularDiameterDegrees: Double, // Apparent visual size in the sky
-        val isSupermoon: Boolean
+        val isSupermoon: Boolean,
+        val illuminanceLux: Double,
+        val shadowRatio: Double,
+        val airMass: Double,
+        val colorTempKelvin: Double
     )
 
-    fun calculateMetrics(time: ZonedDateTime): LunarMetricsResult {
-        // 1. Convert to Julian Centuries (T)
+    fun calculateMetrics(
+        time: ZonedDateTime,
+        latitude: Double,
+        longitude: Double,
+        elevationMeters: Double = 0.0
+    ): LunarMetricsResult {
+        // 1. Fetch exact positional geometry from the Ephemeris engine and Convert to Julian Centuries (T) for Phase Math
         // We reuse your existing Julian Date logic, adjusted for UTC
         val decimalHour = time.hour + time.minute / 60.0 + time.second / 3600.0
         val tzOffsetHours = time.offset.totalSeconds / 3600.0
+        val position = LunarEphemeris.calculatePosition(
+            date = time.toLocalDate(),
+            decimalHour = decimalHour,
+            latitude = latitude,
+            longitude = longitude,
+            tzOffsetHours = tzOffsetHours,
+            elevationMeters = elevationMeters
+        )
         val t = calculateJulianCentury(time.year, time.monthValue, time.dayOfMonth, decimalHour, tzOffsetHours)
 
         // 2. Core Lunar Arguments (Meeus Chapter 47)
@@ -79,34 +96,71 @@ object MoonMetrics {
             else -> LunarPhase.NEW_MOON
         }
 
-        // 6. Earth-Moon Distance (Meeus Chapter 47, truncated for extreme accuracy)
-        // Calculates the distance in kilometers using the top perturbation waves.
-        val distanceKm = 385000.56 -
-                20905.15 * cos(mPrimeRad) -
-                3699.11 * cos(2 * dRad - mPrimeRad) -
-                2955.96 * cos(2 * dRad) -
-                569.92 * cos(2 * mPrimeRad) +
-                246.15 * cos(2 * dRad - 2 * mPrimeRad) -
-                204.58 * cos(mPrimeRad - mRad) -
-                170.73 * cos(dRad) -
-                152.13 * cos(mPrimeRad + mRad)
-
-        // 7. Angular Diameter (Relative Visual Size in the sky)
+        // 7. Angular Diameter, using Ephemeris Distance (Relative Visual Size in the sky)
         // Measured in degrees. Usually ranges from 0.49 (Apogee) to 0.55 (Perigee)
-        val angularDiameterDegrees = Math.toDegrees(2.0 * asin(1737.4 / distanceKm))
+        val angularDiameterDegrees = Math.toDegrees(2.0 * asin(1737.4 / position.distanceKm))
 
         // 8. Supermoon Calculation
         // A supermoon occurs when a Full Moon coincides with the Moon being at or near its closest
         // approach to Earth (Perigee). The astronomical standard is within 360,000 km.
-        val isSupermoon = (phase == LunarPhase.FULL_MOON || illuminationPercent >= 98.0) && (distanceKm <= 360000.0)
+        val isSupermoon = (phase == LunarPhase.FULL_MOON || illuminationPercent >= 98.0) && (position.distanceKm <= 360000.0)
+
+        // Light and Atmosphere Metrics
+        var actualAirMass = 0.0
+        var illuminanceLux = 0.0
+        var shadowRatio = 0.0
+        var colorTempKelvin = 4100.0 // Physical baseline of reflected moonlight
+
+        // Only calculate light if the moon is above the horizon
+        if (position.altitude > 0.0) {
+            val altRad = Math.toRadians(position.altitude)
+            val sinAlt = sin(altRad)
+
+            // A. Air Mass (Kasten-Young, identical to SunMetrics)
+            val amDenominator = sinAlt + 0.50572 * (position.altitude + 6.07995).pow(-1.6364)
+            val relativeAirMass = 1.0 / amDenominator
+            // Apply elevation modifier (thinner atmosphere at high altitudes)
+            val amElevationModifier = exp(-elevationMeters / 8434.0)
+            actualAirMass = relativeAirMass * amElevationModifier
+
+            // B. Visual Magnitude & Illuminance (Lux)
+            // 1. Calculate the Moon's Visual Magnitude (V) outside the atmosphere.
+            // Using the standard polynomial based on phase angle (alpha).
+            // Notice the "Opposition Surge" (the Moon reflects light non-linearly) is accounted for here.
+            val alpha = abs(phaseAngleDeg)
+            var visualMagnitude = -12.73 + 0.026 * alpha + (4.0 * 10.0.pow(-9)) * alpha.pow(4)
+
+            // 2. Adjust magnitude for current distance (closer moon = brighter)
+            visualMagnitude += 5.0 * log10(position.distanceKm / 384400.0)
+
+            // 3. Convert Magnitude to Lux (Standard Astronomical Formula)
+            val exoAtmosphericLux = 10.0.pow((-visualMagnitude - 14.18) / -2.5)
+
+            // 4. Attenuate light through the atmosphere using Air Mass
+            // 0.74 is the standard clear-sky atmospheric transmittance coefficient for moonlight
+            illuminanceLux = exoAtmosphericLux * 0.74.pow(actualAirMass)
+
+            // C. Shadow Ratio
+            shadowRatio = 1.0 / tan(altRad)
+
+            // D. Color Temperature (Atmospheric Reddening)
+            // Moonlight starts at ~4100K. As Air Mass increases, Rayleigh scattering
+            // strips away blue light, dropping the temperature just like a sunset.
+            val safeAirMass = max(1.0, actualAirMass)
+            colorTempKelvin = max(2000.0, 4100.0 - (safeAirMass - 1.0) * 250.0)
+        }
 
         return LunarMetricsResult(
             illuminationPercent = round(illuminationPercent * 10) / 10.0,
             ageDays = round(ageDays * 100) / 100.0,
             phase = phase,
-            distanceKm = round(distanceKm),
+            distanceKm = round(position.distanceKm),
             angularDiameterDegrees = round(angularDiameterDegrees * 1000) / 1000.0,
-            isSupermoon = isSupermoon
+            isSupermoon = isSupermoon,
+            illuminanceLux = illuminanceLux,
+            shadowRatio = shadowRatio,
+            airMass = actualAirMass,
+            colorTempKelvin = colorTempKelvin
         )
     }
 
