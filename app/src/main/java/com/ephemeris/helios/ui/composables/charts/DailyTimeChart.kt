@@ -452,62 +452,66 @@ fun DailyTimeChart(
 //                }
             }
 
-            // 2. Night twilights: Vertical stripes extending past currentX
-            var currentBlockColor = Color.Transparent
-            var blockStartX = uniqueXPoints.firstOrNull() ?: 0f
+            if (chartType is Charts.Sun) {
+                // 2. Night twilights: Vertical stripes extending past currentX
+                var currentBlockColor = Color.Transparent
+                var blockStartX = uniqueXPoints.firstOrNull() ?: 0f
 
-            for (i in 0 until uniqueXPoints.size - 1) {
-                val xA = uniqueXPoints[i]
-                val xB = uniqueXPoints[i + 1]
-                val midX = (xA + xB) / 2f // Find the center point of this slice
+                for (i in 0 until uniqueXPoints.size - 1) {
+                    val xA = uniqueXPoints[i]
+                    val xB = uniqueXPoints[i + 1]
+                    val midX = (xA + xB) / 2f // Find the center point of this slice
 
-                // Interpolate to find the Y altitude at the exact center of this stripe
-                var midY = 0f
-                for (j in 0 until xValues.size - 1) {
-                    if (midX >= xValues[j] && midX <= xValues[j + 1]) {
-                        val delta = xValues[j + 1] - xValues[j]
-                        midY = if (delta > 0f) {
-                            yValues[j] + ((midX - xValues[j]) / delta) * (yValues[j + 1] - yValues[j])
-                        } else yValues[j]
-                        break
+                    // Interpolate to find the Y altitude at the exact center of this stripe
+                    var midY = 0f
+                    for (j in 0 until xValues.size - 1) {
+                        if (midX >= xValues[j] && midX <= xValues[j + 1]) {
+                            val delta = xValues[j + 1] - xValues[j]
+                            midY = if (delta > 0f) {
+                                yValues[j] + ((midX - xValues[j]) / delta) * (yValues[j + 1] - yValues[j])
+                            } else yValues[j]
+                            break
+                        }
+                    }
+
+                    val sliceColor = when {
+                        midY >= 0f -> Color.Transparent // Day area already drawn above
+                        midY >= -6f -> civilTwilightFill
+                        midY >= -12f -> nauticalTwilightFill
+                        midY >= -18f -> astroTwilightFill
+                        else -> nightFill
+                    }
+
+                    // If the color changes, draw the accumulated block from the previous segments
+                    if (sliceColor != currentBlockColor) {
+                        if (currentBlockColor != Color.Transparent && i > 0) {
+                            // Snap to exact pixels to prevent alpha-stacking artifacts
+                            val startPx = round(mapX(blockStartX))
+                            val endPx = round(mapX(xA))
+                            drawRect(
+                                color = currentBlockColor,
+                                topLeft = Offset(startPx, zeroYPixel),
+                                size = Size(endPx - startPx, height - zeroYPixel)
+                            )
+                        }
+                        // Start tracking the new color block
+                        currentBlockColor = sliceColor
+                        blockStartX = xA
                     }
                 }
 
-                val sliceColor = when {
-                    midY >= 0f -> Color.Transparent // Day area already drawn above
-                    midY >= -6f -> civilTwilightFill
-                    midY >= -12f -> nauticalTwilightFill
-                    midY >= -18f -> astroTwilightFill
-                    else -> nightFill
+                // Draw the final accumulated block that hits the edge of the chart
+                if (currentBlockColor != Color.Transparent) {
+                    val startPx = round(mapX(blockStartX))
+                    val endPx = round(mapX(uniqueXPoints.last()))
+                    drawRect(
+                        color = currentBlockColor,
+                        topLeft = Offset(startPx, zeroYPixel),
+                        size = Size(endPx - startPx, height - zeroYPixel)
+                    )
                 }
-
-                // If the color changes, draw the accumulated block from the previous segments
-                if (sliceColor != currentBlockColor) {
-                    if (currentBlockColor != Color.Transparent && i > 0) {
-                        // Snap to exact pixels to prevent alpha-stacking artifacts
-                        val startPx = round(mapX(blockStartX))
-                        val endPx = round(mapX(xA))
-                        drawRect(
-                            color = currentBlockColor,
-                            topLeft = Offset(startPx, zeroYPixel),
-                            size = Size(endPx - startPx, height - zeroYPixel)
-                        )
-                    }
-                    // Start tracking the new color block
-                    currentBlockColor = sliceColor
-                    blockStartX = xA
-                }
-            }
-
-            // Draw the final accumulated block that hits the edge of the chart
-            if (currentBlockColor != Color.Transparent) {
-                val startPx = round(mapX(blockStartX))
-                val endPx = round(mapX(uniqueXPoints.last()))
-                drawRect(
-                    color = currentBlockColor,
-                    topLeft = Offset(startPx, zeroYPixel),
-                    size = Size(endPx - startPx, height - zeroYPixel)
-                )
+            } else {
+                // TODO: drawRect()
             }
 
             // 3. Draw the elapsed time overlay (clipped strictly up to currentHour)
@@ -532,10 +536,15 @@ fun DailyTimeChart(
         )
 
         // --- Draw the elapsed path line on top
+        val pathColor = when (chartType) {
+            is Charts.Sun -> localCustomColors.sunPath
+            is Charts.Moon -> localCustomColors.moonPath
+            else -> Color.Green // TODO
+        }
         clipRect(right = currentXPx) {
             drawPath(
                 path = curvePath,
-                color = localCustomColors.sunPath,
+                color = pathColor,
                 style = Stroke(width = 2.dp.toPx())
             )
         }

@@ -6,6 +6,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -13,6 +14,7 @@ import com.ephemeris.helios.utils.Charts
 
 @Composable
 fun ChartSelectorChip(chartType: Charts, isSelected: Boolean, onSelectedChartTypeChange: (Charts) -> Unit) {
+    val modifier = Modifier.size(18.dp)
     FilterChip(
         selected = isSelected,
         onClick = { onSelectedChartTypeChange(chartType) },
@@ -21,8 +23,11 @@ fun ChartSelectorChip(chartType: Charts, isSelected: Boolean, onSelectedChartTyp
             Icon(
                 painter = painterResource(id = (if (isSelected) chartType.filledIcon else chartType.icon)),
                 contentDescription = "",
-                modifier = Modifier.size(18.dp)
+                modifier = when (chartType) {
+                    Charts.Moon.Daily.Elevation -> modifier.rotate(-25f)
+                    else -> modifier
+                }
             )
-        }
+        },
     )
 }

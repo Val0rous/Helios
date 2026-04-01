@@ -172,6 +172,11 @@ fun DailyAzimuthChart(
 
         // --- CHRONOLOGICAL ELAPSED LINE ---
         val elapsedLinePath = buildDynamicPath(0, bestIndex, false)
+        val elapsedLineColor = when (chartType) {
+            is Charts.Sun -> localCustomColors.sunPath
+            is Charts.Moon -> localCustomColors.moonPath
+            else -> Color.Green // TODO
+        }
 
         // Day Background
         drawRect(
@@ -225,45 +230,46 @@ fun DailyAzimuthChart(
 //        }
 
         // 3. Draw the Twilight Horizontal Bands
-        clipPath(fillPath) {
+        if (chartType is Charts.Sun) {
+            clipPath(fillPath) {
 
-            // Day area: Removed 'right = currentXPx' so sunset is always visible by default
-            clipRect(bottom = zeroYPixel) {
-                drawRect(
-                    color = dayFill,
-                    topLeft = Offset(0f, 0f),
-                    size = Size(width, zeroYPixel)
-                )
-            }
+                // Day area: Removed 'right = currentXPx' so sunset is always visible by default
+                clipRect(bottom = zeroYPixel) {
+                    drawRect(
+                        color = dayFill,
+                        topLeft = Offset(0f, 0f),
+                        size = Size(width, zeroYPixel)
+                    )
+                }
 
-            clipRect(top = zeroYPixel, bottom = mapY(-6f)) {
-                drawRect(
-                    color = civilTwilightFill,
-                    topLeft = Offset(0f, zeroYPixel),
-                    size = Size(width, mapY(-6f) - zeroYPixel)
-                )
-            }
-            clipRect(top = mapY(-6f), bottom = mapY(-12f)) {
-                drawRect(
-                    color = nauticalTwilightFill,
-                    topLeft = Offset(0f, mapY(-6f)),
-                    size = Size(width, mapY(-12f) - mapY(-6f))
-                )
-            }
-            clipRect(top = mapY(-12f), bottom = mapY(-18f)) {
-                drawRect(
-                    color = astroTwilightFill,
-                    topLeft = Offset(0f, mapY(-12f)),
-                    size = Size(width, mapY(-18f) - mapY(-12f))
-                )
-            }
-            clipRect(top = mapY(-18f)) {
-                drawRect(
-                    color = nightFill,
-                    topLeft = Offset(0f, mapY(-18f)),
-                    size = Size(width, height - mapY(-18f))
-                )
-            }
+                clipRect(top = zeroYPixel, bottom = mapY(-6f)) {
+                    drawRect(
+                        color = civilTwilightFill,
+                        topLeft = Offset(0f, zeroYPixel),
+                        size = Size(width, mapY(-6f) - zeroYPixel)
+                    )
+                }
+                clipRect(top = mapY(-6f), bottom = mapY(-12f)) {
+                    drawRect(
+                        color = nauticalTwilightFill,
+                        topLeft = Offset(0f, mapY(-6f)),
+                        size = Size(width, mapY(-12f) - mapY(-6f))
+                    )
+                }
+                clipRect(top = mapY(-12f), bottom = mapY(-18f)) {
+                    drawRect(
+                        color = astroTwilightFill,
+                        topLeft = Offset(0f, mapY(-12f)),
+                        size = Size(width, mapY(-18f) - mapY(-12f))
+                    )
+                }
+                clipRect(top = mapY(-18f)) {
+                    drawRect(
+                        color = nightFill,
+                        topLeft = Offset(0f, mapY(-18f)),
+                        size = Size(width, height - mapY(-18f))
+                    )
+                }
 
 //            // Day & Night Isolated Elapsed Time
 //            // Elapsed Day (Above 0deg)
@@ -275,6 +281,7 @@ fun DailyAzimuthChart(
 //            clipRect(top = zeroYPixel) {
 //                drawPath(path = elapsedFillPath, color = elapsedNightFill)
 //            }
+            }
         }
 
         // 4. Draw the full unclipped curve line for all values
@@ -287,7 +294,7 @@ fun DailyAzimuthChart(
         // --- Draw the elapsed path line on top ---
         drawPath(
             path = elapsedLinePath,
-            color = localCustomColors.sunPath,
+            color = elapsedLineColor,
             style = Stroke(width = 2.dp.toPx()) // I recommend 2.dp so it pops slightly over the base line
         )
 

@@ -49,6 +49,7 @@ data class CustomColorScheme(
     val sunPath: Color,
     val dropLine: Color,
     val moon: Color,
+    val moonPath: Color,
     val nightPrimary: Color,
     val nightOnPrimary: Color,
     val nightPrimaryContainer: Color,
@@ -69,10 +70,12 @@ private val DarkCustomColors = CustomColorScheme(
     sunPath = MaterialColors.Yellow800,
     dropLine = MaterialColors.Gray300,
     moon = MaterialColors.Gray500,
-    nightPrimary = Color(0xFFC7BFFF),
-    nightOnPrimary = Color(0xFF2F285F),
-    nightPrimaryContainer = Color(0xFFE5DEFF),
-    nightOnPrimaryContainer = Color(0xFF463F77)
+    moonPath = MaterialColors.Gray900,
+
+    nightPrimary = Colors.DeepPurple900.primaryDark,
+    nightOnPrimary = Colors.DeepPurple900.onPrimaryDark,
+    nightPrimaryContainer = Colors.DeepPurple900.primaryContainerDark,
+    nightOnPrimaryContainer = Colors.DeepPurple900.onPrimaryContainerDark
 )
 
 private val LightCustomColors = CustomColorScheme(
@@ -88,11 +91,13 @@ private val LightCustomColors = CustomColorScheme(
     sun = MaterialColors.Amber600,
     sunPath = MaterialColors.Orange800,
     dropLine = MaterialColors.Gray600,
-    moon = MaterialColors.Gray700,
-    nightPrimary = Color(0xFF5E5791),
-    nightOnPrimary = Color(0xFFFFFFFF),
-    nightPrimaryContainer = Color(0xFF463F77),
-    nightOnPrimaryContainer = Color(0xFFE5DEFF)
+    moon = MaterialColors.BlueA700,
+    moonPath = MaterialColors.Blue700,
+
+    nightPrimary = Colors.DeepPurple900.primaryLight,
+    nightOnPrimary = Colors.DeepPurple900.onPrimaryLight,
+    nightPrimaryContainer = Colors.DeepPurple900.primaryContainerLight,
+    nightOnPrimaryContainer = Colors.DeepPurple900.onPrimaryContainerLight
 )
 
 internal val LocalCustomColors = staticCompositionLocalOf<CustomColorScheme> {

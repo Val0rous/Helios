@@ -52,7 +52,7 @@ sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serial
 
     sealed class Moon(label: Int, icon: Int, filledIcon: Int) : Charts(label, icon, filledIcon) {
         sealed class Daily(label: Int, icon: Int, filledIcon: Int) : Moon(label, icon, filledIcon) {
-            object Elevation : Daily(R.string.elevation, R.drawable.ic_moon_stars, R.drawable.ic_moon_stars_filled) // Altitude
+            object Elevation : Daily(R.string.elevation, R.drawable.ic_nightlight, R.drawable.ic_nightlight_filled) // Altitude
             object Trajectory : Daily(R.string.trajectory, R.drawable.ic_explore, R.drawable.ic_explore_filled) //)
             object Illuminance : Daily(R.string.illuminance, R.drawable.ic_lightbulb, R.drawable.ic_lightbulb_filled)
             object Shadows : Daily(R.string.shadows, R.drawable.ic_ev_shadow, R.drawable.ic_ev_shadow_filled)

@@ -3,9 +3,12 @@ package com.ephemeris.helios.ui.composables.charts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.res.painterResource
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.LocalCustomColors
@@ -32,10 +35,15 @@ fun rememberChartIconDrawer(chartType: Charts): DrawScope.(iconSize: Float, isIn
 
             if (isIndicator) {
                 // Draw the dim night indicator
+                val color = when (chartType) {
+                    is Charts.Sun -> colors.sun.copy(alpha = 0.5f)
+                    is Charts.Moon -> colors.moon.copy(alpha = 0.5f)
+                    else -> Color.Red // TODO
+                }
                 with(indicatorPainter) {
                     draw(
                         size = sizeObj,
-                        colorFilter = ColorFilter.tint(colors.sun.copy(alpha = 0.5f))
+                        colorFilter = ColorFilter.tint(color)
                     )
                 }
             } else {
@@ -55,8 +63,10 @@ fun rememberChartIconDrawer(chartType: Charts): DrawScope.(iconSize: Float, isIn
                     }
 
                     is Charts.Moon -> {
-                        with(moonPainter) {
-                            draw(size = sizeObj, colorFilter = ColorFilter.tint(colors.moon))
+                        rotate(degrees = -35f, pivot = Offset(iconSize / 2f, iconSize / 2f)) {
+                            with(moonPainter) {
+                                draw(size = sizeObj, colorFilter = ColorFilter.tint(colors.moon))
+                            }
                         }
                     }
 
