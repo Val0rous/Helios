@@ -77,7 +77,7 @@ class MainActivity : ComponentActivity() {
             )
 
             var dayData by remember { mutableStateOf<DayEphemerisData?>(null)}
-            var currentSunPosition by remember{ mutableStateOf<SolarEphemeris.SolarPosition?>(null) }
+            var currentSunSolarPosition by remember{ mutableStateOf<SolarEphemeris.SolarPosition?>(null) }
             var liveMetrics by remember { mutableStateOf<SunMetrics.SunMetricsResult?>(null)}
 
             var currentMoonPosition by remember { mutableStateOf<LunarEphemeris.LunarPosition?>(null) }
@@ -132,7 +132,7 @@ class MainActivity : ComponentActivity() {
 
                             // Update states to trigger recomposition
 //                            currentTime = newTime
-                            currentSunPosition = pos
+                            currentSunSolarPosition = pos
                             liveMetrics = metrics
                             currentMoonPosition = lunarPos
                             liveMoonMetrics = lunarMetrics
@@ -185,7 +185,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                     // Guard clause: Don't render the heavy UI until the background threads finish their first pass
-                    if (dayData == null || currentSunPosition == null || liveMetrics == null) {
+                    if (dayData == null || currentSunSolarPosition == null || liveMetrics == null) {
                         Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
                         }
@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
                             Sun(
                                 currentTime = currentTime,
                                 coordinates = coordinates,
-                                currentPosition = currentSunPosition!!,
+                                currentSolarPosition = currentSunSolarPosition!!,
                                 events = dayData!!.events,
                                 durations = dayData!!.durations,
                                 dailyPeakMetrics = dayData!!.dailyPeakMetrics,

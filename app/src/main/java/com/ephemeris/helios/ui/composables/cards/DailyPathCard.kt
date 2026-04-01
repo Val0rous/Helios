@@ -31,12 +31,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.ChartSelectorChip
 import com.ephemeris.helios.ui.composables.charts.DailyAzimuthChart
 import com.ephemeris.helios.ui.composables.charts.DailyTimeChart
@@ -45,7 +47,6 @@ import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.formatDuration
-import com.ephemeris.helios.utils.getSunPhase
 import com.ephemeris.helios.utils.round
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -55,15 +56,9 @@ import kotlin.math.round
 const val X_SIZE = 481 // 480 items
 
 data class ChartArrays(
-    val hours: FloatArray,
-    val elevation: FloatArray,
-    val azimuths: FloatArray,
-    val irradiance: FloatArray,
-    val uvIntensity: FloatArray,
-    val illuminance: FloatArray,
-    val shadowRatio: FloatArray,
-    val colorTemp: FloatArray,
-    val airMass: FloatArray
+    val timeXValues: FloatArray,
+    val azimuthXValues: FloatArray,
+    val yDataSets: Map<Charts, FloatArray>
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -71,41 +66,42 @@ data class ChartArrays(
 
         other as ChartArrays
 
-        if (!hours.contentEquals(other.hours)) return false
-        if (!elevation.contentEquals(other.elevation)) return false
-        if (!azimuths.contentEquals(other.azimuths)) return false
-        if (!irradiance.contentEquals(other.irradiance)) return false
-        if (!uvIntensity.contentEquals(other.uvIntensity)) return false
-        if (!illuminance.contentEquals(other.illuminance)) return false
-        if (!shadowRatio.contentEquals(other.shadowRatio)) return false
-        if (!colorTemp.contentEquals(other.colorTemp)) return false
-        if (!airMass.contentEquals(other.airMass)) return false
+        if (!timeXValues.contentEquals(other.timeXValues)) return false
+        if (!azimuthXValues.contentEquals(other.azimuthXValues)) return false
+
+        // Deep compare the maps
+        if (yDataSets != other.yDataSets) return false
+        for ((key, value) in yDataSets) {
+            if (!value.contentEquals(other.yDataSets[key])) return false
+        }
 
         return true
     }
 
     override fun hashCode(): Int {
-        var result = hours.contentHashCode()
-        result = 31 * result + elevation.contentHashCode()
-        result = 31 * result + azimuths.contentHashCode()
-        result = 31 * result + irradiance.contentHashCode()
-        result = 31 * result + uvIntensity.contentHashCode()
-        result = 31 * result + illuminance.contentHashCode()
-        result = 31 * result + shadowRatio.contentHashCode()
-        result = 31 * result + colorTemp.contentHashCode()
-        result = 31 * result + airMass.contentHashCode()
+        var result = timeXValues.contentHashCode()
+        result = 31 * result + azimuthXValues.contentHashCode()
+        // Simple hash for the map arrays
+        yDataSets.forEach { (key, value) ->
+            result = 31 * result + key.hashCode()
+            result = 31 * result + value.contentHashCode()
+
+        }
         return result
     }
 }
 
 @Composable
-fun PathCard(
+fun DailyPathCard(
     currentTime: ZonedDateTime,
     coordinates: Coordinates,
-    events: SolarEphemeris.DailyEvents,
-    currentPosition: SolarEphemeris.SolarPosition,
+    dayLength: Double,
+    currentAltitude: Double,
+    currentAzimuth: Double,
+    phase: String = "",
+    type: Charts
 ) {
-    var selectedChartType by rememberSaveable { mutableStateOf<Charts>(Charts.Sun.Daily.Elevation) }
+    var selectedChartType by rememberSaveable { mutableStateOf(type) }
     var chartArrays by remember { mutableStateOf<ChartArrays?>(null) }
 
     val currentHour: Float by remember(currentTime) {
@@ -123,45 +119,63 @@ fun PathCard(
             val elevationCalc = DoubleArray(hoursCalc.size)
             val azimuthsCalc = FloatArray(X_SIZE)
 
+            val hours = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
+            val yDataMap = mutableMapOf<Charts, FloatArray>()
+
             val tzOffset = currentTime.offset.totalSeconds / 3600.0
             val localDate = currentTime.toLocalDate()
 
-            for (i in 0 until X_SIZE) {
-                val position = SolarEphemeris.getPositionAtHour(
-                    date = localDate,
-                    decimalHour = hoursCalc[i],
-                    latitude = coordinates.latitude,
-                    longitude = coordinates.longitude,
-                    tzOffsetHours = tzOffset
-                )
-                elevationCalc[i] = position.altitude
-                azimuthsCalc[i] = position.azimuth.toFloat()
+            when (type) {
+                is Charts.Sun -> {
+                    for (i in 0 until X_SIZE) {
+                        val position = SolarEphemeris.getPositionAtHour(
+                            date = localDate,
+                            decimalHour = hoursCalc[i],
+                            latitude = coordinates.latitude,
+                            longitude = coordinates.longitude,
+                            tzOffsetHours = tzOffset
+                        )
+                        elevationCalc[i] = position.altitude
+                        azimuthsCalc[i] = position.azimuth.toFloat()
+                    }
+                    val elevation = FloatArray(X_SIZE) { elevationCalc[it].toFloat() }
+                    val irradiance = FloatArray(X_SIZE)
+                    val uvIntensity = FloatArray(X_SIZE)
+                    val illuminance = FloatArray(X_SIZE)
+                    val shadowRatio = FloatArray(X_SIZE)
+                    val colorTemp = FloatArray(X_SIZE)
+                    val airMass = FloatArray(X_SIZE)
+
+                    SunMetrics.calculateMetrics(
+                        sunElevationsDeg = elevationCalc,
+                        observerAltitudeMeters = coordinates.altitude,
+                        outIrradiance = irradiance,
+                        outUvi = uvIntensity,
+                        outIlluminance = illuminance,
+                        outShadowRatio = shadowRatio,
+                        outColorTemp = colorTemp,
+                        outAirMass = airMass
+                    )
+
+                    // Map the arrays to their specific Sun enum keys
+                    yDataMap[Charts.Sun.Daily.Elevation] = elevation
+                    yDataMap[Charts.Sun.Daily.Irradiance] = irradiance
+                    yDataMap[Charts.Sun.Daily.UvIntensity] = uvIntensity
+                    yDataMap[Charts.Sun.Daily.Trajectory] = elevation
+                    yDataMap[Charts.Sun.Daily.Illuminance] = illuminance
+                    yDataMap[Charts.Sun.Daily.Shadows] = shadowRatio
+                    yDataMap[Charts.Sun.Daily.ColorTemperature] = colorTemp
+                    yDataMap[Charts.Sun.Daily.AirMass] = airMass
+                }
+                is Charts.Moon -> {
+                    // Todo
+                }
+                else -> {
+                    // Todo planets
+                }
             }
 
-            val hours = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
-            val elevation = FloatArray(X_SIZE) { elevationCalc[it].toFloat() }
-            val irradiance = FloatArray(X_SIZE)
-            val uvIntensity = FloatArray(X_SIZE)
-            val illuminance = FloatArray(X_SIZE)
-            val shadowRatio = FloatArray(X_SIZE)
-            val colorTemp = FloatArray(X_SIZE)
-            val airMass = FloatArray(X_SIZE)
-
-            SunMetrics.calculateMetrics(
-                sunElevationsDeg = elevationCalc,
-                observerAltitudeMeters = coordinates.altitude,
-                outIrradiance = irradiance,
-                outUvi = uvIntensity,
-                outIlluminance = illuminance,
-                outShadowRatio = shadowRatio,
-                outColorTemp = colorTemp,
-                outAirMass = airMass
-            )
-
-            chartArrays = ChartArrays(
-                hours, elevation, azimuthsCalc, irradiance, uvIntensity,
-                illuminance, shadowRatio, colorTemp, airMass
-            )
+            chartArrays = ChartArrays(hours, azimuthsCalc, yDataMap)
         }
     }
 
@@ -178,7 +192,12 @@ fun PathCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 8.dp)
             ) {
-                items(Charts.Sun.Daily.entries) { type ->
+                val charts = when (type) {
+                    is Charts.Sun -> Charts.Sun.Daily.entries
+                    is Charts.Moon -> Charts.Moon.Daily.entries
+                    else -> Charts.Moon.Daily.entries // Todo: Charts.Planets.Daily.entries, keeping Moon for now to be able to compile
+                }
+                items(charts) { type ->
                     ChartSelectorChip(
                         chartType = type,
                         isSelected = type == selectedChartType,
@@ -189,49 +208,50 @@ fun PathCard(
             // Show a placeholder or empty box while arrays are generating in the background
             val arrays = chartArrays
             if (arrays == null) {
-                Box(modifier = Modifier.fillMaxWidth().aspectRatio(2f), contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(2f), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
             } else {
-                val xValues = when (selectedChartType) {
-                    Charts.Sun.Daily.Trajectory -> arrays.azimuths
-                    else -> arrays.hours
-                }
-                val yValues = when (selectedChartType) {
-                    Charts.Sun.Daily.Elevation, Charts.Sun.Daily.Trajectory -> arrays.elevation
-                    Charts.Sun.Daily.Irradiance -> arrays.irradiance
-                    Charts.Sun.Daily.UvIntensity -> arrays.uvIntensity
-                    Charts.Sun.Daily.Illuminance -> arrays.illuminance
-                    Charts.Sun.Daily.Shadows -> arrays.shadowRatio
-                    Charts.Sun.Daily.ColorTemperature -> arrays.colorTemp
-                    Charts.Sun.Daily.AirMass -> arrays.airMass
-                    else -> FloatArray(X_SIZE)
-                }
+                val isTrajectory = selectedChartType.javaClass.simpleName.contains("Trajectory")
+                val xValues = if (isTrajectory) arrays.azimuthXValues else arrays.timeXValues
+                val yValues = arrays.yDataSets[selectedChartType] ?: FloatArray(X_SIZE)
 
                 val cornerRadius = 12.dp
 
-                when (selectedChartType) {
-                    Charts.Sun.Daily.Trajectory -> DailyAzimuthChart(
+                if (isTrajectory) {
+                    DailyAzimuthChart(
                         xValues = xValues,
                         yValues = yValues,
                         currentHour = currentHour,
                         chartType = selectedChartType,
-                        currentAzimuth = currentPosition.azimuth.toFloat(),
-                        currentAltitude = currentPosition.altitude.toFloat(),
+                        currentAzimuth = currentAzimuth.toFloat(),
+                        currentAltitude = currentAltitude.toFloat(),
                         modifier = Modifier
                             .aspectRatio(2f)
-                            .clip(RoundedCornerShape(bottomStart = cornerRadius, bottomEnd = cornerRadius))
+                            .clip(
+                                RoundedCornerShape(
+                                    bottomStart = cornerRadius,
+                                    bottomEnd = cornerRadius
+                                )
+                            )
                             .padding(vertical = 0.dp)
                     )
-
-                    else -> DailyTimeChart(
+                } else {
+                    DailyTimeChart(
                         xValues = xValues,
                         yValues = yValues,
                         currentHour = currentHour,
                         chartType = selectedChartType,
                         modifier = Modifier
                             .aspectRatio(2f)
-                            .clip(RoundedCornerShape(bottomStart = cornerRadius, bottomEnd = cornerRadius))
+                            .clip(
+                                RoundedCornerShape(
+                                    bottomStart = cornerRadius,
+                                    bottomEnd = cornerRadius
+                                )
+                            )
                             .padding(vertical = 0.dp)
                     )
                 }
@@ -244,13 +264,21 @@ fun PathCard(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                CustomColumn("Day Length", events.dayLength.formatDuration(true))
+                val daylengthText = when (type) {
+                    is Charts.Sun -> R.string.day_length
+                    is Charts.Moon -> R.string.duration
+                    else -> R.string.uptime
+                }
+                CustomColumn(stringResource(daylengthText), dayLength.formatDuration(true))
                 CustomVerticalDivider()
-                CustomColumn("Altitude", "${currentPosition.altitude.round()}°")
+                CustomColumn(stringResource(R.string.altitude), "${currentAltitude.round()}°")
                 CustomVerticalDivider()
-                CustomColumn("Azimuth", "${currentPosition.azimuth.round()}°")
-                CustomVerticalDivider()
-                CustomColumn("Phase", getSunPhase(currentPosition.altitude).desc)
+                CustomColumn(stringResource(R.string.azimuth), "${currentAzimuth.round()}°")
+                val phaseText = R.string.phase
+                if (phase != "") {
+                    CustomVerticalDivider()
+                    CustomColumn(stringResource(phaseText), phase)
+                }
             }
         }
     }

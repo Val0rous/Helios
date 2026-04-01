@@ -565,7 +565,7 @@ fun DailyTimeChart(
                 listOf(base, base * 3f)
             }.filter { it <= maxY }
             Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
-            Charts.Sun.Daily.ColorTemperature -> (2000 until 5501 step 500).map { it.toFloat() }
+            Charts.Sun.Daily.ColorTemperature -> (2000 until (maxY.roundToInt() + 1) step 500).map { it.toFloat() }
 //            Charts.Sun.Daily.AirMass -> {
 //                val base = mutableListOf(0f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
 //                when (minY) {

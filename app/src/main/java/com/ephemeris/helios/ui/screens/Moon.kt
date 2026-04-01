@@ -6,12 +6,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.ephemeris.helios.ui.composables.cards.PathCard
+import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.entries.LunarCulminationEntry
 import com.ephemeris.helios.ui.composables.entries.MoonriseMoonsetEntry
-import com.ephemeris.helios.ui.composables.entries.SolarNoonEntry
-import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
+import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.MoonMetrics
@@ -33,12 +32,15 @@ fun Moon(
         modifier = Modifier.fillMaxSize()
     ) {
         item {
-//            PathCard(
-//                currentTime = currentTime,
-//                coordinates = coordinates,
-//                events = events,
-//                currentPosition = currentPosition
-//            )
+            DailyPathCard(
+                currentTime = currentTime,
+                coordinates = coordinates,
+                dayLength = 0.0,
+                currentAltitude = currentPosition.altitude,
+                currentAzimuth = currentPosition.azimuth,
+                phase = liveMetrics.phase.displayName,
+                type = Charts.Moon.Daily.Elevation
+            )
         }
         item {
             SmallCardRow(

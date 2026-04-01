@@ -9,7 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
-import com.ephemeris.helios.ui.composables.cards.PathCard
+import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.entries.DailyPeaksEntry
 import com.ephemeris.helios.ui.composables.entries.DurationEntry
@@ -20,11 +20,13 @@ import com.ephemeris.helios.ui.composables.entries.SolarNoonEntry
 import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
 import com.ephemeris.helios.ui.composables.entries.TwilightEntry
 import com.ephemeris.helios.ui.theme.MaterialColors
+import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.formatDecimalHours
 import com.ephemeris.helios.utils.formatDuration
+import com.ephemeris.helios.utils.getSunPhase
 import com.ephemeris.helios.utils.round
 import java.time.ZonedDateTime
 
@@ -32,7 +34,7 @@ import java.time.ZonedDateTime
 fun Sun(
     currentTime: ZonedDateTime,
     coordinates: Coordinates,
-    currentPosition: SolarEphemeris.SolarPosition,
+    currentSolarPosition: SolarEphemeris.SolarPosition,
     events: SolarEphemeris.DailyEvents,
     durations: SolarEphemeris.DailyDurations,
     dailyPeakMetrics: SunMetrics.SunMetricsResult,
@@ -43,11 +45,14 @@ fun Sun(
         modifier = Modifier.fillMaxSize()
     ) {
         item {
-            PathCard(
+            DailyPathCard(
                 currentTime = currentTime,
                 coordinates = coordinates,
-                events = events,
-                currentPosition = currentPosition
+                dayLength = events.dayLength,
+                currentAltitude = currentSolarPosition.altitude,
+                currentAzimuth = currentSolarPosition.azimuth,
+                phase = getSunPhase(currentSolarPosition.altitude).desc,
+                type = Charts.Sun.Daily.Elevation
             )
         }
         item {

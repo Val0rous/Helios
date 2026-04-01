@@ -19,6 +19,11 @@ sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serial
 
         // Moon Charts
         is Moon.Daily.Elevation -> Moon.Daily.Elevation
+        is Moon.Daily.Trajectory -> Moon.Daily.Trajectory
+        is Moon.Daily.Illuminance -> Moon.Daily.Illuminance
+        is Moon.Daily.Shadows -> Moon.Daily.Shadows
+        is Moon.Daily.ColorTemperature -> Moon.Daily.ColorTemperature
+        is Moon.Daily.AirMass -> Moon.Daily.AirMass
 
         // Planet Charts
         is Venus.Daily.Elevation -> Venus.Daily.Elevation
@@ -48,6 +53,15 @@ sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serial
     sealed class Moon(label: Int, icon: Int, filledIcon: Int) : Charts(label, icon, filledIcon) {
         sealed class Daily(label: Int, icon: Int, filledIcon: Int) : Moon(label, icon, filledIcon) {
             object Elevation : Daily(R.string.elevation, R.drawable.ic_moon_stars, R.drawable.ic_moon_stars_filled) // Altitude
+            object Trajectory : Daily(R.string.trajectory, R.drawable.ic_explore, R.drawable.ic_explore_filled) //)
+            object Illuminance : Daily(R.string.illuminance, R.drawable.ic_lightbulb, R.drawable.ic_lightbulb_filled)
+            object Shadows : Daily(R.string.shadows, R.drawable.ic_ev_shadow, R.drawable.ic_ev_shadow_filled)
+            object ColorTemperature : Daily(R.string.color_temperature, R.drawable.ic_thermometer, R.drawable.ic_thermometer_filled)
+            object AirMass : Daily(R.string.air_mass, R.drawable.ic_foggy, R.drawable.ic_foggy_filled)
+
+            companion object {
+                val entries get() = listOf(Elevation, Trajectory, Illuminance, Shadows, ColorTemperature, AirMass)
+            }
         }
     }
 

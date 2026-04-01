@@ -11,7 +11,7 @@ object LunarEphemeris {
     // True Horizon (-0.567 refraction) - Lunar Semidiameter (~0.258) = -0.825 degrees
     const val ALT_MOONRISE_MOONSET = -0.825
 
-    data class LunarPosition(
+    data class LunarPosition (
         val altitude: Double,
         val azimuth: Double,
         val rightAscension: Double,
