@@ -111,13 +111,13 @@ fun DailyTimeChart(
         val minX = xValues.minOrNull() ?: 0f
         val maxX = xValues.maxOrNull() ?: 24f
         val minY = when (chartType) {
-            Charts.Sun.Daily.Elevation -> -90f
+            Charts.Sun.Daily.Elevation, Charts.Moon.Daily.Elevation -> -90f
             Charts.Sun.Daily.ColorTemperature -> 2000f
 //            Charts.Sun.Daily.AirMass -> 0f
             else -> 0f
         }
         val maxY = when (chartType) {
-            Charts.Sun.Daily.Elevation -> 90f
+            Charts.Sun.Daily.Elevation, Charts.Moon.Daily.Elevation -> 90f
             Charts.Sun.Daily.Irradiance -> max(500f, (yValues.max() / 100.0).roundToInt() * 100f)
             Charts.Sun.Daily.UvIntensity -> max(5f, yValues.max().roundToInt().toFloat())
             Charts.Sun.Daily.Illuminance -> max(100000f, yValues.max())
@@ -557,14 +557,17 @@ fun DailyTimeChart(
 
         // 5a. Draw Vertical Legend (Y-axis Altitudes)
         val yLabels = when (chartType) {
-            Charts.Sun.Daily.Elevation -> (-90 until 91 step 15).map { it.toFloat()}
+            Charts.Sun.Daily.Elevation,
+            Charts.Moon.Daily.Elevation-> (-90 until 91 step 15).map { it.toFloat()}
             Charts.Sun.Daily.Irradiance -> (0 until ((maxY / 100.0).roundToInt() * 100 + 1) step 100).map { it.toFloat() }
             Charts.Sun.Daily.UvIntensity -> (0 until (maxY.roundToInt() + 1) step floor(maxY / 10f).toInt().coerceAtLeast(1)).map { it.toFloat() }
-            Charts.Sun.Daily.Illuminance -> listOf(0f) + (0..5).flatMap {
+            Charts.Sun.Daily.Illuminance,
+            Charts.Moon.Daily.Illuminance -> listOf(0f) + (0..5).flatMap {
                 val base = 10.0.pow(it.toDouble()).toFloat()
                 listOf(base, base * 3f)
             }.filter { it <= maxY }
-            Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+            Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass,
+            Charts.Moon.Daily.Shadows, Charts.Moon.Daily.AirMass -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
             Charts.Sun.Daily.ColorTemperature -> (2000 until (maxY.roundToInt() + 1) step 500).map { it.toFloat() }
 //            Charts.Sun.Daily.AirMass -> {
 //                val base = mutableListOf(0f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)

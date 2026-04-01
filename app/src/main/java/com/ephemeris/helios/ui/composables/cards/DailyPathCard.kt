@@ -45,6 +45,8 @@ import com.ephemeris.helios.ui.composables.charts.DailyTimeChart
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.calc.LunarEphemeris
+import com.ephemeris.helios.utils.calc.MoonMetrics
 import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.round
@@ -168,7 +170,34 @@ fun DailyPathCard(
                     yDataMap[Charts.Sun.Daily.AirMass] = airMass
                 }
                 is Charts.Moon -> {
-                    // Todo
+                    for (i in 0 until X_SIZE) {
+                        val position = LunarEphemeris.getPositionAtHour(
+                            date = localDate,
+                            decimalHour = hoursCalc[i],
+                            latitude = coordinates.latitude,
+                            longitude = coordinates.longitude,
+                            tzOffsetHours = tzOffset
+                        )
+                        elevationCalc[i] = position.altitude
+                        azimuthsCalc[i] = position.azimuth.toFloat()
+                    }
+                    val elevation = FloatArray(X_SIZE) { elevationCalc[it].toFloat() }
+                    val illuminance = FloatArray(X_SIZE)
+                    val shadowRatio = FloatArray(X_SIZE)
+                    val colorTemp = FloatArray(X_SIZE)
+                    val airMass = FloatArray(X_SIZE)
+
+                    val res = MoonMetrics.calculateMetrics(
+                        time = currentTime,
+                        latitude = coordinates.latitude,
+                        longitude = coordinates.longitude,
+                        elevationMeters = coordinates.altitude
+                    )
+
+                    yDataMap[Charts.Moon.Daily.Elevation] = elevation
+                    yDataMap[Charts.Moon.Daily.Trajectory] = elevation
+//                    yDataMap[Charts.Moon.Daily.Illuminance] = res.illuminanceLux
+                    // Todo: fix and add Moon charts
                 }
                 else -> {
                     // Todo planets
