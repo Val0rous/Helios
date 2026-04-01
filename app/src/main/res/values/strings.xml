@@ -17,6 +17,16 @@
     <string name="air_mass">Air Mass</string>
 
     <string name="sunrise_sunset">Sunrise &amp; Sunset</string>
+    <string name="sunrise">Sunrise</string>
+    <string name="sunset">Sunset</string>
+    <string name="moonrise_moonset">Moonrise &amp; Moonset</string>
+    <string name="moonrise">Moonrise</string>
+    <string name="moonset">Moonset</string>
+    <string name="rise_set">Rise &amp; Set</string>
+    <string name="rise">Rise</string>
+    <string name="set">Set</string>
+
+
     <string name="solar_noon">Solar Noon</string>
     <string name="live_metrics">Live Metrics</string>
     <string name="daily_peaks">Daily Peaks</string>

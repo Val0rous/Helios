@@ -8,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.ui.composables.cards.PathCard
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
+import com.ephemeris.helios.ui.composables.entries.MoonriseMoonsetEntry
 import com.ephemeris.helios.ui.composables.entries.SolarNoonEntry
 import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
 import com.ephemeris.helios.utils.Coordinates
@@ -41,11 +42,11 @@ fun Moon(
         item {
             SmallCardRow(
                 leftCard = {
-                    SunriseSunsetEntry(
-                        sunriseTime = events.moonrise.formatDecimalHours(),
-                        sunsetTime = events.moonset.formatDecimalHours(),
-                        sunriseAzimuth = events.moonriseAzimuth?.round(),
-                        sunsetAzimuth = events.moonsetAzimuth?.round()
+                    MoonriseMoonsetEntry(
+                        moonriseTime = events.moonrise.formatDecimalHours(),
+                        moonsetTime = events.moonset.formatDecimalHours(),
+                        moonriseAzimuth = events.moonriseAzimuth?.round(),
+                        moonsetAzimuth = events.moonsetAzimuth?.round()
                     )
                 },
                 rightCard = {
