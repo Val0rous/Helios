@@ -141,7 +141,7 @@ fun TopBar(
                                 value = lonInput,
                                 onValueChange = { if (it.matches(decimalRegex)) lonInput = it },
                                 label = { Text("Longitude (Decimal Degrees)") },
-                                isError = isAltError,
+                                isError = isLonError,
                                 supportingText = { if (isLonError) Text("Must be between -180° and 180°") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 modifier = Modifier.fillMaxWidth()
