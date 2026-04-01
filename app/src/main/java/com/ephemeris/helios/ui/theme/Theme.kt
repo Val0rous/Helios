@@ -69,8 +69,8 @@ private val DarkCustomColors = CustomColorScheme(
     sun = MaterialColors.Yellow700,
     sunPath = MaterialColors.Yellow800,
     dropLine = MaterialColors.Gray300,
-    moon = MaterialColors.Gray500,
-    moonPath = MaterialColors.Gray900,
+    moon = MaterialColors.BlueA100,
+    moonPath = MaterialColors.BlueA700,
 
     nightPrimary = Colors.DeepPurple900.primaryDark,
     nightOnPrimary = Colors.DeepPurple900.onPrimaryDark,
@@ -92,7 +92,7 @@ private val LightCustomColors = CustomColorScheme(
     sunPath = MaterialColors.Orange800,
     dropLine = MaterialColors.Gray600,
     moon = MaterialColors.BlueA700,
-    moonPath = MaterialColors.Blue700,
+    moonPath = MaterialColors.LightBlue500,
 
     nightPrimary = Colors.DeepPurple900.primaryLight,
     nightOnPrimary = Colors.DeepPurple900.onPrimaryLight,
