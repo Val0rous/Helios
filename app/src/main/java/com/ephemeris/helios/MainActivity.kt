@@ -29,10 +29,13 @@ import com.ephemeris.helios.ui.composables.Navbar
 import com.ephemeris.helios.ui.composables.TimeMachine
 import com.ephemeris.helios.ui.composables.TopBar
 import com.ephemeris.helios.ui.screens.Home
+import com.ephemeris.helios.ui.screens.Moon
 import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.Routes
+import com.ephemeris.helios.utils.calc.LunarEphemeris
+import com.ephemeris.helios.utils.calc.MoonMetrics
 import com.ephemeris.helios.utils.calc.SeasonalEphemeris
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.calc.SunMetrics
@@ -49,7 +52,9 @@ data class DayEphemerisData(
     val durations: SolarEphemeris.DailyDurations,
     val dailyPeakMetrics: SunMetrics.SunMetricsResult,
     val seasonalEvents: SeasonalEphemeris.SeasonalEvents,
-    val seasonalDailyEvents: SeasonalEphemeris.SeasonalDailyEvents
+    val seasonalDailyEvents: SeasonalEphemeris.SeasonalDailyEvents,
+    val lunarEvents: LunarEphemeris.LunarDailyEvents,
+    val lunarDailyPeakMetrics: MoonMetrics.LunarMetricsResult?,
 )
 
 class MainActivity : ComponentActivity() {
@@ -75,13 +80,15 @@ class MainActivity : ComponentActivity() {
             var currentSunPosition by remember{ mutableStateOf<SolarEphemeris.SolarPosition?>(null) }
             var liveMetrics by remember { mutableStateOf<SunMetrics.SunMetricsResult?>(null)}
 
+            var currentMoonPosition by remember { mutableStateOf<LunarEphemeris.LunarPosition?>(null) }
+            var liveMoonMetrics by remember { mutableStateOf<MoonMetrics.LunarMetricsResult?>(null) }
+
             // 1. Heavy Daily Math: Only recalculates when the DATE or LOCATION changes
             LaunchedEffect(coordinates, currentTime.toLocalDate()) {
                 withContext(Dispatchers.Default) {
-                    val date = currentTime.toLocalDate()
                     val tzOffsetHours = currentTime.offset.totalSeconds / 3600.0
 
-                    val events = SolarEphemeris.calculateDailyEvents(date, coordinates.latitude, coordinates.longitude, tzOffsetHours)
+                    val events = SolarEphemeris.calculateDailyEvents(currentTime, coordinates.latitude, coordinates.longitude)
                     val durations = SolarEphemeris.calculateDailyDurations(events)
                     val dailyPeakMetrics = SunMetrics.calculateMetrics(events.solarNoonAltitude, coordinates.altitude)
 
@@ -102,8 +109,11 @@ class MainActivity : ComponentActivity() {
                         decemberSolsticeSunAngle = dSo.solarNoonAltitude
                     )
 
+                    val lunarEvents = LunarEphemeris.calculateDailyEvents(currentTime, coordinates.latitude, coordinates.longitude, coordinates.altitude)
+                    val lunarDailyPeakMetrics = MoonMetrics.calculatePeakMetrics(currentTime, coordinates.latitude, coordinates.longitude, coordinates.altitude)
+
                     // Assignment to Compose state is thread-safe
-                    dayData = DayEphemerisData(events, durations, dailyPeakMetrics, seasonalEvents, seasonalDailyEvents)
+                    dayData = DayEphemerisData(events, durations, dailyPeakMetrics, seasonalEvents, seasonalDailyEvents, lunarEvents, lunarDailyPeakMetrics)
                 }
             }
 
@@ -117,10 +127,15 @@ class MainActivity : ComponentActivity() {
                             val pos = SolarEphemeris.calculatePosition(currentTime, coordinates.latitude, coordinates.longitude)
                             val metrics = SunMetrics.calculateMetrics(pos.altitude, coordinates.altitude)
 
+                            val lunarPos = LunarEphemeris.calculatePosition(currentTime, coordinates.latitude, coordinates.longitude, coordinates.altitude)
+                            val lunarMetrics = MoonMetrics.calculateMetrics(currentTime, coordinates.latitude, coordinates.longitude, coordinates.altitude)
+
                             // Update states to trigger recomposition
 //                            currentTime = newTime
                             currentSunPosition = pos
                             liveMetrics = metrics
+                            currentMoonPosition = lunarPos
+                            liveMoonMetrics = lunarMetrics
                         }
                         delay(12000)
                     }
@@ -203,7 +218,14 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         composable(Routes.Moon.route) {
-                            //Moon()
+                            Moon(
+                                currentTime = currentTime,
+                                coordinates = coordinates,
+                                currentPosition = currentMoonPosition!!,
+                                events = dayData!!.lunarEvents,
+                                dailyPeakMetrics = dayData!!.lunarDailyPeakMetrics!!,
+                                liveMetrics = liveMoonMetrics!!
+                            )
                         }
                         composable(Routes.Planets.route) {
                             //Planets()

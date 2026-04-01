@@ -84,13 +84,14 @@ object SolarEphemeris {
      * Calculates all daily events (sunrise, sunset, twilights) in decimal hours, using iterative refinement for continuous accuracy.
      */
     fun calculateDailyEvents(
-        date: LocalDate,
+        time: ZonedDateTime,
         latitude: Double,
         longitude: Double,
-        tzOffsetHours: Double,
         prefs: LightPhasePreferences = LightPhasePreferences()
     ): DailyEvents {
         val latRad = Math.toRadians(latitude)
+        val date = time.toLocalDate()
+        val tzOffsetHours = time.offset.totalSeconds / 3600.0
 
         // 1. Iterative Solar Noon (Meeus)
         var exactSolarNoon = 12.0 - (longitude / 15.0) + tzOffsetHours

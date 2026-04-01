@@ -22,6 +22,7 @@ object LunarEphemeris {
     data class LunarDailyEvents(
         val culmination: Double?, // Lunar Noon (Highest point)
         val culminationAltitude: Double?,
+        val culminationAzimuth: Double?,
         val moonrise: Double?,
         val moonriseAzimuth: Double?,
         val moonset: Double?,
@@ -165,6 +166,27 @@ object LunarEphemeris {
      * Incorporates Topocentric Parallax correction based on observer altitude.
      */
     fun calculatePosition(
+        time: ZonedDateTime,
+        latitude: Double,
+        longitude: Double,
+        elevationMeters: Double = 0.0
+    ): LunarPosition {
+        val decimalHour = time.hour + (time.minute / 60.0) + (time.second / 3600.0)
+        val tzOffsetHours = time.offset.totalSeconds / 3600.0
+        return getPositionAtHour(
+            time.toLocalDate(),
+            decimalHour,
+            latitude,
+            longitude,
+            tzOffsetHours,
+            elevationMeters
+        )
+    }
+
+    /**
+     * FAST INTERNAL ENGINE: Used by the iterative scanners so they don't spawn thousands of ZonedDateTime objects.
+     */
+    fun getPositionAtHour(
         date: LocalDate,
         decimalHour: Double,
         latitude: Double,
@@ -251,10 +273,9 @@ object LunarEphemeris {
      * for standard stationary geometry formulas.
      */
     fun calculateDailyEvents(
-        date: LocalDate,
+        time: ZonedDateTime,
         latitude: Double,
         longitude: Double,
-        tzOffsetHours: Double,
         elevationMeters: Double = 0.0
     ): LunarDailyEvents {
         var riseHour: Double? = null
@@ -262,11 +283,14 @@ object LunarEphemeris {
         var culminationHour: Double? = null
         var culminationAlt: Double? = null
 
+        val date = time.toLocalDate()
+        val tzOffsetHours = time.offset.totalSeconds / 3600.0
+
         var riseAz: Double? = null
         var setAz: Double? = null
 
         // 1. Scan the 24 hours of the day in 30-minute blocks to locate the events
-        var prevAlt = calculatePosition(date, 0.0, latitude, longitude, tzOffsetHours, elevationMeters).altitude
+        var prevAlt = getPositionAtHour(date, 0.0, latitude, longitude, tzOffsetHours, elevationMeters).altitude
         var prevHour = 0.0
 
         var maxAlt = prevAlt
@@ -274,7 +298,7 @@ object LunarEphemeris {
 
         for (minute in 30..1440 step 30) {
             val currentHour = minute / 60.0
-            val pos = calculatePosition(date, currentHour, latitude, longitude, tzOffsetHours, elevationMeters)
+            val pos = getPositionAtHour(date, currentHour, latitude, longitude, tzOffsetHours, elevationMeters)
 
             // Track highest point for Culmination
             if (pos.altitude > maxAlt) {
@@ -295,12 +319,16 @@ object LunarEphemeris {
 
         // Refine Culmination Time
         culminationHour = refineCulmination(date, max(0.0, peakHour - 1.0), min(24.0, peakHour + 1.0), latitude, longitude, tzOffsetHours, elevationMeters)
+        var culminationAz: Double? = null
+
         if (culminationHour != null) {
-            culminationAlt = calculatePosition(date, culminationHour, latitude, longitude, tzOffsetHours, elevationMeters).altitude
+            val peakPos = getPositionAtHour(date, culminationHour, latitude, longitude, tzOffsetHours, elevationMeters)
+            culminationAlt = peakPos.altitude
+            culminationAz = peakPos.azimuth
         }
 
-        if (riseHour != null) riseAz = calculatePosition(date, riseHour, latitude, longitude, tzOffsetHours, elevationMeters).azimuth
-        if (setHour != null) setAz = calculatePosition(date, setHour, latitude, longitude, tzOffsetHours, elevationMeters).azimuth
+        if (riseHour != null) riseAz = getPositionAtHour(date, riseHour, latitude, longitude, tzOffsetHours, elevationMeters).azimuth
+        if (setHour != null) setAz = getPositionAtHour(date, setHour, latitude, longitude, tzOffsetHours, elevationMeters).azimuth
 
         val isUpAllDay = riseHour == null && setHour == null && prevAlt > 0.0
         val isDownAllDay = riseHour == null && setHour == null && prevAlt < 0.0
@@ -308,6 +336,7 @@ object LunarEphemeris {
         return LunarDailyEvents(
             culmination = culminationHour,
             culminationAltitude = culminationAlt,
+            culminationAzimuth = culminationAz,
             moonrise = riseHour,
             moonriseAzimuth = riseAz,
             moonset = setHour,
@@ -327,7 +356,7 @@ object LunarEphemeris {
         // Binary search to find the exact sub-minute crossing
         for (i in 0..10) {
             val mid = (low + high) / 2.0
-            val alt = calculatePosition(date, mid, lat, lon, tz, elev).altitude
+            val alt = getPositionAtHour(date, mid, lat, lon, tz, elev).altitude
 
             if (alt > ALT_MOONRISE_MOONSET) {
                 if (isRising) high = mid else low = mid
@@ -349,8 +378,8 @@ object LunarEphemeris {
         var d = low + (high - low) / phi
 
         for (i in 0..15) {
-            val altC = calculatePosition(date, c, lat, lon, tz, elev).altitude
-            val altD = calculatePosition(date, d, lat, lon, tz, elev).altitude
+            val altC = getPositionAtHour(date, c, lat, lon, tz, elev).altitude
+            val altD = getPositionAtHour(date, d, lat, lon, tz, elev).altitude
 
             if (altC > altD) {
                 high = d

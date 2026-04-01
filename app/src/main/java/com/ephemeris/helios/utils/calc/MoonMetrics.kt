@@ -37,16 +37,14 @@ object MoonMetrics {
     ): LunarMetricsResult {
         // 1. Fetch exact positional geometry from the Ephemeris engine and Convert to Julian Centuries (T) for Phase Math
         // We reuse your existing Julian Date logic, adjusted for UTC
-        val decimalHour = time.hour + time.minute / 60.0 + time.second / 3600.0
-        val tzOffsetHours = time.offset.totalSeconds / 3600.0
         val position = LunarEphemeris.calculatePosition(
-            date = time.toLocalDate(),
-            decimalHour = decimalHour,
+            time = time,
             latitude = latitude,
             longitude = longitude,
-            tzOffsetHours = tzOffsetHours,
             elevationMeters = elevationMeters
         )
+        val decimalHour = time.hour + (time.minute / 60.0) + (time.second / 3600.0)
+        val tzOffsetHours = time.offset.totalSeconds / 3600.0
         val t = calculateJulianCentury(time.year, time.monthValue, time.dayOfMonth, decimalHour, tzOffsetHours)
 
         // 2. Core Lunar Arguments (Meeus Chapter 47)
@@ -161,6 +159,50 @@ object MoonMetrics {
             shadowRatio = shadowRatio,
             airMass = actualAirMass,
             colorTempKelvin = colorTempKelvin
+        )
+    }
+
+    /**
+     * Calculates the peak physical metrics for the Moon on a given day.
+     * This evaluates the light and atmospheric conditions at the exact second of Culmination.
+     * Returns null if the Moon does not culminate on this specific calendar day.
+     */
+    fun calculatePeakMetrics(
+        time: ZonedDateTime, // Pass any time during the target day
+        latitude: Double,
+        longitude: Double,
+        elevationMeters: Double = 0.0
+    ): LunarMetricsResult? {
+        // 1. Fetch the daily events to find the exact time of Culmination
+        val dailyEvents = LunarEphemeris.calculateDailyEvents(
+            time = time,
+            latitude = latitude,
+            longitude = longitude,
+            elevationMeters = elevationMeters
+        )
+
+        // If the moon does not culminate today (due to the 24h 50m lunar cycle), there is no peak.
+        val culminationDecimalHour = dailyEvents.culmination ?: return null
+
+        // 2. Convert the decimal hour back into strict hours, minutes, and seconds
+        val hour = culminationDecimalHour.toInt().coerceIn(0, 23)
+        val minutesRemainder = (culminationDecimalHour - hour) * 60.0
+        val minute = minutesRemainder.toInt().coerceIn(0, 59)
+        val second = ((minutesRemainder - minute) * 60.0).toInt().coerceIn(0, 59)
+
+        // 3. Construct the exact ZonedDateTime of the peak
+        val peakTime = ZonedDateTime.of(
+            time.toLocalDate(),
+            java.time.LocalTime.of(hour, minute, second),
+            time.zone
+        )
+
+        // 4. Run the full physics engine at that exact second
+        return calculateMetrics(
+            time = peakTime,
+            latitude = latitude,
+            longitude = longitude,
+            elevationMeters = elevationMeters
         )
     }
 

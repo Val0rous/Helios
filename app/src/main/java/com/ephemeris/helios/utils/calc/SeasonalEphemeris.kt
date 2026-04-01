@@ -56,10 +56,9 @@ object SeasonalEphemeris {
     )
 
     fun getDaily(dt: ZonedDateTime, coordinates: Coordinates): SolarEphemeris.DailyEvents = SolarEphemeris.calculateDailyEvents(
-        date = dt.toLocalDate(),
+        time = dt,
         latitude = coordinates.latitude,
-        longitude = coordinates.longitude,
-        tzOffsetHours = dt.offset.totalSeconds / 3600.0
+        longitude = coordinates.longitude
     )
 
     private fun calculateTime(jde0: Double, zoneId: ZoneId): ZonedDateTime {
