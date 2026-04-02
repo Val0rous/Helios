@@ -1,5 +1,6 @@
 package com.ephemeris.helios.utils.calc
 
+import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.LightPhasePreferences
 import java.time.LocalDate
 import java.time.ZonedDateTime
@@ -85,10 +86,11 @@ object SolarEphemeris {
      */
     fun calculateDailyEvents(
         time: ZonedDateTime,
-        latitude: Double,
-        longitude: Double,
+        coordinates: Coordinates,
         prefs: LightPhasePreferences = LightPhasePreferences()
     ): DailyEvents {
+        val latitude = coordinates.latitude
+        val longitude = coordinates.longitude
         val latRad = Math.toRadians(latitude)
         val date = time.toLocalDate()
         val tzOffsetHours = time.offset.totalSeconds / 3600.0
@@ -418,13 +420,12 @@ object SolarEphemeris {
      */
     fun calculatePosition(
         time: ZonedDateTime,
-        latitude: Double,
-        longitude: Double
+        coordinates: Coordinates
     ): SolarPosition {
         val decimalHour = time.hour + time.minute / 60.0 + time.second / 3600.0
         val tzOffsetHours = time.offset.totalSeconds / 3600.0
 
-        return getPositionAtHour(time.toLocalDate(), decimalHour, latitude, longitude, tzOffsetHours)
+        return getPositionAtHour(time.toLocalDate(), decimalHour, coordinates.latitude, coordinates.longitude, tzOffsetHours)
     }
 
     /**

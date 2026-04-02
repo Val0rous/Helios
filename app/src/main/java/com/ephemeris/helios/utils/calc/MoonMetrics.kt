@@ -1,5 +1,6 @@
 package com.ephemeris.helios.utils.calc
 
+import com.ephemeris.helios.utils.Coordinates
 import java.time.ZonedDateTime
 import kotlin.math.*
 
@@ -31,17 +32,13 @@ object MoonMetrics {
 
     fun calculateMetrics(
         time: ZonedDateTime,
-        latitude: Double,
-        longitude: Double,
-        elevationMeters: Double = 0.0
+        coordinates: Coordinates
     ): LunarMetricsResult {
         // 1. Fetch exact positional geometry from the Ephemeris engine and Convert to Julian Centuries (T) for Phase Math
         // We reuse your existing Julian Date logic, adjusted for UTC
         val position = LunarEphemeris.calculatePosition(
             time = time,
-            latitude = latitude,
-            longitude = longitude,
-            elevationMeters = elevationMeters
+            coordinates = coordinates
         )
         val decimalHour = time.hour + (time.minute / 60.0) + (time.second / 3600.0)
         val tzOffsetHours = time.offset.totalSeconds / 3600.0
@@ -118,7 +115,7 @@ object MoonMetrics {
             val amDenominator = sinAlt + 0.50572 * (position.altitude + 6.07995).pow(-1.6364)
             val relativeAirMass = 1.0 / amDenominator
             // Apply elevation modifier (thinner atmosphere at high altitudes)
-            val amElevationModifier = exp(-elevationMeters / 8434.0)
+            val amElevationModifier = exp(-coordinates.altitude / 8434.0)
             actualAirMass = relativeAirMass * amElevationModifier
 
             // B. Visual Magnitude & Illuminance (Lux)
@@ -169,16 +166,12 @@ object MoonMetrics {
      */
     fun calculatePeakMetrics(
         time: ZonedDateTime, // Pass any time during the target day
-        latitude: Double,
-        longitude: Double,
-        elevationMeters: Double = 0.0
+        coordinates: Coordinates
     ): LunarMetricsResult? {
         // 1. Fetch the daily events to find the exact time of Culmination
         val dailyEvents = LunarEphemeris.calculateDailyEvents(
             time = time,
-            latitude = latitude,
-            longitude = longitude,
-            elevationMeters = elevationMeters
+            coordinates = coordinates
         )
 
         // If the moon does not culminate today (due to the 24h 50m lunar cycle), there is no peak.
@@ -200,9 +193,7 @@ object MoonMetrics {
         // 4. Run the full physics engine at that exact second
         return calculateMetrics(
             time = peakTime,
-            latitude = latitude,
-            longitude = longitude,
-            elevationMeters = elevationMeters
+            coordinates = coordinates
         )
     }
 

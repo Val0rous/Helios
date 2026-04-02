@@ -175,8 +175,7 @@ fun DailyPathCard(
                         val position = LunarEphemeris.getPositionAtHour(
                             date = localDate,
                             decimalHour = hoursCalc[i],
-                            latitude = coordinates.latitude,
-                            longitude = coordinates.longitude,
+                            coordinates = coordinates,
                             tzOffsetHours = tzOffset
                         )
                         elevationCalc[i] = position.altitude
@@ -190,9 +189,7 @@ fun DailyPathCard(
 
                     val res = MoonMetrics.calculateMetrics(
                         time = currentTime,
-                        latitude = coordinates.latitude,
-                        longitude = coordinates.longitude,
-                        elevationMeters = coordinates.altitude
+                        coordinates = coordinates
                     )
 
                     yDataMap[Charts.Moon.Daily.Elevation] = elevation
