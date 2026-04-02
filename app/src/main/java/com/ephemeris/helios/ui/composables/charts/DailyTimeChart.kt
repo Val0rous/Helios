@@ -25,6 +25,8 @@ import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.charts.mapX
+import com.ephemeris.helios.utils.charts.mapY
 import com.ephemeris.helios.utils.formatHour
 import com.ephemeris.helios.utils.formatNumber
 import com.ephemeris.helios.utils.printRounded
@@ -136,22 +138,8 @@ fun DailyTimeChart(
         }
 
         // Helper functions to map mathematical coordinates to Canvas pixels
-        fun mapX(x: Float) = ((x - minX) / (maxX - minX)) * width
-        // Canvas Y=0 is at the top, so we invert the Y mapping
-        fun mapY(y: Float): Float {
-            return if (isLogScale) {
-                // log10(y + 1) safely handles 0 values without throwing negative infinity
-                val logY = log10(y.coerceAtLeast(0f) + 1f)
-                val logMin = log10(minY.coerceAtLeast(0f) + 1f)
-                val logMax = log10(maxY.coerceAtLeast(0f) + 1f)
-
-                val fraction = if (logMax == logMin) 0f else (logY - logMin) / (logMax - logMin)
-                height - verticalPaddingPx - (fraction * drawHeight)
-            } else {
-                val fraction = if (maxY == minY) 0f else (y - minY) / (maxY - minY)
-                height - verticalPaddingPx - (fraction * drawHeight)
-            }
-        }
+        fun mapX(x: Float) = mapX(x, minX, maxX, width)
+        fun mapY(y: Float) = mapY(y, minY, maxY, height, drawHeight, verticalPaddingPx, isLogScale)
 
         val zeroYPixel = when (chartType) {
             Charts.Sun.Daily.ColorTemperature -> mapY(2000f)

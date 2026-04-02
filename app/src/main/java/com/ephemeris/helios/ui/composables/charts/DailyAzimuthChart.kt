@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.charts.mapX
+import com.ephemeris.helios.utils.charts.mapY
 import kotlin.math.abs
 
 @Composable
@@ -89,12 +91,9 @@ fun DailyAzimuthChart(
         }
 
         // Helper functions to map mathematical coordinates to Canvas pixels
-        fun mapX(x: Float) = ((x - minX) / (maxX - minX)) * width
+        fun mapX(x: Float) = mapX(x, minX, maxX, width)
         // Canvas Y=0 is at the top, so we invert the Y mapping
-        fun mapY(y: Float): Float {
-            val fraction = if (maxY == minY) 0f else (y - minY) / (maxY - minY)
-            return (height - verticalPaddingPx - (fraction * drawHeight))
-        }
+        fun mapY(y: Float) = mapY(y, minY, maxY, height, drawHeight, verticalPaddingPx)
 
         val zeroYPixel = mapY(0f)
 
@@ -270,17 +269,6 @@ fun DailyAzimuthChart(
                         size = Size(width, height - mapY(-18f))
                     )
                 }
-
-//            // Day & Night Isolated Elapsed Time
-//            // Elapsed Day (Above 0deg)
-//            clipRect(bottom = zeroYPixel) {
-//                drawPath(path = elapsedFillPath, color = elapsedDayFill)
-//            }
-//
-//            // Elapsed Night (Below 0deg)
-//            clipRect(top = zeroYPixel) {
-//                drawPath(path = elapsedFillPath, color = elapsedNightFill)
-//            }
             }
         }
 
