@@ -27,6 +27,7 @@ import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.ChartData
 import com.ephemeris.helios.utils.charts.createHorizontalBrush
+import com.ephemeris.helios.utils.charts.drawNightVerticalTwilights
 import com.ephemeris.helios.utils.charts.drawUVSlices
 import com.ephemeris.helios.utils.charts.getColorTemperatureBrushGradient
 import com.ephemeris.helios.utils.charts.getMapX
@@ -39,13 +40,10 @@ import com.ephemeris.helios.utils.charts.getZeroYPixel
 import com.ephemeris.helios.utils.formatHour
 import com.ephemeris.helios.utils.formatNumber
 import com.ephemeris.helios.utils.printRounded
-import kotlin.collections.emptyList
 import kotlin.math.floor
-import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
-import kotlin.math.round
 import kotlin.math.roundToInt
 
 @Composable
@@ -59,12 +57,7 @@ fun DailyTimeChart(
     val drawChartIcon = rememberChartIconDrawer(chartType)
 
     val colors = LocalCustomColors.current
-    val sunYellow = colors.sun
     val dayFill = colors.dayBackground
-    val civilTwilightFill = colors.civilTwilight
-    val nauticalTwilightFill = colors.nauticalTwilight
-    val astroTwilightFill = colors.astronomicalTwilight
-    val nightFill = colors.nightBackground
 
     // --- NEW: Gradient Theme Colors ---
     // Air Mass (Clear Sky to Hazy Horizon)
@@ -270,67 +263,7 @@ fun DailyTimeChart(
 //                }
             }
 
-            if (chartType is Charts.Sun) {
-                // 2. Night twilights: Vertical stripes extending past currentX
-                var currentBlockColor = Color.Transparent
-                var blockStartX = uniqueXPoints.firstOrNull() ?: 0f
-
-                for (i in 0 until uniqueXPoints.size - 1) {
-                    val xA = uniqueXPoints[i]
-                    val xB = uniqueXPoints[i + 1]
-                    val midX = (xA + xB) / 2f // Find the center point of this slice
-
-                    // Interpolate to find the Y altitude at the exact center of this stripe
-                    var midY = 0f
-                    for (j in 0 until xValues.size - 1) {
-                        if (midX >= xValues[j] && midX <= xValues[j + 1]) {
-                            val delta = xValues[j + 1] - xValues[j]
-                            midY = if (delta > 0f) {
-                                yValues[j] + ((midX - xValues[j]) / delta) * (yValues[j + 1] - yValues[j])
-                            } else yValues[j]
-                            break
-                        }
-                    }
-
-                    val sliceColor = when {
-                        midY >= 0f -> Color.Transparent // Day area already drawn above
-                        midY >= -6f -> civilTwilightFill
-                        midY >= -12f -> nauticalTwilightFill
-                        midY >= -18f -> astroTwilightFill
-                        else -> nightFill
-                    }
-
-                    // If the color changes, draw the accumulated block from the previous segments
-                    if (sliceColor != currentBlockColor) {
-                        if (currentBlockColor != Color.Transparent && i > 0) {
-                            // Snap to exact pixels to prevent alpha-stacking artifacts
-                            val startPx = round(mapX(blockStartX))
-                            val endPx = round(mapX(xA))
-                            drawRect(
-                                color = currentBlockColor,
-                                topLeft = Offset(startPx, zeroYPixel),
-                                size = Size(endPx - startPx, params.height - zeroYPixel)
-                            )
-                        }
-                        // Start tracking the new color block
-                        currentBlockColor = sliceColor
-                        blockStartX = xA
-                    }
-                }
-
-                // Draw the final accumulated block that hits the edge of the chart
-                if (currentBlockColor != Color.Transparent) {
-                    val startPx = round(mapX(blockStartX))
-                    val endPx = round(mapX(uniqueXPoints.last()))
-                    drawRect(
-                        color = currentBlockColor,
-                        topLeft = Offset(startPx, zeroYPixel),
-                        size = Size(endPx - startPx, params.height - zeroYPixel)
-                    )
-                }
-            } else {
-                // TODO: drawRect()
-            }
+            drawNightVerticalTwilights(colors, params, uniqueXPoints, ::mapX, zeroYPixel, chartType)
 
             // 3. Draw the elapsed time overlay (clipped strictly up to currentHour)
             clipRect(right = currentXPx) {
@@ -396,20 +329,6 @@ fun DailyTimeChart(
             Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass,
             Charts.Moon.Daily.Shadows, Charts.Moon.Daily.AirMass -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
             Charts.Sun.Daily.ColorTemperature -> (2000 until (params.maxY.roundToInt() + 1) step 500).map { it.toFloat() }
-//            Charts.Sun.Daily.AirMass -> {
-//                val base = mutableListOf(0f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
-//                when (minY) {
-//                    in 0.5f..1f -> {
-//                        base.add(0, 0.5f)
-//                        base
-//                    }
-//                    in 0f..0.5f -> {
-//                        base.add(0, 0.5f)
-//                        base.add(0, 0f)
-//                    }
-//                }
-//                base.toList()
-//            }
             else -> emptyList()
         }
         yLabels.forEach { yVal ->
@@ -477,27 +396,6 @@ fun DailyTimeChart(
 
         // 6. Calculate exact Y position for the sun at currentHour
         var currentY = 0f
-//        if (chartType == SunChartTypes.TRAJECTORY && fixedXValues.isNotEmpty()) {
-//            for (i in 0 until fixedXValues.size - 1) {
-//                val x1 = fixedXValues[i]
-//                val x2 = fixedXValues[i+1]
-//
-//                // Dynamically unwrap the target to match the local array segment
-//                var tempTarget = currentHour
-//                while (tempTarget < min(x1, x2) - 180f) tempTarget += 360f
-//                while (tempTarget > max(x1, x2) + 180f) tempTarget -= 360f
-//
-//                if (tempTarget in min(x1, x2)..max(x1, x2)) {
-//                    val timeDelta = x2 - x1
-//                    if (timeDelta != 0f) {
-//                        val fraction = (tempTarget - x1) / timeDelta
-//                        currentY = yValues[i] + fraction * (yValues[i+1] - yValues[i])
-//                    }
-//                    break
-//                }
-//            }
-//        } else {
-        // Normal fallback for Time-based charts
         for (i in 0 until xValues.size - 1) {
             val x1 = xValues[i]
             val x2 = xValues[i+1]
@@ -535,14 +433,6 @@ fun DailyTimeChart(
 
         if (isSunUp) {
             val iconSize = 24.dp.toPx()
-//            val padding = 4.dp.toPx()
-//            val radius = (iconSize / 2) + padding
-
-//            drawCircle(
-//                color = backgroundColor,
-//                radius = radius,
-//                center = Offset(currentXPx, currentYPx)
-//            )
 
             clipRect(bottom = (zeroYPixel - 2f)) {
                 translate(

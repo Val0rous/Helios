@@ -10,7 +10,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
@@ -23,13 +22,13 @@ import com.ephemeris.helios.utils.charts.ChartData
 import com.ephemeris.helios.utils.charts.buildDynamicPath
 import com.ephemeris.helios.utils.charts.drawDayNightHorizontalTwilights
 import com.ephemeris.helios.utils.charts.getElapsedLineColor
+import com.ephemeris.helios.utils.charts.getMapX
+import com.ephemeris.helios.utils.charts.getMapY
 import com.ephemeris.helios.utils.charts.getMaxX
 import com.ephemeris.helios.utils.charts.getMaxY
 import com.ephemeris.helios.utils.charts.getMinX
 import com.ephemeris.helios.utils.charts.getMinY
 import com.ephemeris.helios.utils.charts.getZeroYPixel
-import com.ephemeris.helios.utils.charts.getMapX
-import com.ephemeris.helios.utils.charts.getMapY
 
 @Composable
 fun DailyAzimuthChart(
@@ -44,15 +43,10 @@ fun DailyAzimuthChart(
     val drawChartIcon = rememberChartIconDrawer(chartType)
 
     val colors = LocalCustomColors.current
-    val sunYellow = colors.sun
     val dayBackground = MaterialTheme.colorScheme.surface
     val nightBackground = MaterialTheme.colorScheme.surfaceVariant
-    val elapsedDayFill = colors.elapsedDay
-    val elapsedNightFill = colors.elapsedNight
-    val backgroundColor = MaterialTheme.colorScheme.surface
     val materialTheme = MaterialTheme.colorScheme
     val localCustomColors = LocalCustomColors.current
-    val context = LocalContext.current
     // Text Measurer and styling for the legends
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = TextStyle(
@@ -138,35 +132,6 @@ fun DailyAzimuthChart(
         clipRect(top = zeroYPixel) {
             drawPath(path = fillPath, color = nightBackground.copy(alpha = 1.0f))
         }
-
-//        // 3. Draw the colored areas (clipped strictly up to currentHour)
-//        clipRect(right = currentXPx) {
-//
-//            // Day (Above 0deg)
-//            clipRect(bottom = zeroYPixel) {
-//                drawPath(path = fillPath, color = dayOrangeFill)
-//            }
-//
-//            // Civil Twilight (0deg to -6deg)
-//            clipRect(top = zeroYPixel, bottom = civilYPixel) {
-//                drawPath(path = fillPath, color = civilTwilightFill)
-//            }
-//
-//            // Nautical Twilight (-6deg to -12deg)
-//            clipRect(top = civilYPixel, bottom = nauticalYPixel) {
-//                drawPath(path = fillPath, color = nauticalTwilightFill)
-//            }
-//
-//            // Astronomical Twilight (-12deg to -18deg)
-//            clipRect(top = nauticalYPixel, bottom = astroYPixel) {
-//                drawPath(path = fillPath, color = astroTwilightFill)
-//            }
-//
-//            // Night (Below -18deg)
-//            clipRect(top = astroYPixel, bottom = height) {
-//                drawPath(path = fillPath, color = deepNightFill)
-//            }
-//        }
 
         // 3. Draw the Twilight Horizontal Bands
         drawDayNightHorizontalTwilights(fillPath, colors, params, zeroYPixel, ::mapY, chartType)
@@ -271,14 +236,6 @@ fun DailyAzimuthChart(
         // 7. Paint the Sun Icon if above horizon
         if (currentAltitude >= 0f) {
             val iconSize = 24.dp.toPx()
-//            val padding = 4.dp.toPx()
-//            val radius = (iconSize / 2) + padding
-
-//            drawCircle(
-//                color = backgroundColor,
-//                radius = radius,
-//                center = Offset(currentXPx, currentYPx)
-//            )
 
             clipRect(bottom = (zeroYPixel - 2f)) {
                 translate(
