@@ -1,5 +1,6 @@
 package com.ephemeris.helios.ui.composables
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,20 +12,28 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.OutlinedToggleButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.ToggleButton
+import androidx.compose.material3.TimeInput
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.ToggleButtonDefaults
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +41,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -43,9 +54,12 @@ import com.ephemeris.helios.utils.TimeMachineFilter
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
-import java.util.Locale
 import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import com.ephemeris.helios.R
+import java.time.Instant
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -55,15 +69,39 @@ fun TimeMachine(
     onTimeChange: (ZonedDateTime) -> Unit,
     onAutoUpdateChange: (Boolean) -> Unit,
 ) {
+    val context = LocalContext.current
     val dayOfWeek = time.format(DateTimeFormatter.ofPattern("EEE", LocalLocale.current.platformLocale))
     val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
     val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
     val datePart = time.format(dateFormatter)
     val timePart = time.format(timeFormatter)
-    val date = "$dayOfWeek $datePart".replace(",", "").uppercase()
-    val time = "$timePart".replace(",", "").uppercase()
-    val dateTime = "$dayOfWeek $datePart \t $timePart".replace(",", "").uppercase()
+    val dateString = "$dayOfWeek $datePart".replace(",", "").uppercase()
+    val timeString = "$timePart".replace(",", "").uppercase()
+//    val dateTime = "$dayOfWeek $datePart \t $timePart".replace(",", "").uppercase()
     var selectedFilterType by remember { mutableStateOf<TimeMachineFilter>(TimeMachineFilter.Day) }
+
+    // Picker states
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showTimePicker by remember { mutableStateOf(false) }
+
+    // Date Picker Dialog
+    DatePicker(
+        time = time,
+        showDatePicker = showDatePicker,
+        onShowDatePickerChange = { showDatePicker = it },
+        onAutoUpdateChange = onAutoUpdateChange,
+        onTimeChange = onTimeChange
+    )
+
+    // Time Picker Dialog
+    TimePicker(
+        time = time,
+        showTimePicker = showTimePicker,
+        onShowTimePickerChange = {showTimePicker = it },
+        onAutoUpdateChange = onAutoUpdateChange,
+        onTimeChange = onTimeChange,
+        context = context
+    )
 
     Surface(
         modifier = Modifier
@@ -75,8 +113,7 @@ fun TimeMachine(
         shadowElevation = 8.dp
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             //Todo: add row with text for date (left) and time (center), with autoUpdate controls to the right
@@ -84,17 +121,20 @@ fun TimeMachine(
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp).height(48.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 4.dp, end = 8.dp)
+                    .height(48.dp)
             ) {
                 Box(
                     contentAlignment = Alignment.CenterStart,
                     modifier = Modifier.weight(1f)
                 ) {
                     TextButton(
-                        onClick = {},
+                        onClick = { showDatePicker = true },
                     ) {
                         Text(
-                            text = date,
+                            text = dateString,
                             color = MaterialTheme.colorScheme.primary,
                             style = TextStyle(
                                 fontFamily = FontFamily.Default,
@@ -108,10 +148,10 @@ fun TimeMachine(
                     modifier = Modifier.weight(1f)
                 ) {
                     TextButton(
-                        onClick = {},
+                        onClick = { showTimePicker = true },
                     ) {
                         Text(
-                            text = time,
+                            text = timeString,
                             color = MaterialTheme.colorScheme.primary,
                             style = TextStyle(
                                 fontFamily = FontFamily.Default,
@@ -122,30 +162,6 @@ fun TimeMachine(
                         )
                     }
                 }
-//                Row(
-//                    horizontalArrangement = Arrangement.End,
-//                    modifier = Modifier.weight(1f)
-//                ) {
-//                    if (!isAutoUpdate) {
-//                        IconButton(
-//                            onClick = {}
-//                        ) {
-//                            Icon(
-//                                painter = painterResource(R.drawable.ic_history),
-//                                contentDescription = "Reset",
-//                                tint = MaterialTheme.colorScheme.primary,
-//                                modifier = Modifier.size(24.dp)
-//                            )
-//                        }
-//                    } else {
-//                        Icon(
-//                            painter = painterResource(R.drawable.ic_circle_filled),
-//                            contentDescription = "Auto Time Update",
-//                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-//                            modifier = Modifier.padding(end = 16.dp).size(8.dp)
-//                        )
-//                    }
-//                }
                 Box(
                     contentAlignment = Alignment.CenterEnd,
                     modifier = Modifier.weight(1f)
@@ -181,17 +197,40 @@ fun TimeMachine(
                     }
                 }
             }
-            Canvas(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp)/*.size(100.dp)*/
+                    .height(56.dp)
             ) {
-                drawRect(
-                    color = MaterialColors.Amber300,
-                    size = size // refers to Canvas size
-//                    topLeft = Offset(10f, 10f), // Optional: starting point
-//                    size = Size(width = 50f, height = 50f) // Optional: specific dimensions
-                )
+                Canvas(
+                    modifier = Modifier.matchParentSize()
+                ) {
+                    drawRect(
+                        color = MaterialColors.Amber300,
+                        size = size // refers to Canvas size
+    //                    topLeft = Offset(10f, 10f), // Optional: starting point
+    //                    size = Size(width = 50f, height = 50f) // Optional: specific dimensions
+                    )
+                }
+
+                if (!isAutoUpdate) {
+                    OutlinedIconButton(
+                        onClick = { onAutoUpdateChange(true) },
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .padding(start = 8.dp),
+                        colors = IconButtonDefaults.outlinedIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                        ),
+                        border = IconButtonDefaults.outlinedIconButtonVibrantBorder(true)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_history),
+                            contentDescription = "Restore Auto Time Update",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
         }
     }
