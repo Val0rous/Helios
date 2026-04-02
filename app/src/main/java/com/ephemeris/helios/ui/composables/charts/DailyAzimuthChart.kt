@@ -27,8 +27,9 @@ import com.ephemeris.helios.utils.charts.getMaxX
 import com.ephemeris.helios.utils.charts.getMaxY
 import com.ephemeris.helios.utils.charts.getMinX
 import com.ephemeris.helios.utils.charts.getMinY
-import com.ephemeris.helios.utils.charts.mapX
-import com.ephemeris.helios.utils.charts.mapY
+import com.ephemeris.helios.utils.charts.getZeroYPixel
+import com.ephemeris.helios.utils.charts.getMapX
+import com.ephemeris.helios.utils.charts.getMapY
 import kotlin.math.abs
 
 @Composable
@@ -78,7 +79,6 @@ fun DailyAzimuthChart(
         val maxY = getMaxY(yValues, chartType)
 
         val verticalPaddingPx = 16.dp.toPx()
-        val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
 
         // Dynamic Trajectory Shifting
         // Find where the sun reaches its highest point
@@ -95,11 +95,11 @@ fun DailyAzimuthChart(
         }
 
         // Helper functions to map mathematical coordinates to Canvas pixels
-        fun mapX(x: Float) = mapX(x, minX, maxX, width)
+        fun mapX(x: Float) = getMapX(x, minX, maxX, width)
         // Canvas Y=0 is at the top, so we invert the Y mapping
-        fun mapY(y: Float) = mapY(y, minY, maxY, height, drawHeight, verticalPaddingPx)
+        fun mapY(y: Float) = getMapY(y, minY, maxY, height, verticalPaddingPx, chartType)
 
-        val zeroYPixel = mapY(0f)
+        val zeroYPixel = getZeroYPixel(chartType, ::mapY)
 
         // Ensure the sun icon aligns with the physical inputs
         val drawCurrentX = if (shiftTrajectory) (currentAzimuth + 180f) % 360f else currentAzimuth

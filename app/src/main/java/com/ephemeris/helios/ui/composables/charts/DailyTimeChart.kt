@@ -25,12 +25,16 @@ import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.charts.ChartData
+import com.ephemeris.helios.utils.charts.createHorizontalBrush
+import com.ephemeris.helios.utils.charts.getColorTemperatureBrushGradient
+import com.ephemeris.helios.utils.charts.getMapX
+import com.ephemeris.helios.utils.charts.getMapY
 import com.ephemeris.helios.utils.charts.getMaxX
 import com.ephemeris.helios.utils.charts.getMaxY
 import com.ephemeris.helios.utils.charts.getMinX
 import com.ephemeris.helios.utils.charts.getMinY
-import com.ephemeris.helios.utils.charts.mapX
-import com.ephemeris.helios.utils.charts.mapY
+import com.ephemeris.helios.utils.charts.getZeroYPixel
 import com.ephemeris.helios.utils.formatHour
 import com.ephemeris.helios.utils.formatNumber
 import com.ephemeris.helios.utils.printRounded
@@ -111,57 +115,40 @@ fun DailyTimeChart(
     Canvas(modifier = modifier) {
         if (xValues.isEmpty() || yValues.isEmpty()) return@Canvas
 
-        val width = size.width
-        val height = size.height
-
-        val minX = getMinX(xValues, chartType)
-        val maxX = getMaxX(xValues, chartType)
-        val minY = getMinY(yValues, chartType)
-        val maxY = getMaxY(yValues, chartType)
 
         val verticalPaddingPx = 16.dp.toPx()
-        val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
-
-        val isLogScale = when (chartType) {
-            Charts.Sun.Daily.Illuminance, Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> true
-            else -> false
-        }
-
-        // Helper functions to map mathematical coordinates to Canvas pixels
-        fun mapX(x: Float) = mapX(x, minX, maxX, width)
-        fun mapY(y: Float) = mapY(y, minY, maxY, height, drawHeight, verticalPaddingPx, isLogScale)
-
-        val zeroYPixel = when (chartType) {
-            Charts.Sun.Daily.ColorTemperature -> mapY(2000f)
-//            Charts.Sun.Daily.AirMass -> mapY(1f)
-//            Charts.Sun.Daily.AirMass -> mapY(0f)
-            else -> mapY(0f)
-        }
-        val currentXPx = mapX(currentHour)
 
         val params = ChartData(
             xValues = xValues,
             yValues = yValues,
-            minX = minX,
-            maxX = maxX,
-            minY = minY,
-            maxY = maxY,
-            width = width,
-            height = height
+            minX = getMinX(xValues, chartType),
+            maxX = getMaxX(xValues, chartType),
+            minY = getMinY(yValues, chartType),
+            maxY = getMaxY(yValues, chartType),
+            width = size.width,
+            height = size.height
         )
+
+        // Helper functions to map mathematical coordinates to Canvas pixels
+        fun mapX(x: Float) = getMapX(x, params.minX, params.maxX, params.width)
+        fun mapY(y: Float) = getMapY(y, params.minY, params.maxY, params.height, verticalPaddingPx, chartType)
+
+        val zeroYPixel = getZeroYPixel(chartType, ::mapY)
+        val currentXPx = mapX(currentHour)
+
 
         // Day Background
         drawRect(
             color = dayBackground,
             topLeft = Offset(0f, 0f),
-            size = Size(width, zeroYPixel)
+            size = Size(params.width, zeroYPixel)
         )
 
         // Night Background
         drawRect(
             color = nightBackground,
             topLeft = Offset(0f, zeroYPixel),
-            size = Size(width, height - zeroYPixel)
+            size = Size(params.width, params.height - zeroYPixel)
         )
 
         val wrapThreshold = 200f // Instantly cuts off erratic backend interpolation
@@ -327,7 +314,7 @@ fun DailyTimeChart(
                         drawRect(
                             brush = ctBrush,
                             topLeft = Offset(0f, 0f),
-                            size = Size(width, zeroYPixel)
+                            size = Size(params.width, zeroYPixel)
                         )
                     }
                     Charts.Sun.Daily.AirMass -> {
@@ -343,7 +330,7 @@ fun DailyTimeChart(
                             val fraction = ((value.coerceIn(1f, 10f) - 1f) / 9f)
                             lerp(amZenith, amHorizon, fraction)
                         }, params)
-                        drawRect(brush = amBrush, topLeft = Offset(0f, 0f), size = Size(width, zeroYPixel))
+                        drawRect(brush = amBrush, topLeft = Offset(0f, 0f), size = Size(params.width, zeroYPixel))
                     }
                     Charts.Sun.Daily.Shadows -> {
 //                        val shadowBrush = Brush.verticalGradient(
@@ -358,16 +345,16 @@ fun DailyTimeChart(
                             val fraction = (value.coerceIn(0f, 10f) / 10f)
                             lerp(shadowShort, shadowLong, fraction)
                         }, params)
-                        drawRect(brush = shadowBrush, topLeft = Offset(0f, 0f), size = Size(width, zeroYPixel))
+                        drawRect(brush = shadowBrush, topLeft = Offset(0f, 0f), size = Size(params.width, zeroYPixel))
                     }
                     Charts.Sun.Daily.Illuminance -> {
                         val luxBrush = Brush.verticalGradient(
                             0.0f to luxBright, // Top = Max brightness
                             1.0f to luxDim,    // Bottom = Dim 0 lux
-                            startY = mapY(maxY),
+                            startY = mapY(params.maxY),
                             endY = zeroYPixel
                         )
-                        drawRect(brush = luxBrush, topLeft = Offset(0f, 0f), size = Size(width, zeroYPixel))
+                        drawRect(brush = luxBrush, topLeft = Offset(0f, 0f), size = Size(params.width, zeroYPixel))
                     }
                     Charts.Sun.Daily.Irradiance -> {
 //                        // Horizontal Heat Map using Lerp
@@ -408,7 +395,7 @@ fun DailyTimeChart(
 
                         val irrBrush = createHorizontalBrush({ value ->
                             // Heat Map: Soft Gold -> Orange -> Intense Red
-                            val maxIrr = maxY.coerceAtLeast(1f)
+                            val maxIrr = params.maxY.coerceAtLeast(1f)
                             val fraction = (value / maxIrr).coerceIn(0f, 1f)
                             when {
                                 fraction <= 0.5f -> lerp(irrLow, irrMid, fraction * 2f)
@@ -416,14 +403,14 @@ fun DailyTimeChart(
                             }
                         }, params)
 
-                        drawRect(brush = irrBrush, topLeft = Offset(0f, 0f), size = Size(width, zeroYPixel))
+                        drawRect(brush = irrBrush, topLeft = Offset(0f, 0f), size = Size(params.width, zeroYPixel))
                     }
                     else -> {
                         // Normal Day Fill for all other charts
                         drawRect(
                             color = dayFill,
                             topLeft = Offset(0f, 0f),
-                            size = Size(width, zeroYPixel)
+                            size = Size(params.width, zeroYPixel)
                         )
                     }
                 }
@@ -469,7 +456,7 @@ fun DailyTimeChart(
                             drawRect(
                                 color = currentBlockColor,
                                 topLeft = Offset(startPx, zeroYPixel),
-                                size = Size(endPx - startPx, height - zeroYPixel)
+                                size = Size(endPx - startPx, params.height - zeroYPixel)
                             )
                         }
                         // Start tracking the new color block
@@ -485,7 +472,7 @@ fun DailyTimeChart(
                     drawRect(
                         color = currentBlockColor,
                         topLeft = Offset(startPx, zeroYPixel),
-                        size = Size(endPx - startPx, height - zeroYPixel)
+                        size = Size(endPx - startPx, params.height - zeroYPixel)
                     )
                 }
             } else {
@@ -531,7 +518,7 @@ fun DailyTimeChart(
         drawLine(
             color = materialTheme.outline,
             start = Offset(0f, zeroYPixel),
-            end = Offset(width, zeroYPixel),
+            end = Offset(params.width, zeroYPixel),
             strokeWidth = (1.5).dp.toPx()
         )
 
@@ -546,16 +533,16 @@ fun DailyTimeChart(
         val yLabels = when (chartType) {
             Charts.Sun.Daily.Elevation,
             Charts.Moon.Daily.Elevation-> (-90 until 91 step 15).map { it.toFloat()}
-            Charts.Sun.Daily.Irradiance -> (0 until ((maxY / 100.0).roundToInt() * 100 + 1) step 100).map { it.toFloat() }
-            Charts.Sun.Daily.UvIntensity -> (0 until (maxY.roundToInt() + 1) step floor(maxY / 10f).toInt().coerceAtLeast(1)).map { it.toFloat() }
+            Charts.Sun.Daily.Irradiance -> (0 until ((params.maxY / 100.0).roundToInt() * 100 + 1) step 100).map { it.toFloat() }
+            Charts.Sun.Daily.UvIntensity -> (0 until (params.maxY.roundToInt() + 1) step floor(params.maxY / 10f).toInt().coerceAtLeast(1)).map { it.toFloat() }
             Charts.Sun.Daily.Illuminance,
             Charts.Moon.Daily.Illuminance -> listOf(0f) + (0..5).flatMap {
                 val base = 10.0.pow(it.toDouble()).toFloat()
                 listOf(base, base * 3f)
-            }.filter { it <= maxY }
+            }.filter { it <= params.maxY }
             Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass,
             Charts.Moon.Daily.Shadows, Charts.Moon.Daily.AirMass -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
-            Charts.Sun.Daily.ColorTemperature -> (2000 until (maxY.roundToInt() + 1) step 500).map { it.toFloat() }
+            Charts.Sun.Daily.ColorTemperature -> (2000 until (params.maxY.roundToInt() + 1) step 500).map { it.toFloat() }
 //            Charts.Sun.Daily.AirMass -> {
 //                val base = mutableListOf(0f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
 //                when (minY) {
@@ -581,7 +568,7 @@ fun DailyTimeChart(
                 drawLine(
                     color = horizontalGridlineColor,
                     start = Offset(0f, yPx),
-                    end = Offset(width, yPx),
+                    end = Offset(params.width, yPx),
                     strokeWidth = 1.dp.toPx(),
                     pathEffect = horizontalGridDashEffect
                 )
@@ -616,7 +603,7 @@ fun DailyTimeChart(
             drawLine(
                 color = verticalGridlineColor,
                 start = Offset(xPx, 0f),
-                end = Offset(xPx, height), // Spans the entire canvas height
+                end = Offset(xPx, params.height), // Spans the entire canvas height
                 strokeWidth = 1.dp.toPx(),
                 pathEffect = verticalGridDashEffect
             )
@@ -630,7 +617,7 @@ fun DailyTimeChart(
                 style = labelStyle,
                 topLeft = Offset(
                     x = xPx - (textLayout.size.width / 2f), // Centered horizontally on the hour mark
-                    y = height - textLayout.size.height - 2.dp.toPx() // Pinned near the bottom edge of the canvas
+                    y = params.height - textLayout.size.height - 2.dp.toPx() // Pinned near the bottom edge of the canvas
                 )
             )
         }
@@ -721,138 +708,5 @@ fun DailyTimeChart(
                 drawChartIcon(iconSize, true)
             }
         }
-    }
-}
-
-data class ChartData(
-    val xValues: FloatArray,
-    val yValues: FloatArray,
-    val minX: Float,
-    val maxX: Float,
-    val minY: Float,
-    val maxY: Float,
-    val width: Float,
-    val height: Float,
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as ChartData
-
-        if (minX != other.minX) return false
-        if (maxX != other.maxX) return false
-        if (minY != other.minY) return false
-        if (maxY != other.maxY) return false
-        if (width != other.width) return false
-        if (height != other.height) return false
-        if (!xValues.contentEquals(other.xValues)) return false
-        if (!yValues.contentEquals(other.yValues)) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = minX.hashCode()
-        result = 31 * result + maxX.hashCode()
-        result = 31 * result + minY.hashCode()
-        result = 31 * result + maxY.hashCode()
-        result = 31 * result + width.hashCode()
-        result = 31 * result + height.hashCode()
-        result = 31 * result + xValues.contentHashCode()
-        result = 31 * result + yValues.contentHashCode()
-        return result
-    }
-}
-
-// --- HELPER: Reusable Horizontal Gradient Generator ---
-// Extracts the complex stop-generation logic to keep code DRY
-fun createHorizontalBrush(getColor: (Float) -> Color, params: ChartData): Brush {
-    val stops = mutableListOf<Pair<Float, Color>>()
-    val step = max(1, params.xValues.size / 40)
-
-    for (i in params.xValues.indices step step) {
-        val fraction = ((params.xValues[i] - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
-        stops.add(fraction to getColor(params.yValues[i]))
-    }
-
-    // Always map the peak explicitly so gradients peak perfectly
-    val peakIndex = params.yValues.indices.maxByOrNull { params.yValues[it] } ?: 0
-    val peakFraction = ((params.xValues[peakIndex] - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
-    stops.add(peakFraction to getColor(params.yValues[peakIndex]))
-
-    // Always map the end explicitly
-    val lastFraction = ((params.xValues.last() - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
-    stops.add(lastFraction to getColor(params.yValues.last()))
-
-    val finalStops = stops
-        .distinctBy { it.first }
-        .sortedBy { it.first }
-        .toTypedArray()
-
-    return Brush.horizontalGradient(*finalStops, startX = 0f, endX = params.width)
-}
-
-fun getColorTemperatureBrushGradient(
-    isGradientHorizontal: Boolean = false,
-    mapY: (Float) -> Float,
-    params: ChartData
-): Brush {
-    val ct5500 = Color(0xFF81D4FA).copy(alpha = 0.5f) // Daylight Cool Blue
-    val ct4000 = Color(0xFFFFF59D).copy(alpha = 0.5f) // Warm Pale Yellow
-    val ct3000 = Color(0xFFFFB300).copy(alpha = 0.5f) // Golden Amber
-    val ct2000 = Color(0xFFD84315).copy(alpha = 0.5f) // Deep Sunset Red
-
-    return if (!isGradientHorizontal) {
-        Brush.verticalGradient(
-            0.0f to ct5500,
-            ((5500f - 4000f) / 3500f) to ct4000, // ~0.42f
-            ((5500f - 3000f) / 3500f) to ct3000, // ~0.71f
-            1.0f to ct2000,
-            startY = mapY(5500f),
-            endY = mapY(2000f)
-        )
-    } else {
-        // Helper to interpolate exact Kelvin to our defined colors
-        fun getCtColor(temp: Float): Color {
-            return when {
-                temp <= 2000f -> ct2000
-                temp <= 3000f -> lerp(ct2000, ct3000, (temp - 2000f) / 1000f)
-                temp <= 4000f -> lerp(ct3000, ct4000, (temp - 3000f) / 1000f)
-                temp < 5500f -> lerp(ct4000, ct5500, (temp - 4000f) / 1500f)
-                else -> ct5500
-            }
-        }
-
-        // Dynamically generate horizontal stops based on the actual data
-        val ctStops = mutableListOf<Pair<Float, Color>>()
-
-        // Sample points to create a smooth gradient (every ~12 points is plenty for 481 items)
-        val step = max(1, params.xValues.size / 40)
-        for (i in params.xValues.indices step step) {
-            val fraction = ((params.xValues[i] - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
-            ctStops.add(fraction to getCtColor(params.yValues[i]))
-        }
-
-        // Ensure the exact peak temperature is mathematically represented
-        val peakIndex = params.yValues.indices.maxByOrNull { params.yValues[it] } ?: 0
-        val peakFraction = ((params.xValues[peakIndex] - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
-        ctStops.add(peakFraction to getCtColor(params.yValues[peakIndex]))
-
-        // Ensure the very last point is included to reach endX safely
-        val lastFraction = ((params.xValues.last() - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
-        ctStops.add(lastFraction to getCtColor(params.yValues.last()))
-
-        // Skia requires strictly ascending fractions without duplicates
-        val finalStops = ctStops
-            .distinctBy { it.first }
-            .sortedBy { it.first }
-            .toTypedArray()
-
-        Brush.horizontalGradient(
-            *finalStops,
-            startX = 0f,
-            endX = params.width
-        )
     }
 }

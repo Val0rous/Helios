@@ -6,7 +6,7 @@ import kotlin.math.max
 import kotlin.math.roundToInt
 
 
-fun mapX(
+fun getMapX(
     x: Float,
     minX: Float,
     maxX: Float,
@@ -16,15 +16,19 @@ fun mapX(
 }
 
 // Canvas Y=0 is at the top, so we invert the Y mapping
-fun mapY(
+fun getMapY(
     y: Float,
     minY: Float,
     maxY: Float,
     height: Float,
-    drawHeight: Float,
     verticalPaddingPx: Float,
-    isLogScale: Boolean = false
+    chartType: Charts
 ): Float {
+    val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
+    val isLogScale = when (chartType) {
+        Charts.Sun.Daily.Illuminance, Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> true
+        else -> false
+    }
     return if (isLogScale) {
         // log10(y + 1) safely handles 0 values without throwing negative infinity
         val logY = log10(y.coerceAtLeast(0f) + 1f)
@@ -73,5 +77,14 @@ fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
         Charts.Sun.Daily.ColorTemperature -> max(5500f, yValues.max())
         Charts.Sun.Daily.AirMass -> 10f // or 15f
         else -> 90f // Todo: Change
+    }
+}
+
+fun getZeroYPixel(chartType: Charts, mapY: (Float) -> Float): Float {
+    return when (chartType) {
+        Charts.Sun.Daily.ColorTemperature -> mapY(2000f)
+//            Charts.Sun.Daily.AirMass -> mapY(1f)
+//            Charts.Sun.Daily.AirMass -> mapY(0f)
+        else -> mapY(0f)
     }
 }
