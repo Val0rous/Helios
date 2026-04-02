@@ -27,6 +27,7 @@ import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.ChartData
 import com.ephemeris.helios.utils.charts.createHorizontalBrush
+import com.ephemeris.helios.utils.charts.drawUVSlices
 import com.ephemeris.helios.utils.charts.getColorTemperatureBrushGradient
 import com.ephemeris.helios.utils.charts.getMapX
 import com.ephemeris.helios.utils.charts.getMapY
@@ -64,15 +65,6 @@ fun DailyTimeChart(
     val nauticalTwilightFill = colors.nauticalTwilight
     val astroTwilightFill = colors.astronomicalTwilight
     val nightFill = colors.nightBackground
-
-    val uvDarkGreen = Color(0xFF2E7D32).copy(alpha = 0.5f)
-    val uvGreen = Color(0xFF4CAF50).copy(alpha = 0.5f)
-    val uvYellow = Color(0xFFFFEB3B).copy(alpha = 0.5f)
-    val uvAmber = Color(0xFFFFC107).copy(alpha = 0.5f)
-    val uvOrange = Color(0xFFFF9800).copy(alpha = 0.5f)
-    val uvRed = Color(0xFFF44336).copy(alpha = 0.5f)
-    val uvDarkRed = Color(0xFFB71C1C).copy(alpha = 0.5f)
-    val uvPurple = Color(0xFF673AB7).copy(alpha = 0.5f)
 
     // --- NEW: Gradient Theme Colors ---
     // Air Mass (Clear Sky to Hazy Horizon)
@@ -178,35 +170,6 @@ fun DailyTimeChart(
             drawPath(path = fillPath, color = nightBackground.copy(alpha = 1.0f))
         }
 
-//        // 3. Draw the colored areas (clipped strictly up to currentHour)
-//        clipRect(right = currentXPx) {
-//
-//            // Day (Above 0deg)
-//            clipRect(bottom = zeroYPixel) {
-//                drawPath(path = fillPath, color = dayOrangeFill)
-//            }
-//
-//            // Civil Twilight (0deg to -6deg)
-//            clipRect(top = zeroYPixel, bottom = civilYPixel) {
-//                drawPath(path = fillPath, color = civilTwilightFill)
-//            }
-//
-//            // Nautical Twilight (-6deg to -12deg)
-//            clipRect(top = civilYPixel, bottom = nauticalYPixel) {
-//                drawPath(path = fillPath, color = nauticalTwilightFill)
-//            }
-//
-//            // Astronomical Twilight (-12deg to -18deg)
-//            clipRect(top = nauticalYPixel, bottom = astroYPixel) {
-//                drawPath(path = fillPath, color = astroTwilightFill)
-//            }
-//
-//            // Night (Below -18deg)
-//            clipRect(top = astroYPixel, bottom = height) {
-//                drawPath(path = fillPath, color = deepNightFill)
-//            }
-//        }
-
         // 3a. Calculate exact X intersections for vertical stripes
         val thresholds = when(chartType) {
             Charts.Sun.Daily.UvIntensity -> floatArrayOf(0f, 2f, 3f, 5f, 6f, 8f, 10f, 11f)
@@ -243,67 +206,7 @@ fun DailyTimeChart(
             clipRect(bottom = zeroYPixel) {
 //                if (zeroYPixel > 0f) {
                 when (chartType) {
-                    Charts.Sun.Daily.UvIntensity -> {
-                        // --- UV Slicing Logic ---
-                        var currentBlockColor = Color.Transparent
-                        var blockStartX = uniqueXPoints.firstOrNull() ?: 0f
-
-                        for (i in 0 until uniqueXPoints.size - 1) {
-                            val xA = uniqueXPoints[i]
-                            val xB = uniqueXPoints[i + 1]
-                            val midX = (xA + xB) / 2f
-
-                            // Interpolate to find UV Index at the exact center of this stripe
-                            var midY = 0f
-                            for (j in 0 until xValues.size - 1) {
-                                if (midX >= xValues[j] && midX <= xValues[j + 1]) {
-                                    val delta = xValues[j + 1] - xValues[j]
-                                    midY = if (delta > 0f) {
-                                        yValues[j] + ((midX - xValues[j]) / delta) * (yValues[j + 1] - yValues[j])
-                                    } else yValues[j]
-                                    break
-                                }
-                            }
-
-                            val sliceColor = when {
-                                midY < 0.01f -> Color.Transparent // Nighttime/Zero UV
-                                midY < 2f -> uvDarkGreen
-                                midY < 3f -> uvGreen
-                                midY < 5f -> uvYellow
-                                midY < 6f -> uvAmber
-                                midY < 8f -> uvOrange
-                                midY < 10f -> uvRed
-                                midY < 11f -> uvDarkRed
-                                else -> uvPurple
-                            }
-
-                            // Draw the block if the color changes
-                            if (sliceColor != currentBlockColor) {
-                                if (currentBlockColor != Color.Transparent && i > 0) {
-                                    val startPx = round(mapX(blockStartX))
-                                    val endPx = round(mapX(xA))
-                                    drawRect(
-                                        color = currentBlockColor,
-                                        topLeft = Offset(startPx, 0f), // Starts at very top of canvas
-                                        size = Size(endPx - startPx, zeroYPixel) // Extends down to horizon line
-                                    )
-                                }
-                                currentBlockColor = sliceColor
-                                blockStartX = xA
-                            }
-                        }
-
-                        // Draw the final accumulated UV block
-                        if (currentBlockColor != Color.Transparent) {
-                            val startPx = round(mapX(blockStartX))
-                            val endPx = round(mapX(uniqueXPoints.last()))
-                            drawRect(
-                                color = currentBlockColor,
-                                topLeft = Offset(startPx, 0f),
-                                size = Size(endPx - startPx, zeroYPixel)
-                            )
-                        }
-                    }
+                    Charts.Sun.Daily.UvIntensity -> drawUVSlices(params, uniqueXPoints, ::mapX, zeroYPixel)
                     Charts.Sun.Daily.ColorTemperature -> {
                         // --- Vertical Color Temperature Gradient ---
                         // Maps fractional stops exactly to their Kelvin altitude
@@ -316,12 +219,6 @@ fun DailyTimeChart(
                         )
                     }
                     Charts.Sun.Daily.AirMass -> {
-//                        val amBrush = Brush.verticalGradient(
-//                            0.0f to amZenith,
-//                            1.0f to amHorizon,
-//                            startY = mapY(1f),
-//                            endY = mapY(10f) // Maps to the standard visual limit
-//                        )
                         val amBrush = createHorizontalBrush({value ->
                             // Air Mass goes from 1 (Zenith) to ~10+ (Horizon)
                             // We lerp from Clear Blue to Hazy Gray
@@ -331,12 +228,6 @@ fun DailyTimeChart(
                         drawRect(brush = amBrush, topLeft = Offset(0f, 0f), size = Size(params.width, zeroYPixel))
                     }
                     Charts.Sun.Daily.Shadows -> {
-//                        val shadowBrush = Brush.verticalGradient(
-//                            0.0f to shadowShort, // Top = Short shadows
-//                            1.0f to shadowLong,  // Bottom = Long shadows
-//                            startY = mapY(0f),
-//                            endY = mapY(10f)
-//                        )
                         val shadowBrush = createHorizontalBrush({ value ->
                             // Shadows go from 0 (Short) to ~10+ (Long)
                             // We lerp from Light Silver to Deep Charcoal
@@ -355,42 +246,6 @@ fun DailyTimeChart(
                         drawRect(brush = luxBrush, topLeft = Offset(0f, 0f), size = Size(params.width, zeroYPixel))
                     }
                     Charts.Sun.Daily.Irradiance -> {
-//                        // Horizontal Heat Map using Lerp
-//                        fun getIrrColor(value: Float): Color {
-//                            val maxIrr = maxY.coerceAtLeast(1f)
-//                            val fraction = (value / maxIrr).coerceIn(0f, 1f)
-//                            return when {
-//                                fraction <= 0.5f -> lerp(irrLow, irrMid, fraction * 2f)
-//                                else -> lerp(irrMid, irrHigh, (fraction - 0.5f) * 2f)
-//                            }
-//                        }
-//
-//                        val irrStops = mutableListOf<Pair<Float, Color>>()
-//                        val step = max(1, xValues.size / 40)
-//
-//                        for (i in xValues.indices step step) {
-//                            val fraction = ((xValues[i] - minX) / (maxX - minX)).coerceIn(0f, 1f)
-//                            irrStops.add(fraction to getIrrColor(yValues[i]))
-//                        }
-//
-//                        val peakIndex = yValues.indices.maxByOrNull { yValues[it] } ?: 0
-//                        val peakFraction = ((xValues[peakIndex] - minX) / (maxX - minX)).coerceIn(0f, 1f)
-//                        irrStops.add(peakFraction to getIrrColor(yValues[peakIndex]))
-//
-//                        val lastFraction = ((xValues.last() - minX) / (maxX - minX)).coerceIn(0f, 1f)
-//                        irrStops.add(lastFraction to getIrrColor(yValues.last()))
-//
-//                        val finalStops = irrStops
-//                            .distinctBy { it.first }
-//                            .sortedBy { it.first }
-//                            .toTypedArray()
-
-//                        val irrBrush = Brush.horizontalGradient(
-//                            *finalStops,
-//                            startX = 0f,
-//                            endX = width
-//                        )
-
                         val irrBrush = createHorizontalBrush({ value ->
                             // Heat Map: Soft Gold -> Orange -> Intense Red
                             val maxIrr = params.maxY.coerceAtLeast(1f)
