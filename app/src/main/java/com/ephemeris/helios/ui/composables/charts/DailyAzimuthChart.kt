@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
@@ -23,6 +24,8 @@ import com.ephemeris.helios.utils.charts.buildDynamicPath
 import com.ephemeris.helios.utils.charts.drawDayNightAreaFill
 import com.ephemeris.helios.utils.charts.drawDayNightBackground
 import com.ephemeris.helios.utils.charts.drawDayNightHorizontalTwilights
+import com.ephemeris.helios.utils.charts.drawXLabels
+import com.ephemeris.helios.utils.charts.drawYLabels
 import com.ephemeris.helios.utils.charts.getElapsedLineColor
 import com.ephemeris.helios.utils.charts.getMapX
 import com.ephemeris.helios.utils.charts.getMapY
@@ -57,6 +60,7 @@ fun DailyAzimuthChart(
         fontSize = (9.5).sp,
         fontFamily = FontFamily.Monospace
     )
+    val context = LocalContext.current
 
     Canvas(modifier = modifier) {
         if (xValues.isEmpty() || yValues.isEmpty()) return@Canvas
@@ -143,72 +147,13 @@ fun DailyAzimuthChart(
             strokeWidth = (1.5).dp.toPx()
         )
 
-        // Define the dotted path effect and grid color ---
-        // floatArrayOf(on, off) in pixels. Using dp ensures consistent dot spacing on all screens.
-        val verticalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 0.dp.toPx()), 0f)
-        val horizontalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx()), 0f)
-        val verticalGridlineColor = materialTheme.outlineVariant.copy(alpha = 0.15f) // Light and subtle
-        val horizontalGridlineColor = materialTheme.outline.copy(alpha = 0.3f) // Light and subtle
+
 
         // 5a. Draw Vertical Legend (Y-axis Altitudes)
-        val yLabels = (-90 until 91 step 15).map { it.toFloat()}
-        yLabels.forEach { yVal ->
-            val yPx = mapY(yVal)
-
-            // Draw horizontal dotted grid line (Skip 0f to avoid drawing over the solid horizon line)
-            if (yVal != 0f) {
-                drawLine(
-                    color = horizontalGridlineColor,
-                    start = Offset(0f, yPx),
-                    end = Offset(params.width, yPx),
-                    strokeWidth = 1.dp.toPx(),
-                    pathEffect = horizontalGridDashEffect
-                )
-            }
-
-            val text = "${yVal.toInt()}°"
-            val textLayout = textMeasurer.measure(text, labelStyle)
-            drawText(
-                textMeasurer = textMeasurer,
-                text = text,
-                style = labelStyle,
-                topLeft = Offset(
-                    x = 4.dp.toPx(), // Slight padding from the left edge
-                    y = yPx - (textLayout.size.height / 2f) // Perfectly centered vertically on the line
-                )
-            )
-        }
+        drawYLabels(chartType, materialTheme, params, ::mapY, textMeasurer, labelStyle)
 
         // 5b. Draw Horizontal Legend (X-axis Hours)
-        val xLabels = (30..330 step 30).toList()
-        xLabels.forEach {
-            val xPx = mapX(it.toFloat())
-
-            // Draw vertical dotted grid line
-            drawLine(
-                color = verticalGridlineColor,
-                start = Offset(xPx, 0f),
-                end = Offset(xPx, params.height), // Spans the entire canvas height
-                strokeWidth = 1.dp.toPx(),
-                pathEffect = verticalGridDashEffect
-            )
-
-            // Mathematically reverse the shift for the label
-            val realAzimuth = if (shiftTrajectory) (it.toFloat() + 180f) % 360 else it.toFloat()
-            val formatted = realAzimuth.toInt()
-            val text = "${if (formatted == 360 || formatted == 0) 0 else formatted}°"
-
-            val textLayout = textMeasurer.measure(text, labelStyle)
-            drawText(
-                textMeasurer = textMeasurer,
-                text = text,
-                style = labelStyle,
-                topLeft = Offset(
-                    x = xPx - (textLayout.size.width / 2.5f), // Centered horizontally on the hour mark
-                    y = params.height - textLayout.size.height - 2.dp.toPx() // Pinned near the bottom edge of the canvas
-                )
-            )
-        }
+        drawXLabels(chartType, materialTheme, params, ::mapX, textMeasurer, labelStyle, context, shiftTrajectory)
 
         // 6. Draw vertical drop line from Sun to Horizon (X-axis)
         drawLine(

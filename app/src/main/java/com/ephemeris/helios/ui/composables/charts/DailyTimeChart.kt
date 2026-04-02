@@ -30,6 +30,8 @@ import com.ephemeris.helios.utils.charts.drawDayNightAreaFill
 import com.ephemeris.helios.utils.charts.drawDayNightBackground
 import com.ephemeris.helios.utils.charts.drawNightVerticalTwilights
 import com.ephemeris.helios.utils.charts.drawUVSlices
+import com.ephemeris.helios.utils.charts.drawXLabels
+import com.ephemeris.helios.utils.charts.drawYLabels
 import com.ephemeris.helios.utils.charts.getColorTemperatureBrushGradient
 import com.ephemeris.helios.utils.charts.getMapX
 import com.ephemeris.helios.utils.charts.getMapY
@@ -288,91 +290,11 @@ fun DailyTimeChart(
             strokeWidth = (1.5).dp.toPx()
         )
 
-        // Define the dotted path effect and grid color ---
-        // floatArrayOf(on, off) in pixels. Using dp ensures consistent dot spacing on all screens.
-        val verticalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 0.dp.toPx()), 0f)
-        val horizontalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx()), 0f)
-        val verticalGridlineColor = materialTheme.outlineVariant.copy(alpha = 0.15f) // Light and subtle
-        val horizontalGridlineColor = materialTheme.outline.copy(alpha = 0.3f) // Light and subtle
-
         // 5a. Draw Vertical Legend (Y-axis Altitudes)
-        val yLabels = when (chartType) {
-            Charts.Sun.Daily.Elevation,
-            Charts.Moon.Daily.Elevation-> (-90 until 91 step 15).map { it.toFloat()}
-            Charts.Sun.Daily.Irradiance -> (0 until ((params.maxY / 100.0).roundToInt() * 100 + 1) step 100).map { it.toFloat() }
-            Charts.Sun.Daily.UvIntensity -> (0 until (params.maxY.roundToInt() + 1) step floor(params.maxY / 10f).toInt().coerceAtLeast(1)).map { it.toFloat() }
-            Charts.Sun.Daily.Illuminance,
-            Charts.Moon.Daily.Illuminance -> listOf(0f) + (0..5).flatMap {
-                val base = 10.0.pow(it.toDouble()).toFloat()
-                listOf(base, base * 3f)
-            }.filter { it <= params.maxY }
-            Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass,
-            Charts.Moon.Daily.Shadows, Charts.Moon.Daily.AirMass -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
-            Charts.Sun.Daily.ColorTemperature -> (2000 until (params.maxY.roundToInt() + 1) step 500).map { it.toFloat() }
-            else -> emptyList()
-        }
-        yLabels.forEach { yVal ->
-            val yPx = mapY(yVal)
-//            if (yVal == 0f) return@forEach // Skip the zero
-
-            // Draw horizontal dotted grid line (Skip 0f to avoid drawing over the solid horizon line)
-            if (yVal != 0f) {
-                drawLine(
-                    color = horizontalGridlineColor,
-                    start = Offset(0f, yPx),
-                    end = Offset(params.width, yPx),
-                    strokeWidth = 1.dp.toPx(),
-                    pathEffect = horizontalGridDashEffect
-                )
-            }
-
-            val text = when (chartType) {
-                Charts.Sun.Daily.Elevation -> "${yVal.toInt()}°"
-                Charts.Sun.Daily.Irradiance -> "${formatNumber(yVal.toDouble())} W/m²"
-                Charts.Sun.Daily.ColorTemperature -> "${formatNumber(yVal.toDouble())}K"
-                Charts.Sun.Daily.Illuminance -> "${formatNumber(yVal.toDouble())} lx"
-                Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> yVal.toDouble().printRounded(2)
-                else -> "${yVal.toInt()}"
-            }
-            val textLayout = textMeasurer.measure(text, labelStyle)
-            drawText(
-                textMeasurer = textMeasurer,
-                text = text,
-                style = labelStyle,
-                topLeft = Offset(
-                    x = 4.dp.toPx(), // Slight padding from the left edge
-                    y = yPx - (textLayout.size.height / 2f) // Perfectly centered vertically on the line
-                )
-            )
-        }
+        drawYLabels(chartType, materialTheme, params, ::mapY, textMeasurer, labelStyle)
 
         // 5b. Draw Horizontal Legend (X-axis Hours)
-        val xLabels = (3..21 step 3).toList()
-        xLabels.forEach {
-            val xPx = mapX(it.toFloat())
-
-            // Draw vertical dotted grid line
-            drawLine(
-                color = verticalGridlineColor,
-                start = Offset(xPx, 0f),
-                end = Offset(xPx, params.height), // Spans the entire canvas height
-                strokeWidth = 1.dp.toPx(),
-                pathEffect = verticalGridDashEffect
-            )
-
-            val text = formatHour(it, true, context)
-            val textLayout = textMeasurer.measure(text, labelStyle)
-
-            drawText(
-                textMeasurer = textMeasurer,
-                text = text,
-                style = labelStyle,
-                topLeft = Offset(
-                    x = xPx - (textLayout.size.width / 2f), // Centered horizontally on the hour mark
-                    y = params.height - textLayout.size.height - 2.dp.toPx() // Pinned near the bottom edge of the canvas
-                )
-            )
-        }
+        drawXLabels(chartType, materialTheme, params, ::mapX, textMeasurer, labelStyle, context)
 
         // 6. Calculate exact Y position for the sun at currentHour
         var currentY = 0f
