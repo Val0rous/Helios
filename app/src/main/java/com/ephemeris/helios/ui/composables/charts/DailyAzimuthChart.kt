@@ -4,15 +4,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
@@ -21,9 +14,13 @@ import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.ChartData
 import com.ephemeris.helios.utils.charts.buildDynamicPath
+import com.ephemeris.helios.utils.charts.drawCurvePath
 import com.ephemeris.helios.utils.charts.drawDayNightAreaFill
 import com.ephemeris.helios.utils.charts.drawDayNightBackground
 import com.ephemeris.helios.utils.charts.drawDayNightHorizontalTwilights
+import com.ephemeris.helios.utils.charts.drawElapsedPath
+import com.ephemeris.helios.utils.charts.drawHorizonLine
+import com.ephemeris.helios.utils.charts.drawVerticalDropLine
 import com.ephemeris.helios.utils.charts.drawXLabels
 import com.ephemeris.helios.utils.charts.drawYLabels
 import com.ephemeris.helios.utils.charts.getElapsedLineColor
@@ -126,28 +123,13 @@ fun DailyAzimuthChart(
         drawDayNightHorizontalTwilights(fillPath, colors, params, zeroYPixel, ::mapY, chartType)
 
         // 4. Draw the full unclipped curve line for all values
-        drawPath(
-            path = curvePath,
-            color = materialTheme.onSurfaceVariant,
-            style = Stroke(width = (1.5).dp.toPx())
-        )
+        drawCurvePath(curvePath, materialTheme)
 
         // --- Draw the elapsed path line on top ---
-        drawPath(
-            path = elapsedLinePath,
-            color = elapsedLineColor,
-            style = Stroke(width = 2.dp.toPx()) // I recommend 2.dp so it pops slightly over the base line
-        )
+        drawElapsedPath(elapsedLinePath, localCustomColors, chartType, currentXPx)
 
         // 5. Draw a subtle X-Axis line to visually separate the zones (Horizon Line)
-        drawLine(
-            color = materialTheme.outline,
-            start = Offset(0f, zeroYPixel),
-            end = Offset(params.width, zeroYPixel),
-            strokeWidth = (1.5).dp.toPx()
-        )
-
-
+        drawHorizonLine(materialTheme, params, zeroYPixel)
 
         // 5a. Draw Vertical Legend (Y-axis Altitudes)
         drawYLabels(chartType, materialTheme, params, ::mapY, textMeasurer, labelStyle)
@@ -156,12 +138,7 @@ fun DailyAzimuthChart(
         drawXLabels(chartType, materialTheme, params, ::mapX, textMeasurer, labelStyle, context, shiftTrajectory)
 
         // 6. Draw vertical drop line from Sun to Horizon (X-axis)
-        drawLine(
-            color = localCustomColors.dropLine,
-            start = Offset(currentXPx, currentYPx),
-            end = Offset(currentXPx, zeroYPixel),
-            strokeWidth = 1.dp.toPx() // Using 1.dp keeps it crisp but visible across screen densities
-        )
+        drawVerticalDropLine(localCustomColors, currentXPx, currentYPx, zeroYPixel)
 
         // 7. Paint the Sun Icon if above horizon
         paintIcon(currentXPx, currentAltitude, currentYPx, zeroYPixel, chartType, drawChartIcon)

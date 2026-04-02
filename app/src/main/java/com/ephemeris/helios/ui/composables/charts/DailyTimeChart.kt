@@ -9,14 +9,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
@@ -26,10 +23,14 @@ import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.ChartData
 import com.ephemeris.helios.utils.charts.createHorizontalBrush
+import com.ephemeris.helios.utils.charts.drawCurvePath
 import com.ephemeris.helios.utils.charts.drawDayNightAreaFill
 import com.ephemeris.helios.utils.charts.drawDayNightBackground
+import com.ephemeris.helios.utils.charts.drawElapsedPath
+import com.ephemeris.helios.utils.charts.drawHorizonLine
 import com.ephemeris.helios.utils.charts.drawNightVerticalTwilights
 import com.ephemeris.helios.utils.charts.drawUVSlices
+import com.ephemeris.helios.utils.charts.drawVerticalDropLine
 import com.ephemeris.helios.utils.charts.drawXLabels
 import com.ephemeris.helios.utils.charts.drawYLabels
 import com.ephemeris.helios.utils.charts.getColorTemperatureBrushGradient
@@ -40,14 +41,8 @@ import com.ephemeris.helios.utils.charts.getMaxY
 import com.ephemeris.helios.utils.charts.getMinX
 import com.ephemeris.helios.utils.charts.getMinY
 import com.ephemeris.helios.utils.charts.getZeroYPixel
-import com.ephemeris.helios.utils.formatHour
-import com.ephemeris.helios.utils.formatNumber
-import com.ephemeris.helios.utils.printRounded
-import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.pow
-import kotlin.math.roundToInt
 
 @Composable
 fun DailyTimeChart(
@@ -262,33 +257,13 @@ fun DailyTimeChart(
         }
 
         // 4. Draw the full unclipped curve line for all values
-        drawPath(
-            path = curvePath,
-            color = materialTheme.onSurfaceVariant,
-            style = Stroke(width = (1.5).dp.toPx())
-        )
+        drawCurvePath(curvePath, materialTheme)
 
         // --- Draw the elapsed path line on top
-        val pathColor = when (chartType) {
-            is Charts.Sun -> localCustomColors.sunPath
-            is Charts.Moon -> localCustomColors.moonPath
-            else -> Color.Green // TODO
-        }
-        clipRect(right = currentXPx) {
-            drawPath(
-                path = curvePath,
-                color = pathColor,
-                style = Stroke(width = 2.dp.toPx())
-            )
-        }
+        drawElapsedPath(curvePath, localCustomColors, chartType, currentXPx)
 
         // 5. Draw a subtle X-Axis line to visually separate the zones
-        drawLine(
-            color = materialTheme.outline,
-            start = Offset(0f, zeroYPixel),
-            end = Offset(params.width, zeroYPixel),
-            strokeWidth = (1.5).dp.toPx()
-        )
+        drawHorizonLine(materialTheme, params, zeroYPixel)
 
         // 5a. Draw Vertical Legend (Y-axis Altitudes)
         drawYLabels(chartType, materialTheme, params, ::mapY, textMeasurer, labelStyle)
@@ -314,16 +289,10 @@ fun DailyTimeChart(
                 break
             }
         }
-//        }
         val currentYPx = mapY(currentY)
 
         // --- Draw vertical drop line from Sun to Horizon (X-axis) ---
-        drawLine(
-            color = localCustomColors.dropLine,
-            start = Offset(currentXPx, currentYPx),
-            end = Offset(currentXPx, zeroYPixel),
-            strokeWidth = 1.dp.toPx()
-        )
+        drawVerticalDropLine(localCustomColors, currentXPx, currentYPx, zeroYPixel)
 
         // 7. Paint the Sun Icon if above horizon
         paintIcon(currentXPx, currentY, currentYPx, zeroYPixel, chartType, drawChartIcon)
