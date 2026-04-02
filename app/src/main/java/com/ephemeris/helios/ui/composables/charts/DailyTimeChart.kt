@@ -115,9 +115,6 @@ fun DailyTimeChart(
     Canvas(modifier = modifier) {
         if (xValues.isEmpty() || yValues.isEmpty()) return@Canvas
 
-
-        val verticalPaddingPx = 16.dp.toPx()
-
         val params = ChartData(
             xValues = xValues,
             yValues = yValues,
@@ -126,12 +123,13 @@ fun DailyTimeChart(
             minY = getMinY(yValues, chartType),
             maxY = getMaxY(yValues, chartType),
             width = size.width,
-            height = size.height
+            height = size.height,
+            verticalPaddingPx = 16.dp.toPx()
         )
 
         // Helper functions to map mathematical coordinates to Canvas pixels
-        fun mapX(x: Float) = getMapX(x, params.minX, params.maxX, params.width)
-        fun mapY(y: Float) = getMapY(y, params.minY, params.maxY, params.height, verticalPaddingPx, chartType)
+        fun mapX(x: Float) = getMapX(x, params)
+        fun mapY(y: Float) = getMapY(y, params, chartType)
 
         val zeroYPixel = getZeroYPixel(chartType, ::mapY)
         val currentXPx = mapX(currentHour)

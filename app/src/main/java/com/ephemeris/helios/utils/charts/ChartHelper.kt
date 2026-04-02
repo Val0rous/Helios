@@ -8,23 +8,18 @@ import kotlin.math.roundToInt
 
 fun getMapX(
     x: Float,
-    minX: Float,
-    maxX: Float,
-    width: Float
+    params: ChartData
 ): Float {
-    return ((x - minX) / (maxX - minX)) * width
+    return ((x - params.minX) / (params.maxX - params.minX)) * params.width
 }
 
 // Canvas Y=0 is at the top, so we invert the Y mapping
 fun getMapY(
     y: Float,
-    minY: Float,
-    maxY: Float,
-    height: Float,
-    verticalPaddingPx: Float,
+    params: ChartData,
     chartType: Charts
 ): Float {
-    val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
+    val drawHeight = (params.height - (2 * params.verticalPaddingPx)).coerceAtLeast(1f)
     val isLogScale = when (chartType) {
         Charts.Sun.Daily.Illuminance, Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> true
         else -> false
@@ -32,14 +27,14 @@ fun getMapY(
     return if (isLogScale) {
         // log10(y + 1) safely handles 0 values without throwing negative infinity
         val logY = log10(y.coerceAtLeast(0f) + 1f)
-        val logMin = log10(minY.coerceAtLeast(0f) + 1f)
-        val logMax = log10(maxY.coerceAtLeast(0f) + 1f)
+        val logMin = log10(params.minY.coerceAtLeast(0f) + 1f)
+        val logMax = log10(params.maxY.coerceAtLeast(0f) + 1f)
 
         val fraction = if (logMax == logMin) 0f else (logY - logMin) / (logMax - logMin)
-        height - verticalPaddingPx - (fraction * drawHeight)
+        params.height - params.verticalPaddingPx - (fraction * drawHeight)
     } else {
-        val fraction = if (maxY == minY) 0f else (y - minY) / (maxY - minY)
-        height - verticalPaddingPx - (fraction * drawHeight)
+        val fraction = if (params.maxY == params.minY) 0f else (y - params.minY) / (params.maxY - params.minY)
+        params.height - params.verticalPaddingPx - (fraction * drawHeight)
     }
 }
 

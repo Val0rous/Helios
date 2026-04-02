@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.charts.ChartData
 import com.ephemeris.helios.utils.charts.getMaxX
 import com.ephemeris.helios.utils.charts.getMaxY
 import com.ephemeris.helios.utils.charts.getMinX
@@ -70,15 +71,17 @@ fun DailyAzimuthChart(
     Canvas(modifier = modifier) {
         if (xValues.isEmpty() || yValues.isEmpty()) return@Canvas
 
-        val width = size.width
-        val height = size.height
-
-        val minX = getMinX(xValues, chartType)
-        val maxX = getMaxX(xValues, chartType)
-        val minY = getMinY(yValues, chartType)
-        val maxY = getMaxY(yValues, chartType)
-
-        val verticalPaddingPx = 16.dp.toPx()
+        val params = ChartData(
+            xValues = xValues,
+            yValues = yValues,
+            minX = getMinX(xValues, chartType),
+            maxX = getMaxX(xValues, chartType),
+            minY = getMinY(yValues, chartType),
+            maxY = getMaxY(yValues, chartType),
+            width = size.width,
+            height = size.height,
+            verticalPaddingPx = 16.dp.toPx()
+        )
 
         // Dynamic Trajectory Shifting
         // Find where the sun reaches its highest point
@@ -95,9 +98,9 @@ fun DailyAzimuthChart(
         }
 
         // Helper functions to map mathematical coordinates to Canvas pixels
-        fun mapX(x: Float) = getMapX(x, minX, maxX, width)
+        fun mapX(x: Float) = getMapX(x, params)
         // Canvas Y=0 is at the top, so we invert the Y mapping
-        fun mapY(y: Float) = getMapY(y, minY, maxY, height, verticalPaddingPx, chartType)
+        fun mapY(y: Float) = getMapY(y, params, chartType)
 
         val zeroYPixel = getZeroYPixel(chartType, ::mapY)
 
@@ -185,14 +188,14 @@ fun DailyAzimuthChart(
         drawRect(
             color = dayBackground,
             topLeft = Offset(0f, 0f),
-            size = Size(width, zeroYPixel)
+            size = Size(params.width, zeroYPixel)
         )
 
         // Night Background
         drawRect(
             color = nightBackground,
             topLeft = Offset(0f, zeroYPixel),
-            size = Size(width, height - zeroYPixel)
+            size = Size(params.width, params.height - zeroYPixel)
         )
 
         clipRect(bottom = zeroYPixel) {
@@ -241,7 +244,7 @@ fun DailyAzimuthChart(
                     drawRect(
                         color = dayFill,
                         topLeft = Offset(0f, 0f),
-                        size = Size(width, zeroYPixel)
+                        size = Size(params.width, zeroYPixel)
                     )
                 }
 
@@ -249,28 +252,28 @@ fun DailyAzimuthChart(
                     drawRect(
                         color = civilTwilightFill,
                         topLeft = Offset(0f, zeroYPixel),
-                        size = Size(width, mapY(-6f) - zeroYPixel)
+                        size = Size(params.width, mapY(-6f) - zeroYPixel)
                     )
                 }
                 clipRect(top = mapY(-6f), bottom = mapY(-12f)) {
                     drawRect(
                         color = nauticalTwilightFill,
                         topLeft = Offset(0f, mapY(-6f)),
-                        size = Size(width, mapY(-12f) - mapY(-6f))
+                        size = Size(params.width, mapY(-12f) - mapY(-6f))
                     )
                 }
                 clipRect(top = mapY(-12f), bottom = mapY(-18f)) {
                     drawRect(
                         color = astroTwilightFill,
                         topLeft = Offset(0f, mapY(-12f)),
-                        size = Size(width, mapY(-18f) - mapY(-12f))
+                        size = Size(params.width, mapY(-18f) - mapY(-12f))
                     )
                 }
                 clipRect(top = mapY(-18f)) {
                     drawRect(
                         color = nightFill,
                         topLeft = Offset(0f, mapY(-18f)),
-                        size = Size(width, height - mapY(-18f))
+                        size = Size(params.width, params.height - mapY(-18f))
                     )
                 }
             }
@@ -294,7 +297,7 @@ fun DailyAzimuthChart(
         drawLine(
             color = materialTheme.outline,
             start = Offset(0f, zeroYPixel),
-            end = Offset(width, zeroYPixel),
+            end = Offset(params.width, zeroYPixel),
             strokeWidth = (1.5).dp.toPx()
         )
 
@@ -315,7 +318,7 @@ fun DailyAzimuthChart(
                 drawLine(
                     color = horizontalGridlineColor,
                     start = Offset(0f, yPx),
-                    end = Offset(width, yPx),
+                    end = Offset(params.width, yPx),
                     strokeWidth = 1.dp.toPx(),
                     pathEffect = horizontalGridDashEffect
                 )
@@ -343,7 +346,7 @@ fun DailyAzimuthChart(
             drawLine(
                 color = verticalGridlineColor,
                 start = Offset(xPx, 0f),
-                end = Offset(xPx, height), // Spans the entire canvas height
+                end = Offset(xPx, params.height), // Spans the entire canvas height
                 strokeWidth = 1.dp.toPx(),
                 pathEffect = verticalGridDashEffect
             )
@@ -360,7 +363,7 @@ fun DailyAzimuthChart(
                 style = labelStyle,
                 topLeft = Offset(
                     x = xPx - (textLayout.size.width / 2.5f), // Centered horizontally on the hour mark
-                    y = height - textLayout.size.height - 2.dp.toPx() // Pinned near the bottom edge of the canvas
+                    y = params.height - textLayout.size.height - 2.dp.toPx() // Pinned near the bottom edge of the canvas
                 )
             )
         }

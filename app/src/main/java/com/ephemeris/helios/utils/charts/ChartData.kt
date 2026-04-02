@@ -9,6 +9,7 @@ data class ChartData(
     val maxY: Float,
     val width: Float,
     val height: Float,
+    val verticalPaddingPx: Float
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -24,6 +25,7 @@ data class ChartData(
         if (height != other.height) return false
         if (!xValues.contentEquals(other.xValues)) return false
         if (!yValues.contentEquals(other.yValues)) return false
+        if (verticalPaddingPx != other.verticalPaddingPx) return false
 
         return true
     }
@@ -37,6 +39,7 @@ data class ChartData(
         result = 31 * result + height.hashCode()
         result = 31 * result + xValues.contentHashCode()
         result = 31 * result + yValues.contentHashCode()
+        result = 31 * result + verticalPaddingPx.hashCode()
         return result
     }
 }
