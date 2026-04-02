@@ -20,6 +20,8 @@ import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.ChartData
 import com.ephemeris.helios.utils.charts.buildDynamicPath
+import com.ephemeris.helios.utils.charts.drawDayNightAreaFill
+import com.ephemeris.helios.utils.charts.drawDayNightBackground
 import com.ephemeris.helios.utils.charts.drawDayNightHorizontalTwilights
 import com.ephemeris.helios.utils.charts.getElapsedLineColor
 import com.ephemeris.helios.utils.charts.getMapX
@@ -43,6 +45,7 @@ fun DailyAzimuthChart(
     val drawChartIcon = rememberChartIconDrawer(chartType)
 
     val colors = LocalCustomColors.current
+    val colorScheme = MaterialTheme.colorScheme
     val dayBackground = MaterialTheme.colorScheme.surface
     val nightBackground = MaterialTheme.colorScheme.surfaceVariant
     val materialTheme = MaterialTheme.colorScheme
@@ -111,27 +114,9 @@ fun DailyAzimuthChart(
         val elapsedLinePath = buildDynamicPath(0, bestIndex, false)
         val elapsedLineColor = getElapsedLineColor(chartType, localCustomColors)
 
-        // Day Background
-        drawRect(
-            color = dayBackground,
-            topLeft = Offset(0f, 0f),
-            size = Size(params.width, zeroYPixel)
-        )
-
-        // Night Background
-        drawRect(
-            color = nightBackground,
-            topLeft = Offset(0f, zeroYPixel),
-            size = Size(params.width, params.height - zeroYPixel)
-        )
-
-        clipRect(bottom = zeroYPixel) {
-            drawPath(path = fillPath, color = dayBackground.copy(alpha = 1.0f))
-        }
-
-        clipRect(top = zeroYPixel) {
-            drawPath(path = fillPath, color = nightBackground.copy(alpha = 1.0f))
-        }
+        // Day & Night Background
+        drawDayNightBackground(colorScheme, params, zeroYPixel)
+        drawDayNightAreaFill(fillPath, colorScheme, zeroYPixel)
 
         // 3. Draw the Twilight Horizontal Bands
         drawDayNightHorizontalTwilights(fillPath, colors, params, zeroYPixel, ::mapY, chartType)
@@ -234,25 +219,6 @@ fun DailyAzimuthChart(
         )
 
         // 7. Paint the Sun Icon if above horizon
-        if (currentAltitude >= 0f) {
-            val iconSize = 24.dp.toPx()
-
-            clipRect(bottom = (zeroYPixel - 2f)) {
-                translate(
-                    left = currentXPx - iconSize / 2,
-                    top = currentYPx - iconSize / 2
-                ) {
-                    drawChartIcon(iconSize, false)
-                }
-            }
-        } else {
-            val iconSize = 12.dp.toPx()
-            translate(
-                left = currentXPx - iconSize / 2,
-                top = currentYPx - iconSize / 2
-            ) {
-                drawChartIcon(iconSize, true)
-            }
-        }
+        paintIcon(currentXPx, currentAltitude, currentYPx, zeroYPixel, chartType, drawChartIcon)
     }
 }

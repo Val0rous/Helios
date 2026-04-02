@@ -8,8 +8,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
@@ -77,6 +80,45 @@ fun rememberChartIconDrawer(chartType: Charts): DrawScope.(iconSize: Float, isIn
                     }
                 }
             }
+        }
+    }
+}
+
+
+fun DrawScope.paintIcon(
+    currentXPx: Float,
+    currentY: Float,
+    currentYPx: Float,
+    zeroYPixel: Float,
+    chartType: Charts,
+    drawChartIcon: DrawScope.(Float, Boolean) -> Unit
+) {
+    val isUp = when (chartType) {
+        Charts.Sun.Daily.Elevation, Charts.Sun.Daily.Trajectory,
+             Charts.Moon.Daily.Elevation, Charts.Moon.Daily.Trajectory -> currentY >= 0f
+        Charts.Sun.Daily.ColorTemperature -> currentY > 2000f
+        Charts.Sun.Daily.AirMass -> currentY > 1f
+        else -> currentY > 0f
+    }
+
+    if (isUp) {
+        val iconSize = 24.dp.toPx()
+
+        clipRect(bottom = (zeroYPixel - 2f)) {
+            translate(
+                left = currentXPx - iconSize / 2,
+                top = currentYPx - iconSize / 2
+            ) {
+                drawChartIcon(iconSize, false)
+            }
+        }
+    } else {
+        val iconSize = 12.dp.toPx()
+        translate(
+            left = currentXPx - iconSize / 2,
+            top = currentYPx - iconSize / 2
+        ) {
+            drawChartIcon(iconSize, true)
         }
     }
 }

@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -27,6 +26,8 @@ import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.ChartData
 import com.ephemeris.helios.utils.charts.createHorizontalBrush
+import com.ephemeris.helios.utils.charts.drawDayNightAreaFill
+import com.ephemeris.helios.utils.charts.drawDayNightBackground
 import com.ephemeris.helios.utils.charts.drawNightVerticalTwilights
 import com.ephemeris.helios.utils.charts.drawUVSlices
 import com.ephemeris.helios.utils.charts.getColorTemperatureBrushGradient
@@ -55,8 +56,8 @@ fun DailyTimeChart(
     modifier: Modifier = Modifier
 ) {
     val drawChartIcon = rememberChartIconDrawer(chartType)
-
     val colors = LocalCustomColors.current
+    val colorScheme = MaterialTheme.colorScheme
     val dayFill = colors.dayBackground
 
     // --- NEW: Gradient Theme Colors ---
@@ -77,15 +78,13 @@ fun DailyTimeChart(
     val irrMid = Color(0xFFFF9800).copy(alpha = 0.5f)   // Orange Energy
     val irrHigh = Color(0xFFE65100).copy(alpha = 0.6f)  // Intense Heat Red
 
-    val dayBackground = MaterialTheme.colorScheme.surface
-    val nightBackground = MaterialTheme.colorScheme.surfaceVariant
+
     val elapsedDayFill = when (chartType) {
         Charts.Sun.Daily.Elevation -> colors.elapsedDay
         else -> MaterialColors.Gray400.copy(alpha = 0.4f)
     }
     val elapsedNightFill = colors.elapsedNight
 
-    val backgroundColor = MaterialTheme.colorScheme.surface
     val materialTheme = MaterialTheme.colorScheme
     val localCustomColors = LocalCustomColors.current
     val context = LocalContext.current
@@ -120,21 +119,8 @@ fun DailyTimeChart(
         val currentXPx = mapX(currentHour)
 
 
-        // Day Background
-        drawRect(
-            color = dayBackground,
-            topLeft = Offset(0f, 0f),
-            size = Size(params.width, zeroYPixel)
-        )
-
-        // Night Background
-        drawRect(
-            color = nightBackground,
-            topLeft = Offset(0f, zeroYPixel),
-            size = Size(params.width, params.height - zeroYPixel)
-        )
-
-        val wrapThreshold = 200f // Instantly cuts off erratic backend interpolation
+        // Day & Night Background
+        drawDayNightBackground(colorScheme, params, zeroYPixel)
 
         // 1. Build the smooth curve path
         val curvePath = Path().apply {
@@ -155,13 +141,7 @@ fun DailyTimeChart(
             close()
         }
 
-        clipRect(bottom = zeroYPixel) {
-            drawPath(path = fillPath, color = dayBackground.copy(alpha = 1.0f))
-        }
-
-        clipRect(top = zeroYPixel) {
-            drawPath(path = fillPath, color = nightBackground.copy(alpha = 1.0f))
-        }
+        drawDayNightAreaFill(fillPath, colorScheme, zeroYPixel)
 
         // 3a. Calculate exact X intersections for vertical stripes
         val thresholds = when(chartType) {
@@ -424,32 +404,6 @@ fun DailyTimeChart(
         )
 
         // 7. Paint the Sun Icon if above horizon
-        val isSunUp = when (chartType) {
-            Charts.Sun.Daily.Elevation -> currentY >= 0f
-            Charts.Sun.Daily.ColorTemperature -> currentY > 2000f
-            Charts.Sun.Daily.AirMass -> currentY > 1f
-            else -> currentY > 0f
-        }
-
-        if (isSunUp) {
-            val iconSize = 24.dp.toPx()
-
-            clipRect(bottom = (zeroYPixel - 2f)) {
-                translate(
-                    left = currentXPx - iconSize / 2,
-                    top = currentYPx - iconSize / 2
-                ) {
-                    drawChartIcon(iconSize, false)
-                }
-            }
-        } else {
-            val iconSize = 12.dp.toPx()
-            translate(
-                left = currentXPx - iconSize / 2,
-                top = currentYPx - iconSize / 2
-            ) {
-                drawChartIcon(iconSize, true)
-            }
-        }
+        paintIcon(currentXPx, currentY, currentYPx, zeroYPixel, chartType, drawChartIcon)
     }
 }
