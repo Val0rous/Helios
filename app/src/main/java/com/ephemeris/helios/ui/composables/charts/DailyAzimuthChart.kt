@@ -6,11 +6,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalContext
@@ -21,9 +18,11 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
-import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.ChartData
+import com.ephemeris.helios.utils.charts.buildDynamicPath
+import com.ephemeris.helios.utils.charts.drawDayNightHorizontalTwilights
+import com.ephemeris.helios.utils.charts.getElapsedLineColor
 import com.ephemeris.helios.utils.charts.getMaxX
 import com.ephemeris.helios.utils.charts.getMaxY
 import com.ephemeris.helios.utils.charts.getMinX
@@ -31,7 +30,6 @@ import com.ephemeris.helios.utils.charts.getMinY
 import com.ephemeris.helios.utils.charts.getZeroYPixel
 import com.ephemeris.helios.utils.charts.getMapX
 import com.ephemeris.helios.utils.charts.getMapY
-import kotlin.math.abs
 
 @Composable
 fun DailyAzimuthChart(
@@ -47,11 +45,6 @@ fun DailyAzimuthChart(
 
     val colors = LocalCustomColors.current
     val sunYellow = colors.sun
-    val dayFill = colors.dayBackground
-    val civilTwilightFill = colors.civilTwilight
-    val nauticalTwilightFill = colors.nauticalTwilight
-    val astroTwilightFill = colors.astronomicalTwilight
-    val nightFill = colors.nightBackground
     val dayBackground = MaterialTheme.colorScheme.surface
     val nightBackground = MaterialTheme.colorScheme.surfaceVariant
     val elapsedDayFill = colors.elapsedDay
@@ -101,8 +94,8 @@ fun DailyAzimuthChart(
         fun mapX(x: Float) = getMapX(x, params)
         // Canvas Y=0 is at the top, so we invert the Y mapping
         fun mapY(y: Float) = getMapY(y, params, chartType)
-
         val zeroYPixel = getZeroYPixel(chartType, ::mapY)
+        fun buildDynamicPath(startIndex: Int, endIndex: Int, isFill: Boolean) = buildDynamicPath(startIndex, endIndex, isFill, drawXValues, yValues, zeroYPixel, ::mapX, ::mapY)
 
         // Ensure the sun icon aligns with the physical inputs
         val drawCurrentX = if (shiftTrajectory) (currentAzimuth + 180f) % 360f else currentAzimuth
@@ -114,75 +107,15 @@ fun DailyAzimuthChart(
         val exactIndex = (currentHour / 24f) * (xValues.size - 1)
         val bestIndex = exactIndex.toInt().coerceIn(0, xValues.size - 1)
 
-        // Visual Nadir Tracing
-        // Find Solar Midnight to avoid showing early AM disconnected leftovers
-        val nadirIndex = yValues.indices.minByOrNull { yValues[it] } ?: 0
-
-        // --- DIRECTION-AWARE PATH BUILDER ---
-        // Generates flawless polygons regardless of left-to-right or right-to-left tracing
-        fun buildDynamicPath(startIndex: Int, endIndex: Int, isFill: Boolean): Path {
-            return Path().apply {
-                if (startIndex !in 0..endIndex || drawXValues.isEmpty()) return@apply
-
-                if (isFill) {
-                    moveTo(mapX(drawXValues[startIndex]), zeroYPixel)
-                    lineTo(mapX(drawXValues[startIndex]), mapY(yValues[startIndex]))
-                } else {
-                    moveTo(mapX(drawXValues[startIndex]), mapY(yValues[startIndex]))
-                }
-
-                for (i in (startIndex + 1)..endIndex) {
-                    val xA = drawXValues[i-1]
-                    val xB = drawXValues[i]
-
-                    if (abs(xB - xA) > 200f) { // wrapThreshold seamlessly catches 360 wraps in BOTH directions
-                        // Calculate exact crossing direction
-                        val wrapForward = xA > 180f && xB < 180f
-                        val edgeX = if (wrapForward) 360f else 0f
-                        val newStartX = if (wrapForward) 0f else 360f
-
-                        val deltaX = if (wrapForward) (xB + 360f) - xA else xB - (xA + 360f)
-                        val fraction = if (deltaX != 0f) (edgeX - xA) / deltaX else 0f
-                        val edgeY = yValues[i-1] + fraction * (yValues[i] - yValues[i-1])
-
-                        lineTo(mapX(edgeX), mapY(edgeY))
-                        if (isFill) {
-                            lineTo(mapX(edgeX), zeroYPixel)
-                            close()
-                            moveTo(mapX(newStartX), zeroYPixel)
-                        } else {
-                            moveTo(mapX(newStartX), mapY(edgeY))
-                        }
-                        lineTo(mapX(newStartX), mapY(edgeY))
-                    } else {
-                        lineTo(mapX(xB), mapY(yValues[i]))
-                    }
-                }
-                if (isFill) {
-                    lineTo(mapX(drawXValues[endIndex]), zeroYPixel)
-                    close()
-                }
-            }
-        }
-
         // 1. Build the smooth curve path
         val curvePath = buildDynamicPath(0, drawXValues.size - 1, false)
 
         // 2. Build the fill path that closes down to the X-axis
         val fillPath = buildDynamicPath(0, drawXValues.size - 1, true)
 
-//        // --- CHRONOLOGICAL ELAPSED FILL ---
-//        // Stops exactly at 'bestIndex', naturally tracking from midnight up to current time
-//        val elapsedStartIndex = if (bestIndex >= nadirIndex) nadirIndex else 0
-//        val elapsedFillPath = buildDynamicPath(elapsedStartIndex, bestIndex, true)
-
         // --- CHRONOLOGICAL ELAPSED LINE ---
         val elapsedLinePath = buildDynamicPath(0, bestIndex, false)
-        val elapsedLineColor = when (chartType) {
-            is Charts.Sun -> localCustomColors.sunPath
-            is Charts.Moon -> localCustomColors.moonPath
-            else -> Color.Green // TODO
-        }
+        val elapsedLineColor = getElapsedLineColor(chartType, localCustomColors)
 
         // Day Background
         drawRect(
@@ -236,48 +169,7 @@ fun DailyAzimuthChart(
 //        }
 
         // 3. Draw the Twilight Horizontal Bands
-        if (chartType is Charts.Sun) {
-            clipPath(fillPath) {
-
-                // Day area: Removed 'right = currentXPx' so sunset is always visible by default
-                clipRect(bottom = zeroYPixel) {
-                    drawRect(
-                        color = dayFill,
-                        topLeft = Offset(0f, 0f),
-                        size = Size(params.width, zeroYPixel)
-                    )
-                }
-
-                clipRect(top = zeroYPixel, bottom = mapY(-6f)) {
-                    drawRect(
-                        color = civilTwilightFill,
-                        topLeft = Offset(0f, zeroYPixel),
-                        size = Size(params.width, mapY(-6f) - zeroYPixel)
-                    )
-                }
-                clipRect(top = mapY(-6f), bottom = mapY(-12f)) {
-                    drawRect(
-                        color = nauticalTwilightFill,
-                        topLeft = Offset(0f, mapY(-6f)),
-                        size = Size(params.width, mapY(-12f) - mapY(-6f))
-                    )
-                }
-                clipRect(top = mapY(-12f), bottom = mapY(-18f)) {
-                    drawRect(
-                        color = astroTwilightFill,
-                        topLeft = Offset(0f, mapY(-12f)),
-                        size = Size(params.width, mapY(-18f) - mapY(-12f))
-                    )
-                }
-                clipRect(top = mapY(-18f)) {
-                    drawRect(
-                        color = nightFill,
-                        topLeft = Offset(0f, mapY(-18f)),
-                        size = Size(params.width, params.height - mapY(-18f))
-                    )
-                }
-            }
-        }
+        drawDayNightHorizontalTwilights(fillPath, colors, params, zeroYPixel, ::mapY, chartType)
 
         // 4. Draw the full unclipped curve line for all values
         drawPath(
