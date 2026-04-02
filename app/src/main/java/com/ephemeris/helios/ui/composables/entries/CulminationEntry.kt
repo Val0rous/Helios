@@ -1,6 +1,8 @@
 package com.ephemeris.helios.ui.composables.entries
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.stringResource
 import com.ephemeris.helios.R
 import com.ephemeris.helios.utils.EphemerisType
@@ -23,11 +25,23 @@ fun CulminationEntry(
         EphemerisType.MOON -> R.string.lunar_culmination_time
         else -> R.string.culmination_time
     }))
-    TextEntry(text = "$altitude°", textVariant = "", icon = R.drawable.ic_brightness_7, desc = stringResource(when(type) {
-        EphemerisType.SUN -> R.string.solar_noon_altitude
-        EphemerisType.MOON -> R.string.lunar_culmination_altitude
-        else -> R.string.culmination_altitude
-    }))
+    TextEntry(
+        text = "$altitude°",
+        textVariant = "",
+        icon = when (type) {
+            EphemerisType.SUN -> R.drawable.ic_brightness_7
+            EphemerisType.MOON -> R.drawable.ic_brightness_6
+            else -> R.drawable.ic_brightness_5
+        },
+        desc = stringResource(
+            when(type) {
+                EphemerisType.SUN -> R.string.solar_noon_altitude
+                EphemerisType.MOON -> R.string.lunar_culmination_altitude
+                else -> R.string.culmination_altitude
+            }
+        ),
+//        iconModifier = if (type == EphemerisType.MOON) Modifier.rotate(0f) else Modifier
+    )
 }
 
 @Composable

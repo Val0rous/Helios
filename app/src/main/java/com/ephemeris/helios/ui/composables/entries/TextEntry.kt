@@ -28,7 +28,8 @@ fun TextEntry(
     desc: String = "",
     descVariant: String = "",
     textColor: Color = MaterialTheme.colorScheme.onSurface,
-    iconTint: Color = MaterialTheme.colorScheme.primary
+    iconTint: Color = MaterialTheme.colorScheme.primary,
+    iconModifier: Modifier = Modifier
 ) {
     val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default, color = textColor)
     Row(
@@ -38,7 +39,7 @@ fun TextEntry(
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
     ) {
-        if (icon != null) Icon(painter = painterResource(id = icon), contentDescription = desc, modifier = Modifier.size(18.dp), tint = iconTint)
+        if (icon != null) Icon(painter = painterResource(id = icon), contentDescription = desc, modifier = iconModifier.size(18.dp), tint = iconTint)
         Text(text = text, style = textStyle)
         if(textVariant != "") TextEntryVariant(textVariant)
     }
