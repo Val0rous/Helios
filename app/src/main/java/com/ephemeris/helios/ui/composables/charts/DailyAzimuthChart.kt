@@ -23,6 +23,10 @@ import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.charts.getMaxX
+import com.ephemeris.helios.utils.charts.getMaxY
+import com.ephemeris.helios.utils.charts.getMinX
+import com.ephemeris.helios.utils.charts.getMinY
 import com.ephemeris.helios.utils.charts.mapX
 import com.ephemeris.helios.utils.charts.mapY
 import kotlin.math.abs
@@ -68,10 +72,10 @@ fun DailyAzimuthChart(
         val width = size.width
         val height = size.height
 
-        val minX = 0f
-        val maxX = 360f
-        val minY = -90f
-        val maxY = 90f
+        val minX = getMinX(xValues, chartType)
+        val maxX = getMaxX(xValues, chartType)
+        val minY = getMinY(yValues, chartType)
+        val maxY = getMaxY(yValues, chartType)
 
         val verticalPaddingPx = 16.dp.toPx()
         val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)

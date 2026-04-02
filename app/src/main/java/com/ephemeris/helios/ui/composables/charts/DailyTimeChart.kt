@@ -25,6 +25,10 @@ import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.charts.getMaxX
+import com.ephemeris.helios.utils.charts.getMaxY
+import com.ephemeris.helios.utils.charts.getMinX
+import com.ephemeris.helios.utils.charts.getMinY
 import com.ephemeris.helios.utils.charts.mapX
 import com.ephemeris.helios.utils.charts.mapY
 import com.ephemeris.helios.utils.formatHour
@@ -110,24 +114,10 @@ fun DailyTimeChart(
         val width = size.width
         val height = size.height
 
-        val minX = xValues.minOrNull() ?: 0f
-        val maxX = xValues.maxOrNull() ?: 24f
-        val minY = when (chartType) {
-            Charts.Sun.Daily.Elevation, Charts.Moon.Daily.Elevation -> -90f
-            Charts.Sun.Daily.ColorTemperature -> 2000f
-//            Charts.Sun.Daily.AirMass -> 0f
-            else -> 0f
-        }
-        val maxY = when (chartType) {
-            Charts.Sun.Daily.Elevation, Charts.Moon.Daily.Elevation -> 90f
-            Charts.Sun.Daily.Irradiance -> max(500f, (yValues.max() / 100.0).roundToInt() * 100f)
-            Charts.Sun.Daily.UvIntensity -> max(5f, yValues.max().roundToInt().toFloat())
-            Charts.Sun.Daily.Illuminance -> max(100000f, yValues.max())
-            Charts.Sun.Daily.Shadows -> 10f
-            Charts.Sun.Daily.ColorTemperature -> max(5500f, yValues.max())
-            Charts.Sun.Daily.AirMass -> 10f // or 15f
-            else -> 90f // Todo: Change
-        }
+        val minX = getMinX(xValues, chartType)
+        val maxX = getMaxX(xValues, chartType)
+        val minY = getMinY(yValues, chartType)
+        val maxY = getMaxY(yValues, chartType)
 
         val verticalPaddingPx = 16.dp.toPx()
         val drawHeight = (height - (2 * verticalPaddingPx)).coerceAtLeast(1f)
