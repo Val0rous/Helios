@@ -1,6 +1,10 @@
 package com.ephemeris.helios
 
+import android.Manifest
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -9,17 +13,25 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -33,12 +45,16 @@ import com.ephemeris.helios.ui.screens.Moon
 import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.Coordinates
+import com.ephemeris.helios.utils.LocationService
+import com.ephemeris.helios.utils.PermissionStatus
 import com.ephemeris.helios.utils.Routes
+import com.ephemeris.helios.utils.StartMonitoringResult
 import com.ephemeris.helios.utils.calc.DayEphemerisData
 import com.ephemeris.helios.utils.calc.LiveUpdatesData
 import com.ephemeris.helios.utils.calc.getDailyEphemerisData
 import com.ephemeris.helios.utils.calc.getLiveUpdates
 import com.ephemeris.helios.utils.datastore.LocationDataStore
+import com.ephemeris.helios.utils.rememberPermission
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -48,22 +64,122 @@ import java.time.ZonedDateTime
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
+    private lateinit var locationService: LocationService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        locationService = LocationService(this)
         val initialStartDestination = intent.getStringExtra("startDestination") ?: Routes.Home.route
         // Initialize DataStore repository
         val locationDataStore = LocationDataStore(this)
 
         setContent {
             navController = rememberNavController()
+            val context = LocalContext.current
+//            val coroutineScope = rememberCoroutineScope()
             var startDestination by remember { mutableStateOf(initialStartDestination) }
             var currentTime by remember { mutableStateOf(ZonedDateTime.now()) }
             var isAutoUpdateEnabled by remember { mutableStateOf(true) }
             val coordinates by locationDataStore.coordinatesFlow.collectAsState(
                 initial = Coordinates(-33.8623, 151.2077)
             )
+
+            val snackbarHostState = remember { SnackbarHostState() }
+            val showLocationDisabledAlert = remember { mutableStateOf(false) }
+            var showPermissionDeniedAlert by remember { mutableStateOf(false) }
+            var showPermissionPermanentlyDeniedSnackbar by remember { mutableStateOf(false) }
+
+            val locationPermission = rememberPermission(
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) { status ->
+                when (status) {
+                    PermissionStatus.Granted -> {
+                        val res = locationService.requestCurrentLocation()
+                        showLocationDisabledAlert.value = res == StartMonitoringResult.GPSDisabled
+                    }
+
+                    PermissionStatus.Denied ->
+                        showPermissionDeniedAlert = true
+
+                    PermissionStatus.PermanentlyDenied ->
+                        showPermissionPermanentlyDeniedSnackbar = true
+
+                    PermissionStatus.Unknown -> {}
+                }
+            }
+
+            if (showLocationDisabledAlert.value) {
+                AlertDialog(
+                    title = { Text("Location disabled") },
+                    text = { Text("Location must be enabled to get your current location in the app.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            locationService.openLocationSettings()
+                            showLocationDisabledAlert.value = false
+                        }) {
+                            Text("Enable")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showLocationDisabledAlert.value = false }) {
+                            Text("Dismiss")
+                        }
+                    },
+                    onDismissRequest = { showLocationDisabledAlert.value = false }
+                )
+            }
+
+            if (showPermissionDeniedAlert) {
+                AlertDialog(
+                    title = { Text("Location permission denied") },
+                    text = { Text("Location permission is required to get your current location in the app.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            locationPermission.launchPermissionRequest()
+                            showPermissionDeniedAlert = false
+                        }) {
+                            Text("Grant")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showPermissionDeniedAlert = false }) {
+                            Text("Dismiss")
+                        }
+                    },
+                    onDismissRequest = { showPermissionDeniedAlert = false }
+                )
+            }
+
+            if (showPermissionPermanentlyDeniedSnackbar) {
+                LaunchedEffect(snackbarHostState) {
+                    val res = snackbarHostState.showSnackbar(
+                        "Location permission is required.",
+                        "Go to Settings",
+                        duration = SnackbarDuration.Long
+                    )
+                    if (res == SnackbarResult.ActionPerformed) {
+                        val intent =
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = Uri.fromParts("package", context.packageName, null)
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                        if (intent.resolveActivity(context.packageManager) != null) {
+                            context.startActivity(intent)
+                        }
+                    }
+                    showPermissionPermanentlyDeniedSnackbar = false
+                }
+            }
+
+            fun requestLocation() {
+                if (locationPermission.status.isGranted) {
+                    val res = locationService.requestCurrentLocation()
+                    showLocationDisabledAlert.value = res == StartMonitoringResult.GPSDisabled
+                } else {
+                    locationPermission.launchPermissionRequest()
+                }
+            }
 
             var dayData by remember { mutableStateOf<DayEphemerisData?>(null)}
             var liveData by remember{ mutableStateOf<LiveUpdatesData?>(null) }
@@ -108,14 +224,22 @@ class MainActivity : ComponentActivity() {
             HeliosTheme {
                 Scaffold(
                     //modifier
-                    topBar = { TopBar(
-                        coordinates = coordinates,
-                        onSaveCoordinates = { newCoordinates ->
-                            lifecycleScope.launch {
-                                locationDataStore.saveCoordinates(newCoordinates)
-                            }
-                        },
-                        onLocationClick = {}) },
+                    topBar = {
+                        TopBar(
+                            coordinates = coordinates,
+                            onSaveCoordinates = { newCoordinates ->
+                                lifecycleScope.launch {
+                                    locationDataStore.saveCoordinates(newCoordinates)
+                                }
+                            },
+                            onLocationClick = {
+                                requestLocation()
+                                val isGps = true
+                                val location = "loading"
+                            },
+                            locationService = locationService
+                        )
+                    },
                     bottomBar = {
                         Column(modifier = Modifier.fillMaxWidth()) {
                             TimeMachine(
@@ -185,6 +309,16 @@ class MainActivity : ComponentActivity() {
 //                HeliosApp()
             }
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        locationService.pauseLocationRequest()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        locationService.resumeLocationRequest()
     }
 }
 

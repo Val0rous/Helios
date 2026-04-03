@@ -1,5 +1,10 @@
 package com.ephemeris.helios.ui.composables
 
+import android.Manifest
+import android.R.attr.data
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
@@ -17,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -24,17 +30,23 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -43,14 +55,42 @@ import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.LocationStatus
 import java.util.Locale
 import androidx.compose.ui.platform.LocalLocale
+import com.ephemeris.helios.R
+import com.ephemeris.helios.ui.composables.cards.MapCard
+import com.ephemeris.helios.utils.LocationService
+import com.ephemeris.helios.utils.PermissionStatus
+import com.ephemeris.helios.utils.StartMonitoringResult
+import com.ephemeris.helios.utils.rememberPermission
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopBar(
     coordinates: Coordinates,
     onSaveCoordinates: (Coordinates) -> Unit,
-    onLocationClick: () -> Unit
+    onLocationClick: () -> Unit,
+    locationService: LocationService
 ) {
+    var isLocationLoaded by remember { mutableStateOf(false) }
+
+    val isError = remember { mutableStateOf(false) }
+    var isGps by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val loading = "Loading"
+
+    LaunchedEffect(key1 = locationService.coordinates) {
+        if (locationService.coordinates != null) {
+            val c = locationService.coordinates?.let {
+                Coordinates(
+                    latitude = it.latitude,
+                    longitude = it.longitude,
+                    altitude = it.altitude
+                )
+            }
+            if (c != null) onSaveCoordinates(c)
+            isGps = true
+        }
+    }
+
     var showBottomSheet by remember { mutableStateOf(false) }
     var isEditing by remember { mutableStateOf(false) }
     val locationStatus = LocationStatus.CURRENT // Todo: make it store user setting
@@ -190,6 +230,16 @@ fun TopBar(
                         // --- VIEW MODE ---
                         Column(modifier = Modifier.fillMaxWidth()) {
                             Text("Location Details", style = MaterialTheme.typography.titleLarge)
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            MapCard(
+                                location = coordinates,
+                                modifier = Modifier
+                                    .padding(horizontal = 16.dp)
+                                    .padding(top = 6.dp, bottom = 1.dp)
+                            )
+
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Text(

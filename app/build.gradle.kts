@@ -2,6 +2,11 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.android.secrets)
+}
+
+secrets {
+    propertiesFileName = "secrets.properties"
 }
 
 android {
@@ -61,4 +66,6 @@ dependencies {
     implementation(libs.bundles.navigation)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.bundles.gpsmaps)
+    implementation(libs.material.icons.extended)
 }
