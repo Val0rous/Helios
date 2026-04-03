@@ -2,6 +2,7 @@ package com.ephemeris.helios.ui.composables
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,10 +39,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -57,9 +62,13 @@ import java.time.format.FormatStyle
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import com.ephemeris.helios.R
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -70,6 +79,7 @@ fun TimeMachine(
     onAutoUpdateChange: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
+    val is24Hour = DateFormat.is24HourFormat(context)
     val dayOfWeek = time.format(DateTimeFormatter.ofPattern("EEE", LocalLocale.current.platformLocale))
     val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
     val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
@@ -83,6 +93,9 @@ fun TimeMachine(
     // Picker states
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+
+    val textMeasurer = rememberTextMeasurer()
+    val latestTime by rememberUpdatedState(time)
 
     // Date Picker Dialog
     DatePicker(
@@ -197,20 +210,223 @@ fun TimeMachine(
                     }
                 }
             }
+            // Infinite Slider Canvas Block
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
+                val sliderBackground = MaterialTheme.colorScheme.surfaceContainerHighest
+                val onSurface = MaterialTheme.colorScheme.onSurface
+                val primary = MaterialTheme.colorScheme.primary
+                val triangleIndicatorTop = MaterialTheme.colorScheme.surfaceContainerLow
+                val triangleIndicatorBottom = MaterialTheme.colorScheme.surfaceContainer
+                val textStyle = TextStyle(
+                    color = onSurface,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium
+                )
                 Canvas(
-                    modifier = Modifier.matchParentSize()
+                    modifier = Modifier
+                        .matchParentSize()
+                        .pointerInput(selectedFilterType) {
+                            // Local state for the duration of a single continuous drag gesture
+                            var timeAtDragStart = latestTime
+                            var accumulatedDrag = 0f
+                            detectHorizontalDragGestures(
+                                onDragStart = {
+                                    onAutoUpdateChange(false)    // Pause auto-update on interact
+                                    timeAtDragStart = latestTime    // Anchor the exact time when the user touched the screen
+                                    accumulatedDrag = 0f    // Reset the drag accumulator
+                                }
+                            ) { change, dragAmount ->
+                                change.consume()
+                                accumulatedDrag += dragAmount
+                                // 1. Calculate how many milliseconds 1 pixel represents based on the current scale
+                                val millisPerPixel = when (selectedFilterType) {
+                                    TimeMachineFilter.Hour -> Duration.ofMinutes(60).toMillis().toFloat() / size.width
+                                    TimeMachineFilter.Day -> Duration.ofHours(24).toMillis().toFloat() / size.width
+                                    TimeMachineFilter.Year -> Duration.ofDays(365).toMillis().toFloat() / size.width
+                                }
+
+                                // 2. Shift time in the opposite direction of the drag (drag right -> go to past)
+                                val totalDeltaMillis = (-accumulatedDrag * millisPerPixel).toLong()
+                                onTimeChange(timeAtDragStart.plus(totalDeltaMillis, ChronoUnit.MILLIS))
+                            }
+                        }
                 ) {
+                    val w = size.width
+                    val h = size.height
+                    val center = w / 2f
+
+                    // Draw Background
                     drawRect(
-                        color = MaterialColors.Amber300,
+//                        color = MaterialColors.Amber300,
+                        color = sliderBackground,
                         size = size // refers to Canvas size
     //                    topLeft = Offset(10f, 10f), // Optional: starting point
     //                    size = Size(width = 50f, height = 50f) // Optional: specific dimensions
                     )
+
+                    // 3. Determine the visible time range on the canvas
+                    val millisPerPixel = when (selectedFilterType) {
+                        TimeMachineFilter.Hour -> Duration.ofHours(1).toMillis().toFloat() / w
+                        TimeMachineFilter.Day -> Duration.ofHours(24).toMillis().toFloat() / w
+                        TimeMachineFilter.Year -> Duration.ofDays(365).toMillis().toFloat() / w
+                    }
+
+                    // We can use the raw 'time' parameter here (not latestTime) so the UI redraws correctly
+                    // on recomposition when the ViewModel pushes the new state down
+                    val halfWidthMillis = (center * millisPerPixel).toLong()
+                    val startTime = time.minus(halfWidthMillis, ChronoUnit.MILLIS)
+                    val endTime = time.plus(halfWidthMillis, ChronoUnit.MILLIS)
+
+                    // 4. Draw tick marks and labels based on the selected scale
+                    val minorTickLen = 4.dp.toPx()
+                    val majorTickLen = 8.dp.toPx()
+
+                    when (selectedFilterType) {
+                        TimeMachineFilter.Hour -> {
+                            var currentTick = startTime.truncatedTo(ChronoUnit.MINUTES)
+                            while (!currentTick.isAfter(endTime)) {
+                                val offsetMillis = Duration.between(time, currentTick).toMillis()
+                                val x = center + (offsetMillis / millisPerPixel)
+                                val isMajor = currentTick.minute % 10 == 0
+
+                                // Draw Top and Bottom ticks
+                                val tickLen = if (isMajor) majorTickLen else minorTickLen
+                                drawLine(
+                                    onSurface,
+                                    Offset(x, 0f),
+                                    Offset(x, tickLen),
+                                    strokeWidth = 1.dp.toPx()
+                                )
+                                drawLine(
+                                    onSurface,
+                                    Offset(x, h),
+                                    Offset(x, h - tickLen),
+                                    strokeWidth = 1.dp.toPx()
+                                )
+
+                                if (isMajor) {
+                                    val timeStr =
+                                        currentTick.format(DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h:mm a"))
+                                    val textResult = textMeasurer.measure(timeStr, textStyle)
+                                    // Top right below the tick
+                                    drawText(
+                                        textLayoutResult = textResult,
+                                        topLeft = Offset(x + 4.dp.toPx(), tickLen + 2.dp.toPx())
+                                    )
+
+                                    // Date on midnight
+                                    if (currentTick.hour == 0 && currentTick.minute == 0) {
+                                        val dateStr = currentTick.format(
+                                            DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
+                                        )
+                                        val dateResult = textMeasurer.measure(dateStr, textStyle)
+                                        drawText(
+                                            textLayoutResult = dateResult,
+                                            topLeft = Offset(
+                                                x + 4.dp.toPx(),
+                                                tickLen + 2.dp.toPx() + textResult.size.height
+                                            )
+                                        )
+                                    }
+                                }
+                                currentTick = currentTick.plusMinutes(1)
+                            }
+                        }
+
+                        TimeMachineFilter.Day -> {
+                            var currentTick = startTime.truncatedTo(ChronoUnit.HOURS)
+                            while (!currentTick.isAfter(endTime)) {
+                                val offsetMillis = Duration.between(time, currentTick).toMillis()
+                                val x = center + (offsetMillis / millisPerPixel)
+
+                                drawLine(onSurface, Offset(x, 0f), Offset(x, majorTickLen), strokeWidth = 1.dp.toPx())
+                                drawLine(onSurface, Offset(x, h), Offset(x, h - majorTickLen), strokeWidth = 1.dp.toPx())
+
+                                val labelInterval = if (is24Hour) 2 else 3
+                                if (currentTick.hour % labelInterval == 0) {
+                                    val timeStr = currentTick.format(DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h a"))
+                                    val textResult = textMeasurer.measure(timeStr, textStyle)
+                                    drawText(
+                                        textLayoutResult = textResult,
+                                        topLeft = Offset(x + 4.dp.toPx(), majorTickLen + 2.dp.toPx())
+                                    )
+                                }
+                                currentTick = currentTick.plusHours(1)
+                            }
+                        }
+
+                        TimeMachineFilter.Year -> {
+                            var currentTick =
+                                startTime.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
+                            while (!currentTick.isAfter(endTime)) {
+                                val offsetMillis = Duration.between(time, currentTick).toMillis()
+                                val x = center + (offsetMillis / millisPerPixel)
+
+                                drawLine(
+                                    onSurface,
+                                    Offset(x, 0f),
+                                    Offset(x, majorTickLen),
+                                    strokeWidth = 1.dp.toPx()
+                                )
+                                drawLine(
+                                    onSurface,
+                                    Offset(x, h),
+                                    Offset(x, h - majorTickLen),
+                                    strokeWidth = 1.dp.toPx()
+                                )
+
+                                val monthStr =
+                                    currentTick.format(DateTimeFormatter.ofPattern("MMM"))
+                                        .uppercase()
+                                val textResult = textMeasurer.measure(monthStr, textStyle)
+                                drawText(
+                                    textLayoutResult = textResult,
+                                    topLeft = Offset(x + 4.dp.toPx(), majorTickLen + 2.dp.toPx())
+                                )
+
+                                if (currentTick.monthValue == 1) {
+                                    val yearStr =
+                                        currentTick.format(DateTimeFormatter.ofPattern("yyyy"))
+                                    val yearResult = textMeasurer.measure(
+                                        yearStr,
+                                        textStyle.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    drawText(
+                                        textLayoutResult = yearResult,
+                                        topLeft = Offset(
+                                            x + 4.dp.toPx(),
+                                            majorTickLen + 2.dp.toPx() + textResult.size.height
+                                        )
+                                    )
+                                }
+                                currentTick = currentTick.plusMonths(1)
+                            }
+                        }
+                    }
+
+                    // 5. Draw the Center Indicator Triangles (drawn last so they render on top)
+                    val triHeight = 8.dp.toPx()
+                    val triBaseHalf = triHeight * 2f
+
+                    val topTriangle = Path().apply {
+                        moveTo(center - triBaseHalf, 0f)
+                        lineTo(center + triBaseHalf, 0f)
+                        lineTo(center, triHeight)
+                        close()
+                    }
+                    drawPath(topTriangle, triangleIndicatorTop)
+
+                    val bottomTriangle = Path().apply {
+                        moveTo(center - triBaseHalf, h)
+                        lineTo(center + triBaseHalf, h)
+                        lineTo(center, h - triHeight)
+                        close()
+                    }
+                    drawPath(bottomTriangle, triangleIndicatorBottom)
                 }
 
                 if (!isAutoUpdate) {
