@@ -43,7 +43,11 @@ class LocationService(private val context: Context) {
         override fun onLocationResult(p0: LocationResult) {
             super.onLocationResult(p0)
             with(p0.locations.last()) {
-                coordinates = Coordinates(latitude, longitude, altitude)
+                coordinates = Coordinates(
+                    latitude,
+                    longitude,
+                    altitude,
+                )
             }
         }
     }
@@ -97,7 +101,7 @@ class LocationService(private val context: Context) {
         fusedLocationProviderClient.getCurrentLocation(request, null)
             .addOnSuccessListener { location ->
                 if (location != null) {
-                    coordinates = Coordinates(location.latitude, location.longitude, location.altitude)
+                    coordinates = Coordinates(location.latitude, location.longitude, location.altitude.round(1))
                 }
             }
 //        monitoringStatus = MonitoringStatus.Monitoring
