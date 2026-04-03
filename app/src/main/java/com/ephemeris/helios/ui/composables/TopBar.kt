@@ -61,6 +61,7 @@ import com.ephemeris.helios.utils.LocationService
 import com.ephemeris.helios.utils.PermissionStatus
 import com.ephemeris.helios.utils.StartMonitoringResult
 import com.ephemeris.helios.utils.rememberPermission
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -213,6 +214,7 @@ fun TopBar(
                                     onClick = {
                                         // Trigger the save callback
                                         // We know these aren't null because the button is enabled
+                                        locationStatus = LocationStatus.DISABLED
                                         onSaveCoordinates(
                                             Coordinates(
                                                 latDouble!!,
@@ -256,7 +258,7 @@ fun TopBar(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                "Altitude: ${coordinates.altitude} m",
+                                "Altitude: ${coordinates.altitude.roundToInt()} m",
                                 style = MaterialTheme.typography.bodyLarge
                             )
 

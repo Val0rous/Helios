@@ -1,38 +1,34 @@
 package com.ephemeris.helios
 
 import android.Manifest
-import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
+import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.lifecycleScope
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -44,27 +40,17 @@ import com.ephemeris.helios.ui.screens.Home
 import com.ephemeris.helios.ui.screens.Moon
 import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
-import com.ephemeris.helios.utils.Coordinates
+import com.ephemeris.helios.utils.HeliosViewModel
+import com.ephemeris.helios.utils.LocationPermissionWrapper
 import com.ephemeris.helios.utils.LocationService
-import com.ephemeris.helios.utils.PermissionStatus
 import com.ephemeris.helios.utils.Routes
-import com.ephemeris.helios.utils.StartMonitoringResult
-import com.ephemeris.helios.utils.calc.DayEphemerisData
-import com.ephemeris.helios.utils.calc.LiveUpdatesData
-import com.ephemeris.helios.utils.calc.getDailyEphemerisData
-import com.ephemeris.helios.utils.calc.getLiveUpdates
-import com.ephemeris.helios.utils.datastore.LocationDataStore
-import com.ephemeris.helios.utils.rememberPermission
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.time.ZonedDateTime
 
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
     private lateinit var locationService: LocationService
+    private val viewModel: HeliosViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,234 +58,130 @@ class MainActivity : ComponentActivity() {
         locationService = LocationService(this)
         val initialStartDestination = intent.getStringExtra("startDestination") ?: Routes.Home.route
         // Initialize DataStore repository
-        val locationDataStore = LocationDataStore(this)
 
         setContent {
             navController = rememberNavController()
             val context = LocalContext.current
             var startDestination by remember { mutableStateOf(initialStartDestination) }
-            var currentTime by remember { mutableStateOf(ZonedDateTime.now()) }
-            var isAutoUpdateEnabled by remember { mutableStateOf(true) }
-            val coordinates by locationDataStore.coordinatesFlow.collectAsState(
-                initial = Coordinates(-33.8623, 151.2077)
-            )
+            val coordinates by viewModel.coordinatesState.collectAsState()
+            var isContinuousGPSTrackingEnabled by remember { mutableStateOf(false) }
 
             val snackbarHostState = remember { SnackbarHostState() }
-            val showLocationDisabledAlert = remember { mutableStateOf(false) }
-            var showPermissionDeniedAlert by remember { mutableStateOf(false) }
-            var showPermissionPermanentlyDeniedSnackbar by remember { mutableStateOf(false) }
 
-            val locationPermission = rememberPermission(
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) { status ->
-                when (status) {
-                    PermissionStatus.Granted -> {
-                        val res = locationService.requestCurrentLocation()
-                        showLocationDisabledAlert.value = res == StartMonitoringResult.GPSDisabled
-                    }
-
-                    PermissionStatus.Denied ->
-                        showPermissionDeniedAlert = true
-
-                    PermissionStatus.PermanentlyDenied ->
-                        showPermissionPermanentlyDeniedSnackbar = true
-
-                    PermissionStatus.Unknown -> {}
-                }
-            }
-
-            if (showLocationDisabledAlert.value) {
-                AlertDialog(
-                    title = { Text("Location disabled") },
-                    text = { Text("Location must be enabled to get your current location in the app.") },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            locationService.openLocationSettings()
-                            showLocationDisabledAlert.value = false
-                        }) {
-                            Text("Enable")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showLocationDisabledAlert.value = false }) {
-                            Text("Dismiss")
-                        }
-                    },
-                    onDismissRequest = { showLocationDisabledAlert.value = false }
-                )
-            }
-
-            if (showPermissionDeniedAlert) {
-                AlertDialog(
-                    title = { Text("Location permission denied") },
-                    text = { Text("Location permission is required to get your current location in the app.") },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            locationPermission.launchPermissionRequest()
-                            showPermissionDeniedAlert = false
-                        }) {
-                            Text("Grant")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showPermissionDeniedAlert = false }) {
-                            Text("Dismiss")
-                        }
-                    },
-                    onDismissRequest = { showPermissionDeniedAlert = false }
-                )
-            }
-
-            if (showPermissionPermanentlyDeniedSnackbar) {
-                LaunchedEffect(snackbarHostState) {
-                    val res = snackbarHostState.showSnackbar(
-                        "Location permission is required.",
-                        "Go to Settings",
-                        duration = SnackbarDuration.Long
-                    )
-                    if (res == SnackbarResult.ActionPerformed) {
-                        val intent =
-                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
-                                data = Uri.fromParts("package", context.packageName, null)
-                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            }
-                        if (intent.resolveActivity(context.packageManager) != null) {
-                            context.startActivity(intent)
-                        }
-                    }
-                    showPermissionPermanentlyDeniedSnackbar = false
-                }
-            }
-
-            fun requestLocation() {
-                if (locationPermission.status.isGranted) {
-                    val res = locationService.requestCurrentLocation()
-                    showLocationDisabledAlert.value = res == StartMonitoringResult.GPSDisabled
-                } else {
-                    locationPermission.launchPermissionRequest()
-                }
-            }
-
-            var dayData by remember { mutableStateOf<DayEphemerisData?>(null)}
-            var liveData by remember{ mutableStateOf<LiveUpdatesData?>(null) }
 
             // 1. Heavy Daily Math: Only recalculates when the DATE or LOCATION changes
-            LaunchedEffect(coordinates, currentTime.toLocalDate()) {
-                withContext(Dispatchers.Default) {
-                    dayData = getDailyEphemerisData(currentTime, coordinates)
-                }
+            LaunchedEffect(coordinates, viewModel.currentTime.toLocalDate()) {
+                coordinates?.let { viewModel.updateDayData(it) }
             }
 
             // 2. Live Updates Ticker: Runs every 12 seconds for live UI updates, or when datetime is manually changed
-            val manualTimeKey = if (!isAutoUpdateEnabled) currentTime else Unit
-            LaunchedEffect(isAutoUpdateEnabled, coordinates, manualTimeKey) {
-                if (isAutoUpdateEnabled) {
+            val manualTimeKey = if (!viewModel.isAutoUpdateEnabled) viewModel.currentTime else Unit
+            LaunchedEffect(viewModel.isAutoUpdateEnabled, coordinates, manualTimeKey) {
+                coordinates?.let {
                     while (true) {
-                        withContext(Dispatchers.Default) {
-                            // Bypass the state race condition by grabbing the system time directly
-                            liveData = getLiveUpdates(ZonedDateTime.now(), coordinates)
-                        }
+                        viewModel.startLiveUpdatesTicker(it)
+                        if (!viewModel.isAutoUpdateEnabled) break   // Stop looping if manual
                         delay(12000)
                     }
-                } else {
-                    withContext(Dispatchers.Default) {
-                        liveData = getLiveUpdates(currentTime, coordinates)
-                    }
-                }
-            }
-
-            // 3. Calculate time every second to update TimeMachine clock
-            LaunchedEffect(isAutoUpdateEnabled, coordinates) {
-                if (isAutoUpdateEnabled) {
-                    do {
-                        withContext(Dispatchers.Default) {
-                            currentTime = ZonedDateTime.now()
-                        }
-                        delay(1000)
-                    } while (isAutoUpdateEnabled)
                 }
             }
 
             HeliosTheme {
-                Scaffold(
-                    //modifier
-                    topBar = {
-                        TopBar(
-                            coordinates = coordinates,
-                            onSaveCoordinates = { newCoordinates ->
-                                lifecycleScope.launch {
-                                    locationDataStore.saveCoordinates(newCoordinates)
-                                }
-                            },
-                            onLocationClick = {
-                                requestLocation()
-                            },
-                            locationService = locationService
-                        )
-                    },
-                    bottomBar = {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            TimeMachine(
-                                time = currentTime,
-                                isAutoUpdate = isAutoUpdateEnabled,
-                                onTimeChange = { currentTime = it },
-                                onAutoUpdateChange = { isAutoUpdateEnabled = it },
-                            )
-                            Navbar(navController)
-                        }
-                    },
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                ) { paddingValues ->
-                    LaunchedEffect(Unit) {
-                        savedInstanceState?.getString("NAVIGATION_STATE")?.let { savedRoute ->
-                            startDestination = savedRoute
-                        }
-                    }
-                    // Guard clause: Don't render the heavy UI until the background threads finish their first pass
-                    if (dayData == null || liveData == null) {
-                        Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                        return@Scaffold
-                    }
+                // Wrapper handles all dialogs and lifecycle automatically
+                LocationPermissionWrapper(
+                    locationService = locationService,
+                    snackbarHostState = snackbarHostState,
+                    isContinuousGPSTrackingEnabled = isContinuousGPSTrackingEnabled
+                ) { requestOneOffLocation, startContinuousTracking, stopTracking ->
 
-                    NavHost(
-                        navController = navController,
-                        startDestination = startDestination,
-                        modifier = Modifier.padding(paddingValues = paddingValues)
-                    ) {
-                        composable(Routes.Home.route) {
-                            Home(
-                                seasonalEvents = dayData!!.seasonalEvents,
-                                seasonalDailyEvents = dayData!!.seasonalDailyEvents
-                            )
+                    Scaffold(
+                        //modifier
+                        topBar = {
+                            coordinates?.let { currentCoords ->
+                                TopBar(
+                                    coordinates = currentCoords,
+                                    onSaveCoordinates = { viewModel.saveCoordinates(it) },
+                                    onLocationClick = { requestOneOffLocation() },
+                                    locationService = locationService
+                                )
+                            }
+                        },
+                        bottomBar = {
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                TimeMachine(
+                                    time = viewModel.currentTime,
+                                    isAutoUpdate = viewModel.isAutoUpdateEnabled,
+                                    onTimeChange = { viewModel.currentTime = it },
+                                    onAutoUpdateChange = { viewModel.isAutoUpdateEnabled = it },
+                                )
+                                Navbar(navController)
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.surfaceContainer
+                    ) { paddingValues ->
+                        LaunchedEffect(Unit) {
+                            savedInstanceState?.getString("NAVIGATION_STATE")?.let { savedRoute ->
+                                startDestination = savedRoute
+                            }
                         }
-                        composable(Routes.Exposure.route) {
-                            //UV()
+                        // Guard clause: Don't render the heavy UI until the background threads finish their first pass
+                        if (coordinates == null || viewModel.dayData == null || viewModel.liveData == null) {
+                            Box(
+                                modifier = Modifier.fillMaxSize().padding(paddingValues),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator()
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(if (coordinates == null) "Waiting for location..." else "Calculating Ephemeris...")
+                                }
+                            }
+
+                            // If coordinates are null, proactively ask for location on first launch
+                            LaunchedEffect(Unit) {
+                                if (coordinates == null) requestOneOffLocation()
+                            }
+                            return@Scaffold
                         }
-                        composable(Routes.Sun.route) {
-                            Sun(
-                                currentTime = currentTime,
-                                coordinates = coordinates,
-                                currentSolarPosition = liveData!!.currentSunPosition,
-                                events = dayData!!.events,
-                                durations = dayData!!.durations,
-                                dailyPeakMetrics = dayData!!.dailyPeakMetrics,
-                                liveMetrics = liveData!!.liveSunMetrics
-                            )
-                        }
-                        composable(Routes.Moon.route) {
-                            Moon(
-                                currentTime = currentTime,
-                                coordinates = coordinates,
-                                currentPosition = liveData!!.currentMoonPosition,
-                                events = dayData!!.lunarEvents,
-                                dailyPeakMetrics = dayData!!.lunarDailyPeakMetrics!!,
-                                liveMetrics = liveData!!.liveMoonMetrics
-                            )
-                        }
-                        composable(Routes.Planets.route) {
-                            //Planets()
+
+                        NavHost(
+                            navController = navController,
+                            startDestination = startDestination,
+                            modifier = Modifier.padding(paddingValues = paddingValues)
+                        ) {
+                            composable(Routes.Home.route) {
+                                Home(
+                                    seasonalEvents = viewModel.dayData!!.seasonalEvents,
+                                    seasonalDailyEvents = viewModel.dayData!!.seasonalDailyEvents
+                                )
+                            }
+                            composable(Routes.Exposure.route) {
+                                //UV()
+                            }
+                            composable(Routes.Sun.route) {
+                                Sun(
+                                    currentTime = viewModel.currentTime,
+                                    coordinates = coordinates!!,
+                                    currentSolarPosition = viewModel.liveData!!.currentSunPosition,
+                                    events = viewModel.dayData!!.events,
+                                    durations = viewModel.dayData!!.durations,
+                                    dailyPeakMetrics = viewModel.dayData!!.dailyPeakMetrics,
+                                    liveMetrics = viewModel.liveData!!.liveSunMetrics
+                                )
+                            }
+                            composable(Routes.Moon.route) {
+                                Moon(
+                                    currentTime = viewModel.currentTime,
+                                    coordinates = coordinates!!,
+                                    currentPosition = viewModel.liveData!!.currentMoonPosition,
+                                    events = viewModel.dayData!!.lunarEvents,
+                                    dailyPeakMetrics = viewModel.dayData!!.lunarDailyPeakMetrics!!,
+                                    liveMetrics = viewModel.liveData!!.liveMoonMetrics
+                                )
+                            }
+                            composable(Routes.Planets.route) {
+                                //Planets()
+                            }
                         }
                     }
                 }
@@ -313,6 +195,7 @@ class MainActivity : ComponentActivity() {
         locationService.pauseLocationRequest()
     }
 
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     override fun onResume() {
         super.onResume()
         locationService.resumeLocationRequest()

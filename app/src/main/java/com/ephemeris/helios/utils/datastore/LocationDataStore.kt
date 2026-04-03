@@ -21,13 +21,15 @@ class LocationDataStore(private val context: Context) {
     private val altitudeKey = doublePreferencesKey("altitude")
 
     // 2. Expose a Flow to read the coordinates
-    val coordinatesFlow: Flow<Coordinates> = context.dataStore.data
+    val coordinatesFlow: Flow<Coordinates?> = context.dataStore.data
         .map { preferences ->
             // Read values, providing a default fallback (e.g., your 3.1, 11.99)
-            val lat = preferences[latitudeKey] ?: 3.1
-            val lon = preferences[longitudeKey] ?: 11.99
-            val alt = preferences[altitudeKey] ?: 0.0
-            Coordinates(lat, lon, alt)
+            val lat = preferences[latitudeKey]
+            val lon = preferences[longitudeKey]
+            val alt = preferences[altitudeKey]
+            if (lat != null && lon != null && alt != null) {
+                Coordinates(lat, lon, alt)
+            } else null
         }
 
     // 3. Function to save new coordinates
