@@ -2,6 +2,7 @@ package com.ephemeris.helios.ui.composables
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -14,13 +15,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -29,9 +40,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.MapCard
 import com.ephemeris.helios.ui.composables.entries.TextEntryLocation
 import com.ephemeris.helios.utils.Coordinates
@@ -50,6 +65,8 @@ fun LocationBottomSheet(
     onLocationStatusChange: (LocationStatus) -> Unit,
     showBottomSheet: Boolean,
     onShowBottomSheetChange: (Boolean) -> Unit,
+    isTracking: Boolean,
+    onToggleTracking: (Boolean) -> Unit
 ) {
     var isEditing by remember { mutableStateOf(false) }
 
@@ -146,13 +163,7 @@ fun LocationBottomSheet(
                                         // Trigger the save callback
                                         // We know these aren't null because the button is enabled
                                         onLocationStatusChange(LocationStatus.DISABLED)
-                                        onSaveCoordinates(
-                                            Coordinates(
-                                                latDouble!!,
-                                                lonDouble!!,
-                                                altDouble!!,
-                                            )
-                                        )
+                                        onSaveCoordinates(Coordinates(latDouble!!, lonDouble!!, altDouble!!,))
                                         // Return to view mode
                                         isEditing = false
                                     },
@@ -165,6 +176,80 @@ fun LocationBottomSheet(
                     } else {
                         // --- VIEW MODE ---
                         Column(modifier = Modifier.fillMaxWidth()) {
+
+                            // Smooth color transitions for the switch surface
+                            val surfaceColor by animateColorAsState(
+                                targetValue = if (isTracking) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                label = "surfaceColor"
+                            )
+                            val contentColor by animateColorAsState(
+                                targetValue = if (isTracking) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                label = "contentColor"
+                            )
+                            val iconTint by animateColorAsState(
+                                targetValue = if (isTracking) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary,
+                                label = "iconTint"
+                            )
+
+                            Surface(
+                                color = surfaceColor,
+                                shape = RoundedCornerShape(32.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .toggleable(
+                                            value = isTracking,
+                                            onValueChange = { onToggleTracking(it) },
+                                            role = Role.Switch
+                                        )
+                                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_my_location),
+                                            contentDescription = null,
+                                            tint = iconTint
+                                        )
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Text(
+                                            text = "Continuous Tracking",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = contentColor
+                                        )
+                                    }
+
+                                    // Custom icons for the internal switch thumb
+                                    val switchIcon: (@Composable () -> Unit)? = if (isTracking) {
+                                        {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(SwitchDefaults.IconSize)
+                                            )
+                                        }
+                                    } else {
+                                        {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Close,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(SwitchDefaults.IconSize)
+                                            )
+                                        }
+                                    }
+                                    Switch(
+                                        checked = isTracking,
+                                        onCheckedChange = null,  // Handled implicitly by the toggleable Row
+                                        thumbContent = switchIcon
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
                             Text("Location Details", style = MaterialTheme.typography.titleLarge)
 
                             Spacer(modifier = Modifier.height(16.dp))

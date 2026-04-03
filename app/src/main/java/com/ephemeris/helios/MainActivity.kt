@@ -101,6 +101,15 @@ class MainActivity : ComponentActivity() {
                                     coordinates = currentCoords,
                                     onSaveCoordinates = { vm.saveCoordinates(it) },
                                     onLocationClick = { requestOneOffLocation() },
+                                    isTracking = isContinuousGPSTrackingEnabled,
+                                    onToggleTracking = { enableTracking ->
+                                        isContinuousGPSTrackingEnabled = enableTracking
+                                        if (enableTracking) {
+                                            startContinuousTracking(10000L)
+                                        } else {
+                                            stopTracking()
+                                        }
+                                    },
                                     locationService = locationService
                                 )
                             }
