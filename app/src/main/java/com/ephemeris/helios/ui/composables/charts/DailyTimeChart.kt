@@ -27,6 +27,7 @@ import com.ephemeris.helios.utils.charts.drawCurvePath
 import com.ephemeris.helios.utils.charts.drawDayNightAreaFill
 import com.ephemeris.helios.utils.charts.drawDayNightBackground
 import com.ephemeris.helios.utils.charts.drawElapsedPath
+import com.ephemeris.helios.utils.charts.drawElapsedTimePath
 import com.ephemeris.helios.utils.charts.drawHorizonLine
 import com.ephemeris.helios.utils.charts.drawNightVerticalTwilights
 import com.ephemeris.helios.utils.charts.drawUVSlices
@@ -260,7 +261,7 @@ fun DailyTimeChart(
         drawCurvePath(curvePath, materialTheme)
 
         // --- Draw the elapsed path line on top
-        drawElapsedPath(curvePath, localCustomColors, chartType, currentXPx)
+        drawElapsedTimePath(curvePath, localCustomColors, chartType, currentXPx)
 
         // 5. Draw a subtle X-Axis line to visually separate the zones
         drawHorizonLine(materialTheme, params, zeroYPixel)

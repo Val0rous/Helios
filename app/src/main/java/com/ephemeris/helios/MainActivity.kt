@@ -75,7 +75,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // 2. Lightweight Ticker: Runs every 12 seconds for live UI updates, or when time is manually changed
+            // 2a. Lightweight Ticker: Runs every 12 seconds for live UI updates
             LaunchedEffect(isAutoUpdateEnabled, coordinates) {
                 if (isAutoUpdateEnabled) {
                     do {
@@ -86,6 +86,15 @@ class MainActivity : ComponentActivity() {
                     } while (isAutoUpdateEnabled)
                 } else {
                     liveData = getLiveUpdates(currentTime, coordinates)
+                }
+            }
+
+            // 2b. Ticker that runs when time is manually changed
+            LaunchedEffect(isAutoUpdateEnabled, coordinates, currentTime) {
+                if (!isAutoUpdateEnabled) {
+                    withContext(Dispatchers.Default) {
+                        liveData = getLiveUpdates(currentTime, coordinates)
+                    }
                 }
             }
 

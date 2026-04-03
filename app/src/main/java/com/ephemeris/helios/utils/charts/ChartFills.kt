@@ -66,19 +66,27 @@ fun DrawScope.drawElapsedPath(
     curvePath: Path,
     localCustomColors: CustomColorScheme,
     chartType: Charts,
-    currentXPx: Float
 ) {
     val elapsedPathColor = when (chartType) {
         is Charts.Sun -> localCustomColors.sunPath
         is Charts.Moon -> localCustomColors.moonPath
         else -> Color.Green // TODO
     }
+    drawPath(
+        path = curvePath,
+        color = elapsedPathColor,
+        style = Stroke(width = 2.dp.toPx())
+    )
+}
+
+fun DrawScope.drawElapsedTimePath(
+    curvePath: Path,
+    localCustomColors: CustomColorScheme,
+    chartType: Charts,
+    currentXPx: Float
+) {
     clipRect(right = currentXPx) {
-        drawPath(
-            path = curvePath,
-            color = elapsedPathColor,
-            style = Stroke(width = 2.dp.toPx())
-        )
+        drawElapsedPath(curvePath, localCustomColors, chartType)
     }
 }
 

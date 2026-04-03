@@ -23,7 +23,6 @@ import com.ephemeris.helios.utils.charts.drawHorizonLine
 import com.ephemeris.helios.utils.charts.drawVerticalDropLine
 import com.ephemeris.helios.utils.charts.drawXLabels
 import com.ephemeris.helios.utils.charts.drawYLabels
-import com.ephemeris.helios.utils.charts.getElapsedLineColor
 import com.ephemeris.helios.utils.charts.getMapX
 import com.ephemeris.helios.utils.charts.getMapY
 import com.ephemeris.helios.utils.charts.getMaxX
@@ -113,7 +112,6 @@ fun DailyAzimuthChart(
 
         // --- CHRONOLOGICAL ELAPSED LINE ---
         val elapsedLinePath = buildDynamicPath(0, bestIndex, false)
-        val elapsedLineColor = getElapsedLineColor(chartType, localCustomColors)
 
         // Day & Night Background
         drawDayNightBackground(colorScheme, params, zeroYPixel)
@@ -126,7 +124,7 @@ fun DailyAzimuthChart(
         drawCurvePath(curvePath, materialTheme)
 
         // --- Draw the elapsed path line on top ---
-        drawElapsedPath(elapsedLinePath, localCustomColors, chartType, currentXPx)
+        drawElapsedPath(elapsedLinePath, localCustomColors, chartType)
 
         // 5. Draw a subtle X-Axis line to visually separate the zones (Horizon Line)
         drawHorizonLine(materialTheme, params, zeroYPixel)

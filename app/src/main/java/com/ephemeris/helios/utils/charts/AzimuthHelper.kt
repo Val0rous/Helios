@@ -61,11 +61,3 @@ fun buildDynamicPath(
         }
     }
 }
-
-fun getElapsedLineColor(chartType: Charts, localCustomColors: CustomColorScheme): Color {
-    return when (chartType) {
-        is Charts.Sun -> localCustomColors.sunPath
-        is Charts.Moon -> localCustomColors.moonPath
-        else -> Color.Green // TODO
-    }
-}
