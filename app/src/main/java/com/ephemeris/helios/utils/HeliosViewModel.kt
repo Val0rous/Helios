@@ -36,8 +36,18 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
     var liveData by mutableStateOf<LiveUpdatesData?>(null)
         private set
 
+    var isDataStoreLoaded by mutableStateOf(false)
+        private set
+
     init {
         startClockTicker()
+
+        // Listen for the very first DataStore emission
+        viewModelScope.launch {
+            locationDataStore.coordinatesFlow.collect {
+                isDataStoreLoaded = true
+            }
+        }
     }
 
     fun saveCoordinates(newCoordinates: Coordinates) {

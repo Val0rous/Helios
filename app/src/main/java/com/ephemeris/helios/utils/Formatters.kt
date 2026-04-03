@@ -34,6 +34,24 @@ fun formatNumber(number: Double): String {
     return numberFormatter.format(number)
 }
 
+fun Double.formatLatitude(): String {
+    val direction = if (this >= 0) "N" else "S"
+    val absValue = abs(this)
+    val degrees = absValue.toInt()
+    val minutes = ((absValue - degrees) * 60).toInt()
+    val seconds = ((absValue - degrees - minutes / 60.0) * 3600.0).roundToInt()
+    return "$degrees°$minutes′$seconds″ $direction"
+}
+
+fun Double.formatLongitude(): String {
+    val direction = if (this >= 0) "E" else "W"
+    val absValue = abs(this)
+    val degrees = absValue.toInt()
+    val minutes = ((absValue - degrees) * 60).toInt()
+    val seconds = ((absValue - degrees - minutes / 60.0) * 3600.0).roundToInt()
+    return "$degrees°$minutes′$seconds″ $direction"
+}
+
 fun Double.round(decimals: Int = 1): Double {
     return BigDecimal(this).setScale(decimals, RoundingMode.HALF_UP).toDouble()
 }

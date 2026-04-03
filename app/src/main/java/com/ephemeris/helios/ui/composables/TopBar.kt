@@ -1,6 +1,9 @@
 package com.ephemeris.helios.ui.composables
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,11 +27,18 @@ import androidx.compose.ui.res.stringResource
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.LocationStatus
 import androidx.compose.ui.platform.LocalLocale
+import com.ephemeris.helios.R
 import com.ephemeris.helios.utils.LocationService
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TopBar(
+    currentTime: ZonedDateTime,
     coordinates: Coordinates,
     onSaveCoordinates: (Coordinates) -> Unit,
     onLocationClick: () -> Unit,
@@ -63,26 +73,66 @@ fun TopBar(
     TopAppBar(
         title = {
             TextButton(onClick = { showBottomSheet = true }) {
-                val formattedLat = String.format(LocalLocale.current.platformLocale, "%.4f", coordinates.latitude)
-                val formattedLon = String.format(LocalLocale.current.platformLocale, "%.4f", coordinates.longitude)
-                Text("$formattedLat, $formattedLon")
+                val formattedLat = String.format(
+                    LocalLocale.current.platformLocale,
+                    "%.2f",
+                    coordinates.latitude
+                )
+                val formattedLon = String.format(
+                    LocalLocale.current.platformLocale,
+                    "%.2f",
+                    coordinates.longitude
+                )
+                val formattedTimeZone = currentTime.format(DateTimeFormatter.ofPattern("z"))
+                val formattedOffset = "UTC${currentTime.offset}"
+                val formattedAlt = "${coordinates.altitude.roundToInt()}m"
+
+                Column(
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "Hamilton St., London",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = "$formattedLat, $formattedLon · $formattedTimeZone · $formattedOffset · $formattedAlt",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
         },
         actions = {
-            IconButton(
-                onClick = {
-                    locationStatus = LocationStatus.SEARCHING
-                    onLocationClick()
-                }
+            Row(
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                IconButton(
+                    onClick = {}
+                ) {
                     Icon(
-                        painter = painterResource(id = locationStatus.icon),
-                        tint = color,
-                        contentDescription = stringResource(locationStatus.desc)
+                        painter = painterResource(id = R.drawable.ic_page_info),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        contentDescription = "Settings"
                     )
-                    if (locationStatus == LocationStatus.SEARCHING) {
-                        CircularProgressIndicator()
+                }
+                IconButton(
+                    onClick = {
+                        locationStatus = LocationStatus.SEARCHING
+                        onLocationClick()
+                    }
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            painter = painterResource(id = locationStatus.icon),
+                            tint = color,
+                            contentDescription = stringResource(locationStatus.desc)
+                        )
+                        if (locationStatus == LocationStatus.SEARCHING) {
+                            CircularProgressIndicator()
+                        }
                     }
                 }
             }

@@ -33,8 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.ui.composables.cards.MapCard
+import com.ephemeris.helios.ui.composables.entries.TextEntry
+import com.ephemeris.helios.ui.composables.entries.TextEntryLocation
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.LocationStatus
+import com.ephemeris.helios.utils.formatLatitude
+import com.ephemeris.helios.utils.formatLongitude
+import com.ephemeris.helios.utils.round
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -173,19 +178,21 @@ fun LocationBottomSheet(
 
                             Spacer(modifier = Modifier.height(16.dp))
 
-                            Text(
-                                "Latitude: ${coordinates.latitude}°",
-                                style = MaterialTheme.typography.bodyLarge
+                            TextEntryLocation(
+                                label = "Latitude",
+                                value = "${coordinates.latitude.round(6)}°",
+                                extra = coordinates.latitude.formatLatitude()
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                "Longitude: ${coordinates.longitude}°",
-                                style = MaterialTheme.typography.bodyLarge
+                            TextEntryLocation(
+                                label = "Longitude",
+                                value = "${coordinates.longitude.round(6)}°",
+                                extra = coordinates.longitude.formatLongitude()
                             )
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                "Altitude: ${coordinates.altitude} m",
-                                style = MaterialTheme.typography.bodyLarge
+                            TextEntryLocation(
+                                label = "Altitude",
+                                value = "${coordinates.altitude} m"
                             )
 
                             Spacer(modifier = Modifier.height(24.dp))

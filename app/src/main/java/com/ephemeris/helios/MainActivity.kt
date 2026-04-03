@@ -1,12 +1,10 @@
 package com.ephemeris.helios
 
-import android.Manifest
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -50,7 +48,7 @@ import kotlinx.coroutines.delay
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
     private lateinit var locationService: LocationService
-    private val viewModel: HeliosViewModel by viewModels()
+    private val vm: HeliosViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,24 +61,24 @@ class MainActivity : ComponentActivity() {
             navController = rememberNavController()
             val context = LocalContext.current
             var startDestination by remember { mutableStateOf(initialStartDestination) }
-            val coordinates by viewModel.coordinatesState.collectAsState()
+            val coordinates by vm.coordinatesState.collectAsState()
             var isContinuousGPSTrackingEnabled by remember { mutableStateOf(false) }
 
             val snackbarHostState = remember { SnackbarHostState() }
 
 
             // 1. Heavy Daily Math: Only recalculates when the DATE or LOCATION changes
-            LaunchedEffect(coordinates, viewModel.currentTime.toLocalDate()) {
-                coordinates?.let { viewModel.updateDayData(it) }
+            LaunchedEffect(coordinates, vm.currentTime.toLocalDate()) {
+                coordinates?.let { vm.updateDayData(it) }
             }
 
             // 2. Live Updates Ticker: Runs every 12 seconds for live UI updates, or when datetime is manually changed
-            val manualTimeKey = if (!viewModel.isAutoUpdateEnabled) viewModel.currentTime else Unit
-            LaunchedEffect(viewModel.isAutoUpdateEnabled, coordinates, manualTimeKey) {
+            val manualTimeKey = if (!vm.isAutoUpdateEnabled) vm.currentTime else Unit
+            LaunchedEffect(vm.isAutoUpdateEnabled, coordinates, manualTimeKey) {
                 coordinates?.let {
                     while (true) {
-                        viewModel.startLiveUpdatesTicker(it)
-                        if (!viewModel.isAutoUpdateEnabled) break   // Stop looping if manual
+                        vm.startLiveUpdatesTicker(it)
+                        if (!vm.isAutoUpdateEnabled) break   // Stop looping if manual
                         delay(12000)
                     }
                 }
@@ -99,8 +97,9 @@ class MainActivity : ComponentActivity() {
                         topBar = {
                             coordinates?.let { currentCoords ->
                                 TopBar(
+                                    currentTime = vm.currentTime,
                                     coordinates = currentCoords,
-                                    onSaveCoordinates = { viewModel.saveCoordinates(it) },
+                                    onSaveCoordinates = { vm.saveCoordinates(it) },
                                     onLocationClick = { requestOneOffLocation() },
                                     locationService = locationService
                                 )
@@ -109,10 +108,10 @@ class MainActivity : ComponentActivity() {
                         bottomBar = {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 TimeMachine(
-                                    time = viewModel.currentTime,
-                                    isAutoUpdate = viewModel.isAutoUpdateEnabled,
-                                    onTimeChange = { viewModel.currentTime = it },
-                                    onAutoUpdateChange = { viewModel.isAutoUpdateEnabled = it },
+                                    time = vm.currentTime,
+                                    isAutoUpdate = vm.isAutoUpdateEnabled,
+                                    onTimeChange = { vm.currentTime = it },
+                                    onAutoUpdateChange = { vm.isAutoUpdateEnabled = it },
                                 )
                                 Navbar(navController)
                             }
@@ -124,8 +123,8 @@ class MainActivity : ComponentActivity() {
                                 startDestination = savedRoute
                             }
                         }
-                        // Guard clause: Don't render the heavy UI until the background threads finish their first pass
-                        if (coordinates == null || viewModel.dayData == null || viewModel.liveData == null) {
+                        // 1. Guard clause: Wait for the physical disk to finish reading
+                        if (!vm.isDataStoreLoaded) {
                             Box(
                                 modifier = Modifier.fillMaxSize().padding(paddingValues),
                                 contentAlignment = Alignment.Center
@@ -133,13 +132,42 @@ class MainActivity : ComponentActivity() {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                     CircularProgressIndicator()
                                     Spacer(modifier = Modifier.height(16.dp))
-                                    Text(if (coordinates == null) "Waiting for location..." else "Calculating Ephemeris...")
+                                    Text("Reading saved data...")
+                                }
+                            }
+                            return@Scaffold
+                        }
+
+                        // 2. Guard clause: Disk loaded, but it's empty (First Launch). Fire the GPS.
+                        if (coordinates == null) {
+                            Box(
+                                modifier = Modifier.fillMaxSize().padding(paddingValues),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator()
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text("Waiting for GPS location...")
                                 }
                             }
 
-                            // If coordinates are null, proactively ask for location on first launch
                             LaunchedEffect(Unit) {
-                                if (coordinates == null) requestOneOffLocation()
+                                requestOneOffLocation()
+                            }
+                            return@Scaffold
+                        }
+
+                        // 3. Guard clause: Coordinates exist, but the background math is still calculating
+                        if (vm.dayData == null || vm.liveData == null) {
+                            Box(
+                                modifier = Modifier.fillMaxSize().padding(paddingValues),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator()
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text("Calculating Ephemeris...")
+                                }
                             }
                             return@Scaffold
                         }
@@ -151,8 +179,8 @@ class MainActivity : ComponentActivity() {
                         ) {
                             composable(Routes.Home.route) {
                                 Home(
-                                    seasonalEvents = viewModel.dayData!!.seasonalEvents,
-                                    seasonalDailyEvents = viewModel.dayData!!.seasonalDailyEvents
+                                    seasonalEvents = vm.dayData!!.seasonalEvents,
+                                    seasonalDailyEvents = vm.dayData!!.seasonalDailyEvents
                                 )
                             }
                             composable(Routes.Exposure.route) {
@@ -160,23 +188,23 @@ class MainActivity : ComponentActivity() {
                             }
                             composable(Routes.Sun.route) {
                                 Sun(
-                                    currentTime = viewModel.currentTime,
+                                    currentTime = vm.currentTime,
                                     coordinates = coordinates!!,
-                                    currentSolarPosition = viewModel.liveData!!.currentSunPosition,
-                                    events = viewModel.dayData!!.events,
-                                    durations = viewModel.dayData!!.durations,
-                                    dailyPeakMetrics = viewModel.dayData!!.dailyPeakMetrics,
-                                    liveMetrics = viewModel.liveData!!.liveSunMetrics
+                                    currentSolarPosition = vm.liveData!!.currentSunPosition,
+                                    events = vm.dayData!!.events,
+                                    durations = vm.dayData!!.durations,
+                                    dailyPeakMetrics = vm.dayData!!.dailyPeakMetrics,
+                                    liveMetrics = vm.liveData!!.liveSunMetrics
                                 )
                             }
                             composable(Routes.Moon.route) {
                                 Moon(
-                                    currentTime = viewModel.currentTime,
+                                    currentTime = vm.currentTime,
                                     coordinates = coordinates!!,
-                                    currentPosition = viewModel.liveData!!.currentMoonPosition,
-                                    events = viewModel.dayData!!.lunarEvents,
-                                    dailyPeakMetrics = viewModel.dayData!!.lunarDailyPeakMetrics!!,
-                                    liveMetrics = viewModel.liveData!!.liveMoonMetrics
+                                    currentPosition = vm.liveData!!.currentMoonPosition,
+                                    events = vm.dayData!!.lunarEvents,
+                                    dailyPeakMetrics = vm.dayData!!.lunarDailyPeakMetrics!!,
+                                    liveMetrics = vm.liveData!!.liveMoonMetrics
                                 )
                             }
                             composable(Routes.Planets.route) {
@@ -188,17 +216,6 @@ class MainActivity : ComponentActivity() {
 //                HeliosApp()
             }
         }
-    }
-
-    override fun onPause() {
-        super.onPause()
-        locationService.pauseLocationRequest()
-    }
-
-    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
-    override fun onResume() {
-        super.onResume()
-        locationService.resumeLocationRequest()
     }
 }
 

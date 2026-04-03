@@ -1,6 +1,7 @@
 package com.ephemeris.helios.utils
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
@@ -20,6 +21,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 
+@SuppressLint("MissingPermission")
 @Composable
 fun LocationPermissionWrapper(
     locationService: LocationService,
