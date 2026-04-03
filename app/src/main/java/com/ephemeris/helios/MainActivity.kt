@@ -75,23 +75,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // 2a. Lightweight Ticker: Runs every 12 seconds for live UI updates
-            LaunchedEffect(isAutoUpdateEnabled, coordinates) {
+            // 2. Live Updates Ticker: Runs every 12 seconds for live UI updates, or when datetime is manually changed
+            val manualTimeKey = if (!isAutoUpdateEnabled) currentTime else Unit
+            LaunchedEffect(isAutoUpdateEnabled, coordinates, manualTimeKey) {
                 if (isAutoUpdateEnabled) {
-                    do {
+                    while (true) {
                         withContext(Dispatchers.Default) {
-                            liveData = getLiveUpdates(currentTime, coordinates)
+                            // Bypass the state race condition by grabbing the system time directly
+                            liveData = getLiveUpdates(ZonedDateTime.now(), coordinates)
                         }
                         delay(12000)
-                    } while (isAutoUpdateEnabled)
+                    }
                 } else {
-                    liveData = getLiveUpdates(currentTime, coordinates)
-                }
-            }
-
-            // 2b. Ticker that runs when time is manually changed
-            LaunchedEffect(isAutoUpdateEnabled, coordinates, currentTime) {
-                if (!isAutoUpdateEnabled) {
                     withContext(Dispatchers.Default) {
                         liveData = getLiveUpdates(currentTime, coordinates)
                     }
@@ -103,8 +98,7 @@ class MainActivity : ComponentActivity() {
                 if (isAutoUpdateEnabled) {
                     do {
                         withContext(Dispatchers.Default) {
-                            val newTime = ZonedDateTime.now()
-                            currentTime = newTime
+                            currentTime = ZonedDateTime.now()
                         }
                         delay(1000)
                     } while (isAutoUpdateEnabled)
