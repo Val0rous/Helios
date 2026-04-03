@@ -46,6 +46,8 @@ import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.utils.LocationService
+import com.ephemeris.helios.utils.formatShortLatitude
+import com.ephemeris.helios.utils.formatShortLongitude
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -114,16 +116,9 @@ fun TopBar(
                 onClick = { showBottomSheet = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                val formattedLat = String.format(
-                    LocalLocale.current.platformLocale,
-                    "%.2f",
-                    coordinates.latitude
-                )
-                val formattedLon = String.format(
-                    LocalLocale.current.platformLocale,
-                    "%.2f",
-                    coordinates.longitude
-                )
+                val formattedLatitude = coordinates.latitude.formatShortLatitude()
+                val formattedLongitude = coordinates.longitude.formatShortLongitude()
+
                 val formattedTimeZone = currentTime.format(DateTimeFormatter.ofPattern("z"))
                 // 1. Abbreviations and Full Names
 //                val shortName = currentTime.format(DateTimeFormatter.ofPattern("zzz", LocalLocale.current.platformLocale))
@@ -176,7 +171,7 @@ fun TopBar(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "$formattedLat, $formattedLon · $formattedTimeZone · $shortName · $formattedAlt",
+                        text = "$formattedLatitude, $formattedLongitude · $formattedTimeZone · $shortName · $formattedAlt",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall
                     )

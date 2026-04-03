@@ -1,5 +1,6 @@
 package com.ephemeris.helios.ui.composables
 
+import android.icu.util.TimeZone
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
@@ -42,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
@@ -55,6 +57,8 @@ import com.ephemeris.helios.utils.formatLatitude
 import com.ephemeris.helios.utils.formatLongitude
 import com.ephemeris.helios.utils.round
 import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -280,10 +284,24 @@ fun LocationBottomSheet(
                                 value = "${coordinates.altitude} m"
                             )
                             Spacer(modifier = Modifier.height(4.dp))
+                            val formattedTimeZone = currentTime.format(DateTimeFormatter.ofPattern("z"))
+                            val fullName = currentTime.format(DateTimeFormatter.ofPattern("zzzz", LocalLocale.current.platformLocale))
+                            val shortName = currentTime.format(DateTimeFormatter.ofPattern("zzzz", Locale.ENGLISH)).filter { it.isUpperCase() }
+                            val instant = currentTime.toInstant()
+                            val isDstJava = currentTime.zone.rules.isDaylightSavings(instant)
+                            val legacyZone = TimeZone.getTimeZone(currentTime.zone.id)
+                            val shortishName = legacyZone.getDisplayName(
+                                isDstJava, TimeZone.SHORT, LocalLocale.current.platformLocale
+                            )
+                            val rules = currentTime.zone.rules
+                            val isDst = rules.isDaylightSavings(instant)
+//                            val dst = if (isDst) " DST" else ""
                             TextEntryLocation(
                                 label = "Time Zone",
-                                value = "GMT${currentTime.offset}",
-                                extra = currentTime.zone.id
+                                value = "UTC${currentTime.offset}",
+//                                value = "$shortishName",
+                                extra = "${currentTime.zone.id}",
+                                newLine = "$fullName  ($shortName)"
                             )
 
                             Spacer(modifier = Modifier.height(24.dp))

@@ -2,6 +2,7 @@ package com.ephemeris.helios.utils
 
 import android.content.Context
 import android.text.format.DateFormat
+import androidx.compose.ui.graphics.Paint
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.DateFormatSymbols
@@ -43,6 +44,23 @@ fun Double.formatLatitude(): String {
     return "$degrees°$minutes′$seconds″ $direction"
 }
 
+fun Double.formatShortLatitude(isDecimal: Boolean = true): String {
+    val direction = if (this >= 0) "N" else "S"
+    val absValue = abs(this)
+    val degrees = absValue.toInt()
+    val minutes = ((absValue - degrees) * 60).toInt()
+    return if (isDecimal) {
+        "${absValue.round(2)}°$direction"
+    } else {
+        "$degrees°$minutes′$direction"
+    }
+//    val formattedLat = String.format(
+//                    LocalLocale.current.platformLocale,
+//                    "%.2f",
+//                    coordinates.latitude
+//                ) + if (coordinates.latitude < 0) "S" else "N"
+}
+
 fun Double.formatLongitude(): String {
     val direction = if (this >= 0) "E" else "W"
     val absValue = abs(this)
@@ -50,6 +68,23 @@ fun Double.formatLongitude(): String {
     val minutes = ((absValue - degrees) * 60).toInt()
     val seconds = ((absValue - degrees - minutes / 60.0) * 3600.0).roundToInt()
     return "$degrees°$minutes′$seconds″ $direction"
+}
+
+fun Double.formatShortLongitude(isDecimal: Boolean = true): String {
+    val direction = if (this >= 0) "E" else "W"
+    val absValue = abs(this)
+    val degrees = absValue.toInt()
+    val minutes = ((absValue - degrees) * 60).toInt()
+    return if (isDecimal) {
+        "${absValue.round(2)}°$direction"
+    } else {
+        "$degrees°$minutes′$direction"
+    }
+    //                val formattedLon = String.format(
+//                    LocalLocale.current.platformLocale,
+//                    "%.2f",
+//                    coordinates.longitude
+//                ) + if (coordinates.longitude < 0) "W" else "E"
 }
 
 fun Double.round(decimals: Int = 1): Double {

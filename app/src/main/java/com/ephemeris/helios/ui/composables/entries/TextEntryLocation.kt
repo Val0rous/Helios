@@ -3,6 +3,7 @@ package com.ephemeris.helios.ui.composables.entries
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -15,7 +16,8 @@ import androidx.compose.ui.unit.dp
 fun TextEntryLocation(
     label: String,
     value: String,
-    extra: String = ""
+    extra: String = "",
+    newLine: String = ""
 ) {
     Row(
         horizontalArrangement = Arrangement.Start,
@@ -41,5 +43,21 @@ fun TextEntryLocation(
             style = MaterialTheme.typography.labelLarge,
             modifier = Modifier.weight(1f)
         )
+    }
+    if (newLine.isNotEmpty()) {
+        Spacer(modifier = Modifier.height(2.dp))
+        Row(
+            horizontalArrangement = Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Spacer(modifier = Modifier.weight(0.6f))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = newLine,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.weight(1.6f)
+            )
+        }
     }
 }
