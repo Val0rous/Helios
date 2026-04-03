@@ -29,10 +29,8 @@ import com.ephemeris.helios.utils.LocationStatus
 import androidx.compose.ui.platform.LocalLocale
 import com.ephemeris.helios.R
 import com.ephemeris.helios.utils.LocationService
-import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -84,7 +82,7 @@ fun TopBar(
                     coordinates.longitude
                 )
                 val formattedTimeZone = currentTime.format(DateTimeFormatter.ofPattern("z"))
-                val formattedOffset = "UTC${currentTime.offset}"
+//                val formattedOffset = "UTC${currentTime.offset}"
                 val formattedAlt = "${coordinates.altitude.roundToInt()}m"
 
                 Column(
@@ -97,7 +95,7 @@ fun TopBar(
                         style = MaterialTheme.typography.titleMedium
                     )
                     Text(
-                        text = "$formattedLat, $formattedLon · $formattedTimeZone · $formattedOffset · $formattedAlt",
+                        text = "$formattedLat, $formattedLon · $formattedTimeZone · $formattedAlt",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -141,6 +139,7 @@ fun TopBar(
     )
 
     LocationBottomSheet(
+        currentTime = currentTime,
         coordinates = coordinates,
         onSaveCoordinates = onSaveCoordinates,
         onLocationStatusChange = { locationStatus = it },

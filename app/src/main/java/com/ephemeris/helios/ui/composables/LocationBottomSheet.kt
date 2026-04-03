@@ -33,18 +33,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.ui.composables.cards.MapCard
-import com.ephemeris.helios.ui.composables.entries.TextEntry
 import com.ephemeris.helios.ui.composables.entries.TextEntryLocation
 import com.ephemeris.helios.utils.Coordinates
 import com.ephemeris.helios.utils.LocationStatus
 import com.ephemeris.helios.utils.formatLatitude
 import com.ephemeris.helios.utils.formatLongitude
 import com.ephemeris.helios.utils.round
-import kotlin.math.roundToInt
+import java.time.ZonedDateTime
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocationBottomSheet(
+    currentTime: ZonedDateTime,
     coordinates: Coordinates,
     onSaveCoordinates: (Coordinates) -> Unit,
     onLocationStatusChange: (LocationStatus) -> Unit,
@@ -193,6 +193,12 @@ fun LocationBottomSheet(
                             TextEntryLocation(
                                 label = "Altitude",
                                 value = "${coordinates.altitude} m"
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            TextEntryLocation(
+                                label = "Time Zone",
+                                value = "GMT${currentTime.offset}",
+                                extra = currentTime.zone.id
                             )
 
                             Spacer(modifier = Modifier.height(24.dp))
