@@ -77,7 +77,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             navController = rememberNavController()
             val context = LocalContext.current
-//            val coroutineScope = rememberCoroutineScope()
             var startDestination by remember { mutableStateOf(initialStartDestination) }
             var currentTime by remember { mutableStateOf(ZonedDateTime.now()) }
             var isAutoUpdateEnabled by remember { mutableStateOf(true) }
@@ -234,8 +233,6 @@ class MainActivity : ComponentActivity() {
                             },
                             onLocationClick = {
                                 requestLocation()
-                                val isGps = true
-                                val location = "loading"
                             },
                             locationService = locationService
                         )

@@ -71,29 +71,27 @@ fun TopBar(
     locationService: LocationService
 ) {
     var isLocationLoaded by remember { mutableStateOf(false) }
-
-    val isError = remember { mutableStateOf(false) }
     var isGps by remember { mutableStateOf(false) }
-    val coroutineScope = rememberCoroutineScope()
-    val loading = "Loading"
+    var locationStatus by remember { mutableStateOf(LocationStatus.DISABLED) } // Todo: make it store user setting
 
     LaunchedEffect(key1 = locationService.coordinates) {
         if (locationService.coordinates != null) {
-            val c = locationService.coordinates?.let {
+            val location = locationService.coordinates?.let {
                 Coordinates(
                     latitude = it.latitude,
                     longitude = it.longitude,
                     altitude = it.altitude
                 )
             }
-            if (c != null) onSaveCoordinates(c)
-            isGps = true
+            if (location != null) {
+                locationStatus = LocationStatus.CURRENT
+                onSaveCoordinates(location)
+            }
         }
     }
 
     var showBottomSheet by remember { mutableStateOf(false) }
     var isEditing by remember { mutableStateOf(false) }
-    val locationStatus = LocationStatus.CURRENT // Todo: make it store user setting
     val color = if (locationStatus != LocationStatus.DISABLED) {
         MaterialTheme.colorScheme.primary
     } else {
@@ -108,7 +106,12 @@ fun TopBar(
             }
         },
         actions = {
-            IconButton(onClick = onLocationClick) {
+            IconButton(
+                onClick = {
+                    locationStatus = LocationStatus.SEARCHING
+                    onLocationClick()
+                }
+            ) {
                 Icon(
                     painter = painterResource(id = locationStatus.icon),
                     tint = color,
