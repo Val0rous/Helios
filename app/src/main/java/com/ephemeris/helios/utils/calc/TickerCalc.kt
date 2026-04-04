@@ -57,7 +57,6 @@ fun getLiveUpdates(
     currentTime: ZonedDateTime,
     coordinates: Coordinates
 ): LiveUpdatesData {
-    Log.i("Ticker", "Ticker running")
     val pos = SolarEphemeris.calculatePosition(currentTime, coordinates)
     val metrics = SunMetrics.calculateMetrics(pos.altitude, coordinates.altitude)
 

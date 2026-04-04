@@ -88,6 +88,12 @@ fun Double.formatShortLongitude(isDecimal: Boolean = true): String {
 }
 
 fun Double.round(decimals: Int = 1): Double {
+    if (this.isNaN()) return Double.NaN
+    return BigDecimal(this).setScale(decimals, RoundingMode.HALF_UP).toDouble()
+}
+
+fun Double?.round(decimals: Int = 1): Double? {
+    if (this == null || this.isNaN()) return null
     return BigDecimal(this).setScale(decimals, RoundingMode.HALF_UP).toDouble()
 }
 

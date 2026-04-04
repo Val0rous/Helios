@@ -253,7 +253,7 @@ fun TimeMachine(
                 val textStyle = TextStyle(
                     color = tickAndTextColor,
                     fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.SemiBold
                 )
 
                 val scope = rememberCoroutineScope()
@@ -477,13 +477,13 @@ fun TimeMachine(
                                 )
 
                                 if (isMajor) {
-                                    val timeStr =
-                                        currentTick.format(DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h:mm a"))
+                                    val timeStr = currentTick
+                                        .format(DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h:mm a"))
                                     val textResult = textMeasurer.measure(timeStr, textStyle)
-                                    // Top right below the tick
+                                    // Centered horizontally on the tick line
                                     drawText(
                                         textLayoutResult = textResult,
-                                        topLeft = Offset(x + 4.dp.toPx(), tickLen + 2.dp.toPx())
+                                        topLeft = Offset(x - (textResult.size.width / 2f), tickLen + 2.dp.toPx())
                                     )
 
                                     // Date on midnight
@@ -495,7 +495,7 @@ fun TimeMachine(
                                         drawText(
                                             textLayoutResult = dateResult,
                                             topLeft = Offset(
-                                                x + 4.dp.toPx(),
+                                                x - (dateResult.size.width / 2f),   // Centered horizontally
                                                 tickLen + 2.dp.toPx() + textResult.size.height
                                             )
                                         )
@@ -520,7 +520,10 @@ fun TimeMachine(
                                     val textResult = textMeasurer.measure(timeStr, textStyle)
                                     drawText(
                                         textLayoutResult = textResult,
-                                        topLeft = Offset(x + 4.dp.toPx(), majorTickLen + 2.dp.toPx())
+                                        topLeft = Offset(
+                                            x - (textResult.size.width / 2f),   // Centered horizontally
+                                            (h - textResult.size.height) / 2f   // Centered vertically
+                                        )
                                     )
                                 }
                                 currentTick = currentTick.plusHours(1)
@@ -553,7 +556,10 @@ fun TimeMachine(
                                 val textResult = textMeasurer.measure(monthStr, textStyle)
                                 drawText(
                                     textLayoutResult = textResult,
-                                    topLeft = Offset(x + 4.dp.toPx(), majorTickLen + 2.dp.toPx())
+                                    topLeft = Offset(
+                                        x - (textResult.size.width / 2f),   // Centered horizontally
+                                        majorTickLen + 2.dp.toPx()
+                                    )
                                 )
 
                                 if (currentTick.monthValue == 1) {
@@ -566,7 +572,7 @@ fun TimeMachine(
                                     drawText(
                                         textLayoutResult = yearResult,
                                         topLeft = Offset(
-                                            x + 4.dp.toPx(),
+                                            x - (yearResult.size.width / 2f),   // Centered horizontally
                                             majorTickLen + 2.dp.toPx() + textResult.size.height
                                         )
                                     )
@@ -611,7 +617,7 @@ fun TimeMachine(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_history),
                             contentDescription = "Restore Auto Time Update",
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = MaterialTheme.colorScheme.secondary
                         )
                     }
                 }
@@ -622,27 +628,42 @@ fun TimeMachine(
 
 object SolarColorMap {
     // Flatted Thresholds based on your specifications
-    private const val ALT_NIGHT = -18.0
-    private const val ALT_BLUE_HOUR_START = -6.50
-    private const val ALT_PINK_HOUR_START = -3.50
-    private const val ALT_ALPENGLOW_START = -2.50
-    private const val ALT_SUNRISE_SET = -0.833
-    private const val ALT_GOLDEN_HOUR = 2.50
-    private const val ALT_DAYLIGHT = 10.50
-    private const val ALT_MIDDAY = 90.0
+    private const val NIGHT = -18.0
+    private const val ASTRO = -12.0
+    private const val PEAK_ASTRO = (ASTRO + NIGHT) / 2
+    private const val NAUTICAL = -6.0
+    private const val PEAK_NAUTICAL = (NAUTICAL + ASTRO) / 2
+    private const val BLUE_HOUR_LOWER = -6.50
+    private const val BLUE_HOUR_UPPER = -3.50
+    private const val PEAK_BLUE = (BLUE_HOUR_LOWER + BLUE_HOUR_UPPER) / 2
+    private const val PINK_HOUR_LOWER = -3.50
+    private const val PINK_HOUR_UPPER = -0.833
+    private const val PEAK_PINK = (PINK_HOUR_LOWER + PINK_HOUR_UPPER) / 2
+    private const val ALPENGLOW_LOWER = -2.50
+    private const val ALPENGLOW_UPPER = 2.50
+    private const val PEAK_ALPENGLOW = -1.00    // Indirect red light hitting peaks just before sunrise
+//    private const val PEAK_ALPENGLOW = (ALPENGLOW_LOWER + ALPENGLOW_UPPER) / 2
+
+    private const val SUNRISE_SET = -0.833
+    private const val GOLDEN_HOUR_LOWER = -0.833
+    private const val GOLDEN_HOUR_UPPER = 10.50
+    private const val PEAK_GOLDEN = (GOLDEN_HOUR_LOWER + GOLDEN_HOUR_UPPER) / 2
+    private const val DAYLIGHT = 10.50
+    private const val MIDDAY = 90.0
 
     fun getColorForAltitude(altitude: Double): Color {
-        val alt = altitude.coerceIn(ALT_NIGHT, ALT_MIDDAY)
+        val alt = altitude.coerceIn(NIGHT, MIDDAY)
 
         return when {
-            alt <= ALT_BLUE_HOUR_START -> calculateLerp(alt, ALT_NIGHT, ALT_BLUE_HOUR_START, MaterialColors.Gray900, MaterialColors.Blue700)
-            alt <= ALT_PINK_HOUR_START -> calculateLerp(alt, ALT_BLUE_HOUR_START, ALT_PINK_HOUR_START, MaterialColors.Blue700, MaterialColors.Pink500)
-            alt <= ALT_ALPENGLOW_START -> calculateLerp(alt, ALT_PINK_HOUR_START, ALT_ALPENGLOW_START, MaterialColors.Pink500, MaterialColors.Red700)
-            alt <= ALT_SUNRISE_SET -> calculateLerp(alt, ALT_ALPENGLOW_START, ALT_SUNRISE_SET, MaterialColors.Red700, MaterialColors.Orange700)
-            alt <= ALT_GOLDEN_HOUR -> calculateLerp(alt, ALT_SUNRISE_SET, ALT_GOLDEN_HOUR, MaterialColors.Orange700, MaterialColors.Amber700)
-            alt <= ALT_DAYLIGHT -> calculateLerp(alt, ALT_GOLDEN_HOUR, ALT_DAYLIGHT, MaterialColors.Amber700, MaterialColors.Yellow600)
+            alt <= ASTRO -> calculateLerp(alt, NIGHT, ASTRO, MaterialColors.Gray900, MaterialColors.BlueGray900)
+            alt <= PEAK_NAUTICAL -> calculateLerp(alt, ASTRO, PEAK_NAUTICAL, MaterialColors.BlueGray900, MaterialColors.BlueGray800)
+            alt <= PEAK_BLUE -> calculateLerp(alt, PEAK_NAUTICAL, PEAK_BLUE, MaterialColors.BlueGray800, MaterialColors.Blue700)
+            alt <= PEAK_PINK -> calculateLerp(alt, PEAK_BLUE, PEAK_PINK, MaterialColors.Blue700, MaterialColors.Pink500)
+            alt <= SUNRISE_SET -> calculateLerp(alt, PEAK_ALPENGLOW, SUNRISE_SET, MaterialColors.Pink500, MaterialColors.Red700)
+            alt <= PEAK_GOLDEN -> calculateLerp(alt, SUNRISE_SET, PEAK_GOLDEN, MaterialColors.Red700, MaterialColors.Amber700)
+            alt <= DAYLIGHT -> calculateLerp(alt, PEAK_GOLDEN, DAYLIGHT, MaterialColors.Amber700, MaterialColors.Yellow600)
             // Taper the daylight slightly lighter toward true noon to give a visual peak
-            else -> calculateLerp(alt, ALT_DAYLIGHT, ALT_MIDDAY, MaterialColors.Yellow600, MaterialColors.Yellow300)
+            else -> calculateLerp(alt, DAYLIGHT, MIDDAY, MaterialColors.Yellow600, MaterialColors.Yellow300)
         }
     }
 

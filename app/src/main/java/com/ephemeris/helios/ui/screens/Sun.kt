@@ -61,8 +61,8 @@ fun Sun(
                     SunriseSunsetEntry(
                         sunriseTime = events.sunrise.formatDecimalHours(),
                         sunsetTime = events.sunset.formatDecimalHours(),
-                        sunriseAzimuth = events.sunriseAzimuth?.round(),
-                        sunsetAzimuth = events.sunsetAzimuth?.round()
+                        sunriseAzimuth = events.sunriseAzimuth.round(),
+                        sunsetAzimuth = events.sunsetAzimuth.round()
                     )
                 },
                 rightCard = {
