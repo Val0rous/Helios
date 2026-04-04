@@ -118,6 +118,7 @@ class MainActivity : ComponentActivity() {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 TimeMachine(
                                     time = vm.currentTime,
+                                    coordinates = coordinates,
                                     isAutoUpdate = vm.isAutoUpdateEnabled,
                                     onTimeChange = { vm.currentTime = it },
                                     onAutoUpdateChange = { vm.isAutoUpdateEnabled = it },
