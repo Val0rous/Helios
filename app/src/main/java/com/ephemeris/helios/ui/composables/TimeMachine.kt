@@ -241,7 +241,7 @@ fun TimeMachine(
                 val onSurface = MaterialTheme.colorScheme.onSurface
                 val primary = MaterialTheme.colorScheme.primary
                 val triangleIndicatorTop = MaterialTheme.colorScheme.surfaceContainerLow
-                val triangleIndicatorBottom = MaterialTheme.colorScheme.surfaceContainer
+                val triangleIndicatorBottom = MaterialTheme.colorScheme.surfaceContainerLow
 
                 // Use bright white for the colored gradients, and standard text color for the flat Year view
                 val tickAndTextColor = if (selectedFilterType == TimeMachineFilter.Year) {
@@ -661,9 +661,9 @@ object SolarColorMap {
             alt <= PEAK_PINK -> calculateLerp(alt, PEAK_BLUE, PEAK_PINK, MaterialColors.Blue700, MaterialColors.Pink500)
             alt <= SUNRISE_SET -> calculateLerp(alt, PEAK_ALPENGLOW, SUNRISE_SET, MaterialColors.Pink500, MaterialColors.Red700)
             alt <= PEAK_GOLDEN -> calculateLerp(alt, SUNRISE_SET, PEAK_GOLDEN, MaterialColors.Red700, MaterialColors.Amber700)
-            alt <= DAYLIGHT -> calculateLerp(alt, PEAK_GOLDEN, DAYLIGHT, MaterialColors.Amber700, MaterialColors.Yellow600)
+            alt <= DAYLIGHT -> calculateLerp(alt, PEAK_GOLDEN, DAYLIGHT, MaterialColors.Amber700, MaterialColors.Yellow700)
             // Taper the daylight slightly lighter toward true noon to give a visual peak
-            else -> calculateLerp(alt, DAYLIGHT, MIDDAY, MaterialColors.Yellow600, MaterialColors.Yellow300)
+            else -> calculateLerp(alt, DAYLIGHT, MIDDAY, MaterialColors.Yellow700, MaterialColors.Yellow400)
         }
     }
 

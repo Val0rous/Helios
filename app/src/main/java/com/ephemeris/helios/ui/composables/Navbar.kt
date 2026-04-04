@@ -1,6 +1,7 @@
 package com.ephemeris.helios.ui.composables
 
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
@@ -68,7 +69,9 @@ fun Navbar(navController: NavHostController) {
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = currentBackStackEntry?.destination
 
-    NavigationBar {
+    NavigationBar(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow  // was surfaceContainer
+    ) {
         NavbarItems.items.forEachIndexed { index, item ->
             if (currentDestination?.route == item.route) {
                 navigationSelectedItem = index
