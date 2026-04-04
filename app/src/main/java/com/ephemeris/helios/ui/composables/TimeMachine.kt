@@ -1,8 +1,15 @@
 package com.ephemeris.helios.ui.composables
 
 import android.text.format.DateFormat
+import androidx.compose.animation.core.AnimationState
+import androidx.compose.animation.core.animateDecay
+import androidx.compose.animation.rememberSplineBasedDecay
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,8 +44,10 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,8 +55,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +77,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import com.ephemeris.helios.R
+import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
@@ -226,34 +239,124 @@ fun TimeMachine(
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium
                 )
+
+                val scope = rememberCoroutineScope()
+                val haptic = LocalHapticFeedback.current
+                val decay = rememberSplineBasedDecay<Float>()
+
+                var canvasWidth by remember { mutableFloatStateOf(1f) }
+                var timeAtDragStart by remember { mutableStateOf(latestTime) }
+                var accumulatedDrag by remember { mutableFloatStateOf(0f) }
+                val currentFilter by rememberUpdatedState(selectedFilterType)
+
+                val draggableState = rememberDraggableState { dragAmount ->
+                    accumulatedDrag += dragAmount
+
+                    if (currentFilter == TimeMachineFilter.Day) {
+                        // Continuous Drag (Day)
+                        val pixelsPerMinute = canvasWidth / (24f * 60f)
+                        val minutesToMove = (-accumulatedDrag / pixelsPerMinute).toInt()
+
+                        if (minutesToMove != 0) {
+                            val newTime = timeAtDragStart.plusMinutes(minutesToMove.toLong())
+                            onTimeChange(newTime)
+
+                            // Light haptic only when crossing into a new hour so we don't buzz constantly
+                            if (newTime.hour != timeAtDragStart.hour) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+
+                            timeAtDragStart = newTime
+                            accumulatedDrag += (minutesToMove * pixelsPerMinute)
+                        }
+                    } else {
+                        // Discrete Drag (Hour / Year)
+                        val pixelsPerStep = when (currentFilter) {
+                            TimeMachineFilter.Hour -> canvasWidth / 60f
+                            TimeMachineFilter.Year -> canvasWidth / 365f
+                            else -> 1f
+                        }
+
+                        val stepsToMove = (-accumulatedDrag / pixelsPerStep).toInt()
+
+                        if (stepsToMove != 0) {
+                            val newTime = when (currentFilter) {
+                                TimeMachineFilter.Hour -> timeAtDragStart.plusMinutes(stepsToMove.toLong())
+                                TimeMachineFilter.Year -> timeAtDragStart.plusDays(stepsToMove.toLong())
+                                else -> timeAtDragStart
+                            }
+                            onTimeChange(newTime)
+
+                            // Light haptic on every distinct step
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+
+                            timeAtDragStart = newTime
+                            accumulatedDrag += (stepsToMove * pixelsPerStep)
+                        }
+                    }
+                }
+
                 Canvas(
                     modifier = Modifier
                         .matchParentSize()
+                        .onSizeChanged { canvasWidth = it.width.toFloat() } // Capture width for the drag math
+                        // 1. Tap Gestures (Left/Right discrete stepping with Safety Buffer)
                         .pointerInput(selectedFilterType) {
-                            // Local state for the duration of a single continuous drag gesture
-                            var timeAtDragStart = latestTime
-                            var accumulatedDrag = 0f
-                            detectHorizontalDragGestures(
-                                onDragStart = {
-                                    onAutoUpdateChange(false)    // Pause auto-update on interact
-                                    timeAtDragStart = latestTime    // Anchor the exact time when the user touched the screen
-                                    accumulatedDrag = 0f    // Reset the drag accumulator
-                                }
-                            ) { change, dragAmount ->
-                                change.consume()
-                                accumulatedDrag += dragAmount
-                                // 1. Calculate how many milliseconds 1 pixel represents based on the current scale
-                                val millisPerPixel = when (selectedFilterType) {
-                                    TimeMachineFilter.Hour -> Duration.ofMinutes(60).toMillis().toFloat() / size.width
-                                    TimeMachineFilter.Day -> Duration.ofHours(24).toMillis().toFloat() / size.width
-                                    TimeMachineFilter.Year -> Duration.ofDays(365).toMillis().toFloat() / size.width
-                                }
+                            detectTapGestures(
+                                onTap = { offset ->
+                                    val center = size.width / 2f
+                                    // Calculate the physical width of the triangle dead zone
+                                    val triHeight = 8.dp.toPx()
+                                    val triBaseHalf = triHeight * 2f // Base is 4x height, so half is 2x
 
-                                // 2. Shift time in the opposite direction of the drag (drag right -> go to past)
-                                val totalDeltaMillis = (-accumulatedDrag * millisPerPixel).toLong()
-                                onTimeChange(timeAtDragStart.plus(totalDeltaMillis, ChronoUnit.MILLIS))
-                            }
+                                    // Safety Buffer: If the tap is within the center indicator rectangle, do nothing
+                                    if (offset.x >= center - triBaseHalf && offset.x <= center + triBaseHalf) {
+                                        return@detectTapGestures
+                                    }
+
+                                    onAutoUpdateChange(false)   // Pause live updating on interaction
+
+                                    // Check if the tap was on the left half or right half
+                                    val isLeftHalf = offset.x < center
+                                    val stepMultiplier = if (isLeftHalf) -1L else 1L
+
+                                    // Apply discrete 1-unit step
+                                    val newTime = when (selectedFilterType) {
+                                        TimeMachineFilter.Hour -> latestTime.plusMinutes(stepMultiplier)
+                                        TimeMachineFilter.Day -> latestTime.plusHours(stepMultiplier)
+                                        TimeMachineFilter.Year -> latestTime.plusDays(stepMultiplier)
+                                    }
+                                    onTimeChange(newTime)
+
+                                    // Haptic on successful tap
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
+                            )
                         }
+                        // 2. Draggable & Fling Gestures
+                        .draggable(
+                            state = draggableState,
+                            orientation = Orientation.Horizontal,
+                            onDragStarted = {
+                                onAutoUpdateChange(false)
+                                timeAtDragStart = latestTime
+                                accumulatedDrag = 0f
+                            },
+                            onDragStopped = { velocity ->
+                                // Physics-based fling deceleration
+                                scope.launch {
+                                    draggableState.drag { // suspends until the decay animation finishes
+                                        var lastValue = 0f
+                                        AnimationState(initialValue = 0f, initialVelocity = velocity)
+                                            .animateDecay(decay) {
+                                                val delta = value - lastValue
+                                                lastValue = value
+                                                dragBy(delta) // Feeds the animation delta back into rememberDraggableState
+                                            }
+                                    }
+                                }
+                            }
+                        )
                 ) {
                     val w = size.width
                     val h = size.height
