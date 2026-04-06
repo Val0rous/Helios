@@ -2,6 +2,7 @@ package com.ephemeris.helios.utils.calc
 
 import android.util.Log
 import com.ephemeris.helios.utils.location.Coordinates
+import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
@@ -28,7 +29,15 @@ fun getDailyEphemerisData(
 ): DayEphemerisData {
     val events = SolarEphemeris.calculateDailyEvents(currentTime, coordinates)
     val durations = SolarEphemeris.calculateDailyDurations(events)
-    val dailyPeakMetrics = SunMetrics.calculateMetrics(events.solarNoonAltitude, coordinates.altitude)
+    val dailyOzone = estimateHistoricalOzone(
+        latitude = coordinates.latitude,
+        date = currentTime.toLocalDate()
+    )
+    val dailyPeakMetrics = SunMetrics.calculateMetrics(
+        sunElevationDeg = events.solarNoonAltitude,
+        observerAltitudeMeters = coordinates.altitude,
+        ozoneDU = dailyOzone
+    )
 
     val seasonalEvents = SeasonalEphemeris.getSeasonalEvents(currentTime.year, ZoneId.systemDefault())
     val mEq = SeasonalEphemeris.getDaily(seasonalEvents.marchEquinox, coordinates)
@@ -58,7 +67,15 @@ fun getLiveUpdates(
     coordinates: Coordinates
 ): LiveUpdatesData {
     val pos = SolarEphemeris.calculatePosition(currentTime, coordinates)
-    val metrics = SunMetrics.calculateMetrics(pos.altitude, coordinates.altitude)
+    val dailyOzone = estimateHistoricalOzone(
+        latitude = coordinates.latitude,
+        date = currentTime.toLocalDate()
+    )
+    val metrics = SunMetrics.calculateMetrics(
+        sunElevationDeg = pos.altitude,
+        observerAltitudeMeters = coordinates.altitude,
+        ozoneDU = dailyOzone
+    )
 
     val lunarPos = LunarEphemeris.calculatePosition(currentTime, coordinates)
     val lunarMetrics = MoonMetrics.calculateMetrics(currentTime, coordinates)

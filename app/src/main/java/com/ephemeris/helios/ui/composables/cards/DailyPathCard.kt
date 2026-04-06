@@ -50,6 +50,7 @@ import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.MoonMetrics
 import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.formatDuration
+import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import com.ephemeris.helios.utils.round
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -128,6 +129,11 @@ fun DailyPathCard(
             val tzOffset = currentTime.offset.totalSeconds / 3600.0
             val localDate = currentTime.toLocalDate()
 
+            val dailyOzone = estimateHistoricalOzone(
+                latitude = coordinates.latitude,
+                date = localDate
+            )
+
             when (type) {
                 is Charts.Sun -> {
                     for (i in 0 until X_SIZE) {
@@ -152,6 +158,7 @@ fun DailyPathCard(
                     SunMetrics.calculateMetrics(
                         sunElevationsDeg = elevationCalc,
                         observerAltitudeMeters = coordinates.altitude,
+                        ozoneDU = dailyOzone,
                         outIrradiance = irradiance,
                         outUvi = uvIntensity,
                         outIlluminance = illuminance,

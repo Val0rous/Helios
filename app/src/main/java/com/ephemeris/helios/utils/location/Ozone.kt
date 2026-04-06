@@ -31,28 +31,31 @@ fun estimateHistoricalOzone(latitude: Double, date: LocalDate): Double {
 
     var estimatedDu = baseOzone + seasonalShift
 
-    // 5. THE ANTARCTIC ANOMALY PATCH (The Ozone Hole)
-    // Only triggers if the user is deep in the Southern Hemisphere (below -60 latitude)
+    // 5. THE ANTARCTIC ANOMALY PATCH (The Massive Ozone Hole)
     if (latitude <= -60.0) {
-
         // The hole opens in September (Day 244) and closes in November (Day 334)
         if (dayOfYear in 244..334) {
-
             // The hole is at its absolute worst in early October (approx Day 280)
             val peakDepletionDay = 280.0
-
-            // Calculate how many days we are from the absolute worst day
             val daysFromPeak = abs(dayOfYear - peakDepletionDay)
-
             // Calculate the drop. It drops by up to 200 DU at the center, tapering to 0 at the edges of the season
             val depletionDrop = 200.0 * (1.0 - (daysFromPeak / 45.0))
-
-            // Subtract the massive drop from our initial estimate
             estimatedDu -= depletionDrop
         }
     }
 
-    // 6. Return the final estimated Dobson Units
+    // 6. THE ARCTIC ANOMALY (The Spring Dent)
+    if (latitude >= 60.0) {
+        if (dayOfYear in 60..151) { // March to May
+            val peakDepletionDay = 105.0 // Mid-April
+            val daysFromPeak = abs(dayOfYear - peakDepletionDay)
+            // It only drops by about 45 DU maximum, compared to Antarctica's 200
+            val depletionDrop = 45.0 * (1.0 - (daysFromPeak / 45.0))
+            estimatedDu -= depletionDrop
+        }
+    }
+
+    // Return the final estimated Dobson Units
     return estimatedDu
 }
 
