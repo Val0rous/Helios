@@ -1,6 +1,8 @@
 package com.ephemeris.helios.utils.location
 
 import java.time.LocalDate
+import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -12,11 +14,11 @@ fun estimateHistoricalOzone(latitude: Double, date: LocalDate): Double {
 
     // 2. Base ozone increases from the equator (~275) to the poles (~375)
     // Using sin^2 creates a smooth curve that stays flat at the equator and rises sharply later
-    val baseOzone = 275.0 + (100.0 * Math.pow(Math.sin(latRad), 2.0))
+    val baseOzone = 275.0 + (100.0 * sin(latRad).pow(2.0))
 
     // 3. Seasonal variation (Amplitude)
     // Variation is 0 at the equator, and up to 50 DU at the poles
-    val amplitude = 50.0 * Math.pow(Math.sin(latRad), 2.0)
+    val amplitude = 50.0 * sin(latRad).pow(2.0)
 
     // 4. Determine the Spring Peak based on the hemisphere
     // Northern Hemisphere spring peak is roughly mid-April (Day 105)
@@ -25,7 +27,7 @@ fun estimateHistoricalOzone(latitude: Double, date: LocalDate): Double {
     val peakDay = if (isNorthernHemisphere) 105.0 else 288.0
 
     // 5. Calculate the standard seasonal shift using a Cosine wave
-    val seasonalShift = amplitude * Math.cos((2 * Math.PI / 365.25) * (dayOfYear - peakDay))
+    val seasonalShift = amplitude * cos((2 * Math.PI / 365.25) * (dayOfYear - peakDay))
 
     var estimatedDu = baseOzone + seasonalShift
 
@@ -40,7 +42,7 @@ fun estimateHistoricalOzone(latitude: Double, date: LocalDate): Double {
             val peakDepletionDay = 280.0
 
             // Calculate how many days we are from the absolute worst day
-            val daysFromPeak = Math.abs(dayOfYear - peakDepletionDay)
+            val daysFromPeak = abs(dayOfYear - peakDepletionDay)
 
             // Calculate the drop. It drops by up to 200 DU at the center, tapering to 0 at the edges of the season
             val depletionDrop = 200.0 * (1.0 - (daysFromPeak / 45.0))
