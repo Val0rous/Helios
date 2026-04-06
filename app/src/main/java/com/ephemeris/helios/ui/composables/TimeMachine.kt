@@ -247,12 +247,12 @@ fun TimeMachine(
                 val tickAndTextColor = if (selectedFilterType == TimeMachineFilter.Year) {
                     MaterialTheme.colorScheme.onSurface
                 } else {
-                    Color.White
+                    MaterialColors.Gray50
                 }
 
                 val textStyle = TextStyle(
                     color = tickAndTextColor,
-                    fontSize = 10.sp,
+                    fontSize = 11.sp,   // was 10.dp
                     fontWeight = FontWeight.SemiBold
                 )
 
