@@ -134,19 +134,19 @@ fun Double.formatDuration(showSeconds: Boolean = false): String {
 
     if (hours == 0) {
         return if (showSeconds) {
-            String.format("%2dm %2ds", minutes, seconds)
+            String.format("%dm %ds", minutes, seconds)
         } else {
             val roundedMinutes = if (seconds >= 30) minutes + 1 else minutes
-            String.format("%2dm", roundedMinutes)
+            String.format("%dm", roundedMinutes)
         }
     }
 
     // %d formats without a leading zero. %02d forces two digits (leading zero if needed).
     return if (showSeconds) {
-        String.format("%dh %2dm %2ds", hours, minutes, seconds)
+        String.format("%dh %dm %ds", hours, minutes, seconds)
     } else {
         val roundedMinutes = if (seconds >= 30) minutes + 1 else minutes
-        String.format("%dh %2dm", hours, roundedMinutes)
+        String.format("%dh %dm", hours, roundedMinutes)
     }
 }
 
