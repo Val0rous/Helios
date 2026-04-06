@@ -33,7 +33,7 @@ object AltitudeCorrector {
 
         // 3. Initialize the GeographicLib Geoid engine with the copied file
         try {
-            geoid = Geoid("egm96-5", context.filesDir.absolutePath, true, false)
+            geoid = Geoid("egm96-5", geoidDir.absolutePath, true, false)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -48,11 +48,11 @@ object AltitudeCorrector {
     }
 
     fun getRealAltitude(location: Location): Double {
-//    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE
-//        && location.hasMslAltitude()) {
-//        // 1. Android 14+ natively calculates the Geoid correction for you
-//            return location.mslAltitudeMeters
-//    }
+    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+        && location.hasMslAltitude()) {
+        // 1. Android 14+ natively calculates the Geoid correction for you
+            return location.mslAltitudeMeters
+    }
         // 2. Fallback for older Android versions
 //        val ellipsoidAltitude = location.altitude
         return getTrueSeaLevelAltitude(location.latitude, location.longitude, location.altitude)

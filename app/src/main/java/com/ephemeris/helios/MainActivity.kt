@@ -70,13 +70,6 @@ class MainActivity : ComponentActivity() {
             // Boot up the Geoid engine exactly once
             AltitudeCorrector.initialize(this)
 
-//            // 0. Global GPS listener: Catches the location even when the TopBar is hidden
-//            LaunchedEffect(locationService.coordinates) {
-//                locationService.coordinates?.let { gpsCoords ->
-//                    vm.saveCoordinates(gpsCoords)
-//                }
-//            }
-
             // 1. Heavy Daily Math: Only recalculates when the DATE or LOCATION changes
             LaunchedEffect(coordinates, vm.currentTime.toLocalDate()) {
                 coordinates?.let { vm.updateDayData(it) }
