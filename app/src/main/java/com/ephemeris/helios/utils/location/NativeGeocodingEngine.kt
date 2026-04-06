@@ -6,6 +6,7 @@ import android.location.Geocoder
 import android.location.Location
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.util.Locale
 import kotlin.coroutines.resume
@@ -85,31 +86,41 @@ class NativeGeocodingEngine(context: Context) {
     // OS COMPATIBILITY WRAPPERS
     // ========================================================================
 
-    private suspend fun fetchFromLocationAPI(lat: Double, lon: Double): List<Address>? = suspendCoroutine { continuation ->
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                geocoder.getFromLocation(lat, lon, 1) { addresses -> continuation.resume(addresses) }
-            } else {
-                continuation.resume(geocoder.getFromLocation(lat, lon, 1))
+    private suspend fun fetchFromLocationAPI(lat: Double, lon: Double): List<Address>? =
+        suspendCancellableCoroutine { continuation ->
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    geocoder.getFromLocation(lat, lon, 1) { addresses ->
+                        continuation.resume(
+                            addresses
+                        )
+                    }
+                } else {
+                    continuation.resume(geocoder.getFromLocation(lat, lon, 1))
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                continuation.resume(null) // Prevent app crash if network fails
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            continuation.resume(null) // Prevent app crash if network fails
         }
-    }
 
-    private suspend fun fetchFromLocationNameAPI(query: String): List<Address>? = suspendCoroutine { continuation ->
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                geocoder.getFromLocationName(query, 1) { addresses -> continuation.resume(addresses) }
-            } else {
-                continuation.resume(geocoder.getFromLocationName(query, 1))
+    private suspend fun fetchFromLocationNameAPI(query: String): List<Address>? =
+        suspendCancellableCoroutine { continuation ->
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    geocoder.getFromLocationName(query, 1) { addresses ->
+                        continuation.resume(
+                            addresses
+                        )
+                    }
+                } else {
+                    continuation.resume(geocoder.getFromLocationName(query, 1))
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                continuation.resume(null)
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            continuation.resume(null)
         }
-    }
 }
 
 //// In your ViewModel
