@@ -11,7 +11,7 @@ import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.entries.LunarCulminationEntry
 import com.ephemeris.helios.ui.composables.entries.MoonriseMoonsetEntry
 import com.ephemeris.helios.utils.Charts
-import com.ephemeris.helios.utils.Coordinates
+import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.MoonMetrics
 import com.ephemeris.helios.utils.formatDecimalHours

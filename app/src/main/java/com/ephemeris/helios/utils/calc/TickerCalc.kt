@@ -1,7 +1,7 @@
 package com.ephemeris.helios.utils.calc
 
 import android.util.Log
-import com.ephemeris.helios.utils.Coordinates
+import com.ephemeris.helios.utils.location.Coordinates
 import java.time.ZoneId
 import java.time.ZonedDateTime
 

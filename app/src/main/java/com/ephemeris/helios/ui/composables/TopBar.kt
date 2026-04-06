@@ -40,7 +40,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import com.ephemeris.helios.utils.Coordinates
+import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.LocationStatus
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.unit.dp
@@ -58,7 +58,7 @@ import kotlin.math.roundToInt
 @Composable
 fun TopBar(
     currentTime: ZonedDateTime,
-    coordinates: Coordinates,
+    coordinates: Coordinates?,
     onSaveCoordinates: (Coordinates) -> Unit,
     onLocationClick: () -> Unit,
     isTracking: Boolean,
@@ -112,69 +112,79 @@ fun TopBar(
 
     TopAppBar(
         title = {
-            TextButton(
-                onClick = { showBottomSheet = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                val formattedLatitude = coordinates.latitude.formatShortLatitude()
-                val formattedLongitude = coordinates.longitude.formatShortLongitude()
-
-                val formattedTimeZone = currentTime.format(DateTimeFormatter.ofPattern("z"))
-                // 1. Abbreviations and Full Names
-//                val shortName = currentTime.format(DateTimeFormatter.ofPattern("zzz", LocalLocale.current.platformLocale))
-                // Output: "CEST"
-                // Actual Output: "GMT+02:00"
-
-                val instant = currentTime.toInstant()
-                val isDstJava = currentTime.zone.rules.isDaylightSavings(instant)
-                val legacyZone = TimeZone.getTimeZone(currentTime.zone.id)
-                val shortishName = legacyZone.getDisplayName(
-                    isDstJava, TimeZone.SHORT, LocalLocale.current.platformLocale
-                )
-                // GMT+2
-
-                val fullName = currentTime.format(DateTimeFormatter.ofPattern("zzzz", LocalLocale.current.platformLocale))
-                // Output: "Central European Summer Time"
-
-                // 2. The Zone Rules & DST Flag
-                val rules = currentTime.zone.rules
-
-                val isDst = rules.isDaylightSavings(instant)
-                // Output: true or false
-                // This one works
-
-                // 3. DST Start and End Transitions
-                val previousTransition = rules.previousTransition(instant)
-                // Output: 2026-03-29T01:00:00Z (When DST started)
-                // This works
-
-                val nextTransition = rules.nextTransition(instant)
-                // Output: 2026-10-25T01:00:00Z (When DST ends)
-
-                // Formatting the transitions into readable local time
-                val formattedNextTransition = nextTransition?.instant?.let { transitionInstant ->
-                    ZonedDateTime.ofInstant(transitionInstant, currentTime.zone)
-                        .format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM))
-                }
-                val formattedOffset = "UTC${currentTime.offset}"
-                val shortName = currentTime.format(DateTimeFormatter.ofPattern("zzzz", Locale.ENGLISH)).filter { it.isUpperCase() }
-                val formattedAlt = "${coordinates.altitude.roundToInt()}m"
-
-                Column(
-                    horizontalAlignment = Alignment.Start,
-                    verticalArrangement = Arrangement.Center,
+            if (coordinates != null) {
+                TextButton(
+                    onClick = { showBottomSheet = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "Hamilton St., London",
-                        color = MaterialTheme.colorScheme.primary,
-                        style = MaterialTheme.typography.titleMedium
+                    val formattedLatitude = coordinates.latitude.formatShortLatitude()
+                    val formattedLongitude = coordinates.longitude.formatShortLongitude()
+
+                    val formattedTimeZone = currentTime.format(DateTimeFormatter.ofPattern("z"))
+                    // 1. Abbreviations and Full Names
+//                val shortName = currentTime.format(DateTimeFormatter.ofPattern("zzz", LocalLocale.current.platformLocale))
+                    // Output: "CEST"
+                    // Actual Output: "GMT+02:00"
+
+                    val instant = currentTime.toInstant()
+                    val isDstJava = currentTime.zone.rules.isDaylightSavings(instant)
+                    val legacyZone = TimeZone.getTimeZone(currentTime.zone.id)
+                    val shortishName = legacyZone.getDisplayName(
+                        isDstJava, TimeZone.SHORT, LocalLocale.current.platformLocale
                     )
-                    Text(
-                        text = "$formattedLatitude, $formattedLongitude · $formattedTimeZone · $shortName · $formattedAlt",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelSmall
+                    // GMT+2
+
+                    val fullName = currentTime.format(
+                        DateTimeFormatter.ofPattern(
+                            "zzzz",
+                            LocalLocale.current.platformLocale
+                        )
                     )
+                    // Output: "Central European Summer Time"
+
+                    // 2. The Zone Rules & DST Flag
+                    val rules = currentTime.zone.rules
+
+                    val isDst = rules.isDaylightSavings(instant)
+                    // Output: true or false
+                    // This one works
+
+                    // 3. DST Start and End Transitions
+                    val previousTransition = rules.previousTransition(instant)
+                    // Output: 2026-03-29T01:00:00Z (When DST started)
+                    // This works
+
+                    val nextTransition = rules.nextTransition(instant)
+                    // Output: 2026-10-25T01:00:00Z (When DST ends)
+
+                    // Formatting the transitions into readable local time
+                    val formattedNextTransition =
+                        nextTransition?.instant?.let { transitionInstant ->
+                            ZonedDateTime.ofInstant(transitionInstant, currentTime.zone)
+                                .format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM))
+                        }
+                    val formattedOffset = "UTC${currentTime.offset}"
+                    val shortName =
+                        currentTime.format(DateTimeFormatter.ofPattern("zzzz", Locale.ENGLISH))
+                            .filter { it.isUpperCase() }
+                    val formattedAlt = "${coordinates.altitude.roundToInt()}m"
+
+                    Column(
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "Hamilton St., London",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Text(
+                            text = "$formattedLatitude, $formattedLongitude · $formattedTimeZone · $shortName · $formattedAlt",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                 }
             }
         },
@@ -222,14 +232,16 @@ fun TopBar(
         colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     )
 
-    LocationBottomSheet(
-        currentTime = currentTime,
-        coordinates = coordinates,
-        onSaveCoordinates = onSaveCoordinates,
-        onLocationStatusChange = { locationStatus = it },
-        showBottomSheet = showBottomSheet,
-        onShowBottomSheetChange = { showBottomSheet = it },
-        isTracking = isTracking,
-        onToggleTracking = onToggleTracking
-    )
+    if (coordinates != null) {
+        LocationBottomSheet(
+            currentTime = currentTime,
+            coordinates = coordinates,
+            onSaveCoordinates = onSaveCoordinates,
+            onLocationStatusChange = { locationStatus = it },
+            showBottomSheet = showBottomSheet,
+            onShowBottomSheetChange = { showBottomSheet = it },
+            isTracking = isTracking,
+            onToggleTracking = onToggleTracking
+        )
+    }
 }

@@ -42,6 +42,7 @@ import com.ephemeris.helios.utils.HeliosViewModel
 import com.ephemeris.helios.utils.LocationPermissionWrapper
 import com.ephemeris.helios.utils.LocationService
 import com.ephemeris.helios.utils.Routes
+import com.ephemeris.helios.utils.location.AltitudeCorrector
 import kotlinx.coroutines.delay
 
 
@@ -66,6 +67,15 @@ class MainActivity : ComponentActivity() {
 
             val snackbarHostState = remember { SnackbarHostState() }
 
+            // Boot up the Geoid engine exactly once
+            AltitudeCorrector.initialize(this)
+
+//            // 0. Global GPS listener: Catches the location even when the TopBar is hidden
+//            LaunchedEffect(locationService.coordinates) {
+//                locationService.coordinates?.let { gpsCoords ->
+//                    vm.saveCoordinates(gpsCoords)
+//                }
+//            }
 
             // 1. Heavy Daily Math: Only recalculates when the DATE or LOCATION changes
             LaunchedEffect(coordinates, vm.currentTime.toLocalDate()) {
@@ -95,7 +105,7 @@ class MainActivity : ComponentActivity() {
                     Scaffold(
                         //modifier
                         topBar = {
-                            coordinates?.let { currentCoords ->
+                            coordinates.let { currentCoords ->
                                 TopBar(
                                     currentTime = vm.currentTime,
                                     coordinates = currentCoords,

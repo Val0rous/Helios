@@ -1,6 +1,6 @@
 package com.ephemeris.helios.utils.calc
 
-import com.ephemeris.helios.utils.Coordinates
+import com.ephemeris.helios.utils.location.Coordinates
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import kotlin.math.*

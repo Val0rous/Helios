@@ -80,7 +80,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.rememberTextMeasurer
 import com.ephemeris.helios.R
-import com.ephemeris.helios.utils.Coordinates
+import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import kotlinx.coroutines.launch
 import java.time.Duration

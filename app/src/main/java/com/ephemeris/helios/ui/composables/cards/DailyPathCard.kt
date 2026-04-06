@@ -43,7 +43,7 @@ import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.ChartSelectorChip
 import com.ephemeris.helios.ui.composables.charts.DailyAzimuthChart
 import com.ephemeris.helios.ui.composables.charts.DailyTimeChart
-import com.ephemeris.helios.utils.Coordinates
+import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.LunarEphemeris

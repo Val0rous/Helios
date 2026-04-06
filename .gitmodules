@@ -1,0 +1,3 @@
+[submodule "app/src/main/java/geoidheight4j"]
+	path = app/src/main/java/geoidheight4j
+	url = https://github.com/Aknbb/geoidheight4j.git

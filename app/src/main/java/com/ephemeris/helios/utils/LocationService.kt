@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Location
 import android.location.LocationManager
 import android.os.Looper
 import android.provider.Settings
@@ -12,6 +13,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import com.ephemeris.helios.utils.location.AltitudeCorrector
+import com.ephemeris.helios.utils.location.Coordinates
 import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.Granularity
 import com.google.android.gms.location.LocationCallback
@@ -42,12 +45,16 @@ class LocationService(private val context: Context) {
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(p0: LocationResult) {
             super.onLocationResult(p0)
-            with(p0.locations.last()) {
+            val location = p0.locations.last()
+            if (location != null) {
+                val realAltitude = AltitudeCorrector.getRealAltitude(location)
+//            with(location) {
                 coordinates = Coordinates(
-                    latitude,
-                    longitude,
-                    altitude,
+                    location.latitude,
+                    location.longitude,
+                    realAltitude.round(1),
                 )
+//            }
             }
         }
     }
@@ -101,7 +108,12 @@ class LocationService(private val context: Context) {
         fusedLocationProviderClient.getCurrentLocation(request, null)
             .addOnSuccessListener { location ->
                 if (location != null) {
-                    coordinates = Coordinates(location.latitude, location.longitude, location.altitude.round(1))
+                    val realAltitude = AltitudeCorrector.getRealAltitude(location)
+                    coordinates = Coordinates(
+                        location.latitude,
+                        location.longitude,
+                        realAltitude.round(1)
+                    )
                 }
             }
 //        monitoringStatus = MonitoringStatus.Monitoring

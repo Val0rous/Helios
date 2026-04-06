@@ -21,7 +21,7 @@ import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
 import com.ephemeris.helios.ui.composables.entries.TwilightEntry
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
-import com.ephemeris.helios.utils.Coordinates
+import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.formatDecimalHours

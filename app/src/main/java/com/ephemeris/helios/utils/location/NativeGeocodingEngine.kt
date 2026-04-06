@@ -1,0 +1,107 @@
+package com.ephemeris.helios.utils.location
+
+import android.content.Context
+import android.location.Address
+import android.location.Geocoder
+import android.location.Location
+import android.os.Build
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.Locale
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
+
+class NativeGeocodingEngine(context: Context) {
+
+    // 1. Single shared engine for the whole app
+    private val geocoder = Geocoder(context, Locale.getDefault())
+
+    // Cache purely for Reverse Geocoding (GPS tracking)
+    private var lastFetchLocation: Location? = null
+    private var cachedAddress: String? = null
+    private val DISTANCE_THRESHOLD_METERS = 75f
+
+    // ========================================================================
+    // FEATURE 1: REVERSE GEOCODING (Coordinates -> Street Address)
+    // ========================================================================
+    suspend fun getStreetAddress(location: Location): String? = withContext(Dispatchers.IO) {
+
+        // Check the 75-meter cache first
+        if (lastFetchLocation != null && cachedAddress != null) {
+            if (location.distanceTo(lastFetchLocation!!) < DISTANCE_THRESHOLD_METERS) {
+                return@withContext cachedAddress // Return cached string instantly
+            }
+        }
+
+        // Cache busted. Fetch new data using our helper function.
+        val addressList = fetchFromLocationAPI(location.latitude, location.longitude)
+
+        // Extract the street and city safely
+        val result = addressList?.firstOrNull()?.let {
+            "${it.thoroughfare ?: ""}, ${it.locality ?: ""}".trim(',', ' ')
+        }
+
+        // Only update the cache if we got a valid, non-blank result back
+        if (!result.isNullOrBlank()) {
+            lastFetchLocation = location
+            cachedAddress = result
+        }
+
+        return@withContext result
+    }
+
+    // ========================================================================
+    // FEATURE 2: FORWARD GEOCODING (Search Bar -> Coordinates)
+    // ========================================================================
+    suspend fun getCoordinates(query: String): Pair<Double, Double>? = withContext(Dispatchers.IO) {
+        // No cache needed here, just fetch directly
+        val addressList = fetchFromLocationNameAPI(query)
+
+        // Extract the latitude and longitude into a Kotlin Pair
+        return@withContext addressList?.firstOrNull()?.let {
+            Pair(it.latitude, it.longitude)
+        }
+    }
+
+    // ========================================================================
+    // OS COMPATIBILITY WRAPPERS
+    // ========================================================================
+
+    private suspend fun fetchFromLocationAPI(lat: Double, lon: Double): List<Address>? = suspendCoroutine { continuation ->
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                geocoder.getFromLocation(lat, lon, 1) { addresses -> continuation.resume(addresses) }
+            } else {
+                continuation.resume(geocoder.getFromLocation(lat, lon, 1))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            continuation.resume(null) // Prevent app crash if network fails
+        }
+    }
+
+    private suspend fun fetchFromLocationNameAPI(query: String): List<Address>? = suspendCoroutine { continuation ->
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                geocoder.getFromLocationName(query, 1) { addresses -> continuation.resume(addresses) }
+            } else {
+                continuation.resume(geocoder.getFromLocationName(query, 1))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            continuation.resume(null)
+        }
+    }
+}
+
+//// In your ViewModel
+//fun onSearchButtonClicked(cityName: String) {
+//    viewModelScope.launch {
+//        val coords = geocodingEngine.getCoordinates(cityName)
+//        if (coords != null) {
+//            val (lat, lon) = coords
+//            // Now pass these to Open-Meteo!
+//            fetchWeather(lat, lon)
+//        }
+//    }
+//}
