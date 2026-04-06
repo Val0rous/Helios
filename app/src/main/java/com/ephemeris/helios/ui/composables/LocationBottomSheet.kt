@@ -51,10 +51,10 @@ import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.MapCard
 import com.ephemeris.helios.ui.composables.entries.TextEntryLocation
-import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.LocationStatus
 import com.ephemeris.helios.utils.formatLatitude
 import com.ephemeris.helios.utils.formatLongitude
+import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.round
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter

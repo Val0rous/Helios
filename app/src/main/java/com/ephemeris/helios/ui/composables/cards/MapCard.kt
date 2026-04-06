@@ -5,20 +5,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.ephemeris.helios.R
 import com.ephemeris.helios.utils.location.Coordinates
 import com.google.android.gms.maps.GoogleMapOptions
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapColorScheme
+import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.GoogleMap
+import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapUiSettings
+import com.google.maps.android.compose.MapsComposeExperimentalApi
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.rememberCameraPositionState
@@ -42,38 +46,45 @@ fun MapCard(
             .height(218.dp),
         contentAlignment = Alignment.Center,
     ) {
-        if (true) {
-            GoogleMap(
-                modifier = Modifier.fillMaxWidth(),
-                cameraPositionState = cameraPositionState,
-                uiSettings = MapUiSettings(
-                    compassEnabled = true,
-                    mapToolbarEnabled = true,
-                    myLocationButtonEnabled = true,
-                    scrollGesturesEnabled = true,
-                    tiltGesturesEnabled = false,
-                    rotationGesturesEnabled = true,
-                    zoomControlsEnabled = false,
-                    zoomGesturesEnabled = true
-                ),
-                googleMapOptionsFactory = {
-                    GoogleMapOptions().mapColorScheme(
-                        if (effectiveIsDarkTheme) {
-                            MapColorScheme.DARK
-                        } else {
-                            MapColorScheme.LIGHT
-                        }
-                    )
-                }
-            ) {
-                Marker(
-                    state = remember { MarkerState(position = coordinates) },
-                    title = "", // Optional title
-                    snippet = "Latitude: ${location.latitude}, Longitude: ${location.longitude}",  // Optional snippet
+//        if (true) {
+        // 1. The Vector Map
+        GoogleMap(
+            modifier = Modifier.fillMaxWidth(),
+            cameraPositionState = cameraPositionState,
+            uiSettings = MapUiSettings(
+                compassEnabled = false,
+                mapToolbarEnabled = false,
+                myLocationButtonEnabled = false,
+                scrollGesturesEnabled = false,
+                tiltGesturesEnabled = false,
+                rotationGesturesEnabled = false,
+                zoomControlsEnabled = false,
+                zoomGesturesEnabled = false
+            ),
+            googleMapOptionsFactory = {
+                GoogleMapOptions()
+                    .mapColorScheme(
+                    if (effectiveIsDarkTheme) {
+                        MapColorScheme.DARK
+                    } else {
+                        MapColorScheme.LIGHT
+                    }
                 )
+//                    .liteMode(true) // Renders map as a highly-cached static image
+            },
+            onMapClick = {
+                // Optional: If you want interactivity, handle the click here
+                // e.g. Open a full-screen interactive map intent or a separate Compose screen
             }
-        } else {
-            CircularProgressIndicator()
+        ) {
+            Marker(
+                state = remember { MarkerState(position = coordinates) },
+                title = "", // Optional title
+                snippet = "Latitude: ${location.latitude}, Longitude: ${location.longitude}",  // Optional snippet
+            )
         }
+//        } else {
+//            CircularProgressIndicator()
+//        }
     }
 }
