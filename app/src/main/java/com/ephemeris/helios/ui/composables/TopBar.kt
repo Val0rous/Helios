@@ -175,7 +175,7 @@ fun TopBar(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(
-                            text = "Hamilton St., London",
+                            text = coordinates.locationName ?: "Locating...",
                             color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.titleMedium
                         )

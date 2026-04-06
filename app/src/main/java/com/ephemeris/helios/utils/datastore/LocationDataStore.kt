@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.doublePreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import com.ephemeris.helios.utils.location.Coordinates
@@ -19,6 +20,7 @@ class LocationDataStore(private val context: Context) {
     private val latitudeKey = doublePreferencesKey("latitude")
     private val longitudeKey = doublePreferencesKey("longitude")
     private val altitudeKey = doublePreferencesKey("altitude")
+    private val locationNameKey = stringPreferencesKey("location_name")
 
     // 2. Expose a Flow to read the coordinates
     val coordinatesFlow: Flow<Coordinates?> = context.dataStore.data
@@ -27,8 +29,10 @@ class LocationDataStore(private val context: Context) {
             val lat = preferences[latitudeKey]
             val lon = preferences[longitudeKey]
             val alt = preferences[altitudeKey]
+            val name = preferences[locationNameKey]
+
             if (lat != null && lon != null && alt != null) {
-                Coordinates(lat, lon, alt)
+                Coordinates(lat, lon, alt, name)
             } else null
         }
 
@@ -38,6 +42,13 @@ class LocationDataStore(private val context: Context) {
             preferences[latitudeKey] = coordinates.latitude
             preferences[longitudeKey] = coordinates.longitude
             preferences[altitudeKey] = coordinates.altitude
+
+            // Save name (or remove key if null)
+            if (coordinates.locationName != null) {
+                preferences[locationNameKey] = coordinates.locationName
+            } else {
+                preferences.remove(locationNameKey)
+            }
         }
     }
 }

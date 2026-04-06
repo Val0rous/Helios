@@ -37,8 +37,26 @@ class NativeGeocodingEngine(context: Context) {
         val addressList = fetchFromLocationAPI(location.latitude, location.longitude)
 
         // Extract the street and city safely
-        val result = addressList?.firstOrNull()?.let {
-            "${it.thoroughfare ?: ""}, ${it.locality ?: ""}".trim(',', ' ')
+        val result = addressList?.firstOrNull()?.let { address ->
+            val street = address.thoroughfare
+            val neighborhood = address.subLocality
+            val city = address.locality
+            val state = address.adminArea
+            val country = address.countryName
+
+            // Build a smart, privacy-friendly string
+            when {
+                // 1. Street-level ("Hamilton St, London")
+                street != null && city != null -> "$street, $city"
+                // 2. Neighborhood-level ("Trastevere, Rome")
+                neighborhood != null && city != null && neighborhood != city -> "$neighborhood, $city"
+                // 3. City & State ("Perth, Western Australia")
+                city != null && state != null -> "$city, $state"
+                // 4. City & Country (fallback only if State data is missing in that region)
+                city != null && country != null -> "$city, $country"
+                // 5. Ultimate Fallback (Wilderness or ocean edges)
+                else -> city ?: state ?: country ?: ""
+            }
         }
 
         // Only update the cache if we got a valid, non-blank result back

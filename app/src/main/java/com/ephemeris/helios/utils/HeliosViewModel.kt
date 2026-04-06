@@ -1,6 +1,7 @@
 package com.ephemeris.helios.utils
 
 import android.app.Application
+import android.location.Location
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -12,6 +13,7 @@ import com.ephemeris.helios.utils.calc.getDailyEphemerisData
 import com.ephemeris.helios.utils.calc.getLiveUpdates
 import com.ephemeris.helios.utils.datastore.LocationDataStore
 import com.ephemeris.helios.utils.location.Coordinates
+import com.ephemeris.helios.utils.location.NativeGeocodingEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,6 +23,7 @@ import java.time.ZonedDateTime
 
 class HeliosViewModel(application: Application) : AndroidViewModel(application) {
     private val locationDataStore = LocationDataStore(application)
+    private val geocodingEngine = NativeGeocodingEngine(application)
 
     // DataStore Flow converted to a StateFlow for Compose
     val coordinatesState = locationDataStore.coordinatesFlow.stateIn(
@@ -29,7 +32,7 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
         initialValue = null
     )
 
-    var currentTime by mutableStateOf(ZonedDateTime.now())
+    var currentTime: ZonedDateTime by mutableStateOf(ZonedDateTime.now())
     var isAutoUpdateEnabled by mutableStateOf(true)
 
     var dayData by mutableStateOf<DayEphemerisData?>(null)
@@ -52,8 +55,23 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun saveCoordinates(newCoordinates: Coordinates) {
-        viewModelScope.launch {
-            locationDataStore.saveCoordinates(newCoordinates)
+        // Run on IO Dispatcher so the geocoder doesn't block the UI
+        viewModelScope.launch(Dispatchers.IO) {
+            // Check if we need to fetch the name
+            val finalCoords = if (newCoordinates.locationName == null) {
+                // Convert to Android Location object for the Geocoder
+                val loc = Location("").apply {
+                    latitude = newCoordinates.latitude
+                    longitude = newCoordinates.longitude
+                }
+                // Fetch street address
+                val fetchedName = geocodingEngine.getStreetAddress(loc)
+                newCoordinates.copy(locationName = fetchedName ?: "Unknown location")
+            } else {
+                newCoordinates  // Name already exists (e.g. from a forward search)
+            }
+
+            locationDataStore.saveCoordinates(finalCoords)
         }
     }
 
