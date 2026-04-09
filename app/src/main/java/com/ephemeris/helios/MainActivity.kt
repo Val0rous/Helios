@@ -192,8 +192,7 @@ class MainActivity : ComponentActivity() {
                         ) {
                             composable(Routes.Home.route) {
                                 Home(
-                                    seasonalEvents = vm.dayData!!.seasonalEvents,
-                                    seasonalDailyEvents = vm.dayData!!.seasonalDailyEvents
+
                                 )
                             }
                             composable(Routes.Exposure.route) {
@@ -207,7 +206,9 @@ class MainActivity : ComponentActivity() {
                                     events = vm.dayData!!.events,
                                     durations = vm.dayData!!.durations,
                                     dailyPeakMetrics = vm.dayData!!.dailyPeakMetrics,
-                                    liveMetrics = vm.liveData!!.liveSunMetrics
+                                    liveMetrics = vm.liveData!!.liveSunMetrics,
+                                    seasonalEvents = vm.dayData!!.seasonalEvents,
+                                    seasonalDailyEvents = vm.dayData!!.seasonalDailyEvents
                                 )
                             }
                             composable(Routes.Moon.route) {

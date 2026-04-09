@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -16,11 +17,14 @@ import com.ephemeris.helios.ui.composables.entries.DurationEntry
 import com.ephemeris.helios.ui.composables.entries.LiveMetricsEntry
 import com.ephemeris.helios.ui.composables.entries.NightEntry
 import com.ephemeris.helios.ui.composables.entries.PlutoTimeEntry
+import com.ephemeris.helios.ui.composables.entries.SeasonalEntry
 import com.ephemeris.helios.ui.composables.entries.SolarNoonEntry
 import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
 import com.ephemeris.helios.ui.composables.entries.TwilightEntry
+import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.calc.SeasonalEphemeris
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.calc.SunMetrics
@@ -38,7 +42,9 @@ fun Sun(
     events: SolarEphemeris.DailyEvents,
     durations: SolarEphemeris.DailyDurations,
     dailyPeakMetrics: SunMetrics.SunMetricsResult,
-    liveMetrics: SunMetrics.SunMetricsResult
+    liveMetrics: SunMetrics.SunMetricsResult,
+    seasonalEvents: SeasonalEphemeris.SeasonalEvents,
+    seasonalDailyEvents: SeasonalEphemeris.SeasonalDailyEvents
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -202,6 +208,35 @@ fun Sun(
                     PlutoTimeEntry(
                         morningTime = events.morningPlutoTime.formatDecimalHours(),
                         eveningTime = events.eveningPlutoTime.formatDecimalHours()
+                    )
+                }
+            )
+        }
+
+        item {
+            SmallCardRow(
+                leftCard = {
+                    SeasonalEntry(
+                        title = R.string.equinoxes,
+                        color = MaterialTheme.colorScheme.primary,
+                        dateTimeTop = seasonalEvents.marchEquinox,
+                        daylightTop = seasonalDailyEvents.marchEquinoxDaylight,
+                        sunAngleTop = seasonalDailyEvents.marchEquinoxSunAngle,
+                        dateTimeBottom = seasonalEvents.septemberEquinox,
+                        daylightBottom = seasonalDailyEvents.septemberEquinoxDaylight,
+                        sunAngleBottom = seasonalDailyEvents.septemberEquinoxSunAngle
+                    )
+                },
+                rightCard = {
+                    SeasonalEntry(
+                        title = R.string.solstices,
+                        color = LocalCustomColors.current.nightPrimary,
+                        dateTimeTop = seasonalEvents.juneSolstice,
+                        daylightTop = seasonalDailyEvents.juneSolsticeDaylight,
+                        sunAngleTop = seasonalDailyEvents.juneSolsticeSunAngle,
+                        dateTimeBottom = seasonalEvents.decemberSolstice,
+                        daylightBottom = seasonalDailyEvents.decemberSolsticeDaylight,
+                        sunAngleBottom = seasonalDailyEvents.decemberSolsticeSunAngle
                     )
                 }
             )
