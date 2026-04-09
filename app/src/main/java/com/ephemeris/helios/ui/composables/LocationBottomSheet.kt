@@ -29,6 +29,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -305,6 +306,12 @@ fun LocationBottomSheet(
                             )
 
                             Spacer(modifier = Modifier.height(24.dp))
+                            OutlinedButton(
+                                onClick = {},
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Location List")
+                            }
                             Button(
                                 onClick = { isEditing = true },
                                 modifier = Modifier.fillMaxWidth()
