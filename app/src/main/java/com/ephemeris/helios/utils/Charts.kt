@@ -25,6 +25,10 @@ sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serial
         is Moon.Daily.ColorTemperature -> Moon.Daily.ColorTemperature
         is Moon.Daily.AirMass -> Moon.Daily.AirMass
 
+        // Combo Charts
+        is SunMoonCombo.Daily.Elevation -> SunMoonCombo.Daily.Elevation
+        is SunMoonCombo.Daily.Trajectory -> SunMoonCombo.Daily.Trajectory
+
         // Planet Charts
         is Venus.Daily.Elevation -> Venus.Daily.Elevation
         is Mars.Daily.Elevation -> Mars.Daily.Elevation
@@ -53,7 +57,7 @@ sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serial
     sealed class Moon(label: Int, icon: Int, filledIcon: Int) : Charts(label, icon, filledIcon) {
         sealed class Daily(label: Int, icon: Int, filledIcon: Int) : Moon(label, icon, filledIcon) {
             object Elevation : Daily(R.string.elevation, R.drawable.ic_nightlight, R.drawable.ic_nightlight_filled) // Altitude
-            object Trajectory : Daily(R.string.trajectory, R.drawable.ic_explore, R.drawable.ic_explore_filled) //)
+            object Trajectory : Daily(R.string.trajectory, R.drawable.ic_explore, R.drawable.ic_explore_filled) // Azimuth
             object Illuminance : Daily(R.string.illuminance, R.drawable.ic_lightbulb, R.drawable.ic_lightbulb_filled)
             object Shadows : Daily(R.string.shadows, R.drawable.ic_ev_shadow, R.drawable.ic_ev_shadow_filled)
             object ColorTemperature : Daily(R.string.color_temperature, R.drawable.ic_thermometer, R.drawable.ic_thermometer_filled)
@@ -61,6 +65,17 @@ sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serial
 
             companion object {
                 val entries get() = listOf(Elevation, Trajectory, Illuminance, Shadows, ColorTemperature, AirMass)
+            }
+        }
+    }
+
+    sealed class SunMoonCombo(label: Int, icon: Int, filledIcon: Int) : Charts(label, icon, filledIcon) {
+        sealed class Daily(label: Int, icon: Int, filledIcon: Int) : SunMoonCombo(label, icon, filledIcon) {
+            object Elevation : Daily(R.string.elevation, R.drawable.ic_routine, R.drawable.ic_routine_filled)   // Altitude
+            object Trajectory : Daily(R.string.trajectory, R.drawable.ic_explore, R.drawable.ic_explore_filled) // Azimuth
+
+            companion object {
+                val entries get() = listOf(Elevation, Trajectory)
             }
         }
     }

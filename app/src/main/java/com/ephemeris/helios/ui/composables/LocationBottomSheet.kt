@@ -312,6 +312,7 @@ fun LocationBottomSheet(
                             ) {
                                 Text("Location List")
                             }
+                            Spacer(modifier = Modifier.height(2.dp))
                             Button(
                                 onClick = { isEditing = true },
                                 modifier = Modifier.fillMaxWidth()

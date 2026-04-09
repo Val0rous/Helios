@@ -192,7 +192,12 @@ class MainActivity : ComponentActivity() {
                         ) {
                             composable(Routes.Home.route) {
                                 Home(
-
+                                    currentTime = vm.currentTime,
+                                    coordinates = coordinates!!,
+                                    currentSunPosition = vm.liveData!!.currentSunPosition,
+                                    sunEvents = vm.dayData!!.events,
+                                    currentMoonPosition = vm.liveData!!.currentMoonPosition,
+                                    moonEvents = vm.dayData!!.lunarEvents
                                 )
                             }
                             composable(Routes.Exposure.route) {

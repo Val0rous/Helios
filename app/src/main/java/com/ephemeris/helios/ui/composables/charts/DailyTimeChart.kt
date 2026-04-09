@@ -26,7 +26,6 @@ import com.ephemeris.helios.utils.charts.createHorizontalBrush
 import com.ephemeris.helios.utils.charts.drawCurvePath
 import com.ephemeris.helios.utils.charts.drawDayNightAreaFill
 import com.ephemeris.helios.utils.charts.drawDayNightBackground
-import com.ephemeris.helios.utils.charts.drawElapsedPath
 import com.ephemeris.helios.utils.charts.drawElapsedTimePath
 import com.ephemeris.helios.utils.charts.drawHorizonLine
 import com.ephemeris.helios.utils.charts.drawNightVerticalTwilights
@@ -48,10 +47,11 @@ import kotlin.math.min
 @Composable
 fun DailyTimeChart(
     xValues: FloatArray,
-    yValues: FloatArray,
+    primaryYValues: FloatArray,
     chartType: Charts,
     currentHour: Float,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    secondaryYValues: FloatArray = floatArrayOf()
 ) {
     val drawChartIcon = rememberChartIconDrawer(chartType)
     val colors = LocalCustomColors.current
@@ -76,7 +76,6 @@ fun DailyTimeChart(
     val irrMid = Color(0xFFFF9800).copy(alpha = 0.5f)   // Orange Energy
     val irrHigh = Color(0xFFE65100).copy(alpha = 0.6f)  // Intense Heat Red
 
-
     val elapsedDayFill = when (chartType) {
         Charts.Sun.Daily.Elevation -> colors.elapsedDay
         else -> MaterialColors.Gray400.copy(alpha = 0.4f)
@@ -95,15 +94,15 @@ fun DailyTimeChart(
     )
 
     Canvas(modifier = modifier) {
-        if (xValues.isEmpty() || yValues.isEmpty()) return@Canvas
+        if (xValues.isEmpty() || primaryYValues.isEmpty()) return@Canvas
 
         val params = ChartData(
             xValues = xValues,
-            yValues = yValues,
+            yValues = primaryYValues,
             minX = getMinX(xValues, chartType),
             maxX = getMaxX(xValues, chartType),
-            minY = getMinY(yValues, chartType),
-            maxY = getMaxY(yValues, chartType),
+            minY = getMinY(primaryYValues, chartType),
+            maxY = getMaxY(primaryYValues, chartType),
             width = size.width,
             height = size.height,
             verticalPaddingPx = 16.dp.toPx()
@@ -121,25 +120,48 @@ fun DailyTimeChart(
         drawDayNightBackground(colorScheme, params, zeroYPixel)
 
         // 1. Build the smooth curve path
-        val curvePath = Path().apply {
-            moveTo(mapX(xValues[0]), mapY(yValues[0]))
+        val primaryCurvePath = Path().apply {
+            moveTo(mapX(xValues[0]), mapY(primaryYValues[0]))
             for (i in 1 until xValues.size) {
-                lineTo(mapX(xValues[i]), mapY(yValues[i]))
+                lineTo(mapX(xValues[i]), mapY(primaryYValues[i]))
             }
         }
 
         // 2. Build the fill path that closes down to the X-axis
-        val fillPath = Path().apply {
+        val primaryFillPath = Path().apply {
             moveTo(mapX(xValues[0]), zeroYPixel)
-            lineTo(mapX(xValues[0]), mapY(yValues[0]))
+            lineTo(mapX(xValues[0]), mapY(primaryYValues[0]))
             for (i in 1 until xValues.size) {
-                lineTo(mapX(xValues[i]), mapY(yValues[i]))
+                lineTo(mapX(xValues[i]), mapY(primaryYValues[i]))
             }
             lineTo(mapX(xValues.last()), zeroYPixel)
             close()
         }
 
-        drawDayNightAreaFill(fillPath, colorScheme, zeroYPixel)
+        if (chartType is Charts.SunMoonCombo) {
+            val secondaryCurvePath = Path().apply {
+                moveTo(mapX(xValues[0]), mapY(secondaryYValues[0]))
+                for (i in 1 until xValues.size) {
+                    lineTo(mapX(xValues[i]), mapY(secondaryYValues[i]))
+                }
+            }
+
+            // TODO: independent secondary zeroYPixel
+            val secondaryFillPath = Path().apply {
+                moveTo(mapX(xValues[0]), zeroYPixel)
+                lineTo(mapX(xValues[0]), mapY(secondaryYValues[0]))
+                for (i in 1 until xValues.size) {
+                    lineTo(mapX(xValues[i]), mapY(secondaryYValues[i]))
+                }
+                lineTo(mapX(xValues.last()), zeroYPixel)
+                close()
+            }
+
+            drawCurvePath(secondaryCurvePath, materialTheme)
+            drawElapsedTimePath(secondaryCurvePath, localCustomColors, chartType, currentXPx)
+        }
+
+        drawDayNightAreaFill(primaryFillPath, colorScheme, zeroYPixel)
 
         // 3a. Calculate exact X intersections for vertical stripes
         val thresholds = when(chartType) {
@@ -155,8 +177,8 @@ fun DailyTimeChart(
         for (i in 0 until xValues.size - 1) {
             val x1 = xValues[i]
             val x2 = xValues[i+1]
-            val y1 = yValues[i]
-            val y2 = yValues[i+1]
+            val y1 = primaryYValues[i]
+            val y2 = primaryYValues[i+1]
 
             for (th in thresholds) {
                 if ((y1 < th && y2 > th) || (y1 > th && y2 < th)) {
@@ -171,7 +193,7 @@ fun DailyTimeChart(
         val uniqueXPoints = sortedXPoints.distinct()
 
         // --- NEW: Draw the clipped vertical stripes ---
-        clipPath(fillPath) {
+        clipPath(primaryFillPath) {
 
             // 1. Day area: Removed 'right = currentXPx' so sunset is always visible by default
             clipRect(bottom = zeroYPixel) {
@@ -247,21 +269,21 @@ fun DailyTimeChart(
             clipRect(right = currentXPx) {
                 // Elapsed Day (Above 0deg)
                 clipRect(bottom = zeroYPixel) {
-                    drawPath(path = fillPath, color = elapsedDayFill)
+                    drawPath(path = primaryFillPath, color = elapsedDayFill)
                 }
 
                 // Elapsed Night (Below 0deg)
                 clipRect(top = zeroYPixel) {
-                    drawPath(path = fillPath, color = elapsedNightFill)
+                    drawPath(path = primaryFillPath, color = elapsedNightFill)
                 }
             }
         }
 
         // 4. Draw the full unclipped curve line for all values
-        drawCurvePath(curvePath, materialTheme)
+        drawCurvePath(primaryCurvePath, materialTheme)
 
         // --- Draw the elapsed path line on top
-        drawElapsedTimePath(curvePath, localCustomColors, chartType, currentXPx)
+        drawElapsedTimePath(primaryCurvePath, localCustomColors, chartType, currentXPx)
 
         // 5. Draw a subtle X-Axis line to visually separate the zones
         drawHorizonLine(materialTheme, params, zeroYPixel)
@@ -285,7 +307,7 @@ fun DailyTimeChart(
                 if (timeDelta != 0f) {
                     // Linear interpolation to find the exact altitude at this moment
                     val fraction = (currentHour - x1) / timeDelta
-                    currentY = yValues[i] + fraction * (yValues[i+1] - yValues[i])
+                    currentY = primaryYValues[i] + fraction * (primaryYValues[i+1] - primaryYValues[i])
                 }
                 break
             }

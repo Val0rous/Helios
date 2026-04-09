@@ -31,7 +31,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -54,6 +53,7 @@ import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import com.ephemeris.helios.utils.round
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 import java.time.ZonedDateTime
 import kotlin.math.round
 
@@ -61,7 +61,7 @@ const val X_SIZE = 481 // 480 items
 
 data class ChartArrays(
     val timeXValues: FloatArray,
-    val azimuthXValues: FloatArray,
+    val xDataSets: Map<Charts, FloatArray>,
     val yDataSets: Map<Charts, FloatArray>
 ) {
     override fun equals(other: Any?): Boolean {
@@ -71,9 +71,14 @@ data class ChartArrays(
         other as ChartArrays
 
         if (!timeXValues.contentEquals(other.timeXValues)) return false
-        if (!azimuthXValues.contentEquals(other.azimuthXValues)) return false
 
-        // Deep compare the maps
+        // Deep compare the X maps
+        if (xDataSets != other.xDataSets) return false
+        for ((key, value) in xDataSets) {
+            if (!value.contentEquals(other.xDataSets[key])) return false
+        }
+
+        // Deep compare the Y maps
         if (yDataSets != other.yDataSets) return false
         for ((key, value) in yDataSets) {
             if (!value.contentEquals(other.yDataSets[key])) return false
@@ -84,8 +89,12 @@ data class ChartArrays(
 
     override fun hashCode(): Int {
         var result = timeXValues.contentHashCode()
-        result = 31 * result + azimuthXValues.contentHashCode()
-        // Simple hash for the map arrays
+        // Simple hash for the X map arrays
+        xDataSets.forEach { (key, value) ->
+            result = 31 * result + key.hashCode()
+            result = 31 * result + value.contentHashCode()
+        }
+        // Simple hash for the Y map arrays
         yDataSets.forEach { (key, value) ->
             result = 31 * result + key.hashCode()
             result = 31 * result + value.contentHashCode()
@@ -120,10 +129,9 @@ fun DailyPathCard(
     LaunchedEffect(currentTime.toLocalDate(), coordinates) {
         withContext(Dispatchers.Default) {
             val hoursCalc = DoubleArray(X_SIZE) { round(it * 5.0) / 100.0 }
-            val elevationCalc = DoubleArray(hoursCalc.size)
-            val azimuthsCalc = FloatArray(X_SIZE)
-
             val hours = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
+
+            val xDataMap = mutableMapOf<Charts, FloatArray>()
             val yDataMap = mutableMapOf<Charts, FloatArray>()
 
             val tzOffset = currentTime.offset.totalSeconds / 3600.0
@@ -136,80 +144,29 @@ fun DailyPathCard(
 
             when (type) {
                 is Charts.Sun -> {
-                    for (i in 0 until X_SIZE) {
-                        val position = SolarEphemeris.getPositionAtHour(
-                            date = localDate,
-                            decimalHour = hoursCalc[i],
-                            latitude = coordinates.latitude,
-                            longitude = coordinates.longitude,
-                            tzOffsetHours = tzOffset
-                        )
-                        elevationCalc[i] = position.altitude
-                        azimuthsCalc[i] = position.azimuth.toFloat()
-                    }
-                    val elevation = FloatArray(X_SIZE) { elevationCalc[it].toFloat() }
-                    val irradiance = FloatArray(X_SIZE)
-                    val uvIntensity = FloatArray(X_SIZE)
-                    val illuminance = FloatArray(X_SIZE)
-                    val shadowRatio = FloatArray(X_SIZE)
-                    val colorTemp = FloatArray(X_SIZE)
-                    val airMass = FloatArray(X_SIZE)
-
-                    SunMetrics.calculateMetrics(
-                        sunElevationsDeg = elevationCalc,
-                        observerAltitudeMeters = coordinates.altitude,
-                        ozoneDU = dailyOzone,
-                        outIrradiance = irradiance,
-                        outUvi = uvIntensity,
-                        outIlluminance = illuminance,
-                        outShadowRatio = shadowRatio,
-                        outColorTemp = colorTemp,
-                        outAirMass = airMass
-                    )
-
-                    // Map the arrays to their specific Sun enum keys
-                    yDataMap[Charts.Sun.Daily.Elevation] = elevation
-                    yDataMap[Charts.Sun.Daily.Irradiance] = irradiance
-                    yDataMap[Charts.Sun.Daily.UvIntensity] = uvIntensity
-                    yDataMap[Charts.Sun.Daily.Trajectory] = elevation
-                    yDataMap[Charts.Sun.Daily.Illuminance] = illuminance
-                    yDataMap[Charts.Sun.Daily.Shadows] = shadowRatio
-                    yDataMap[Charts.Sun.Daily.ColorTemperature] = colorTemp
-                    yDataMap[Charts.Sun.Daily.AirMass] = airMass
+                    val (x, y) = generateSunData(localDate, hoursCalc, coordinates, tzOffset, dailyOzone)
+                    xDataMap.putAll(x)
+                    yDataMap.putAll(y)
                 }
                 is Charts.Moon -> {
-                    for (i in 0 until X_SIZE) {
-                        val position = LunarEphemeris.getPositionAtHour(
-                            date = localDate,
-                            decimalHour = hoursCalc[i],
-                            coordinates = coordinates,
-                            tzOffsetHours = tzOffset
-                        )
-                        elevationCalc[i] = position.altitude
-                        azimuthsCalc[i] = position.azimuth.toFloat()
-                    }
-                    val elevation = FloatArray(X_SIZE) { elevationCalc[it].toFloat() }
-                    val illuminance = FloatArray(X_SIZE)
-                    val shadowRatio = FloatArray(X_SIZE)
-                    val colorTemp = FloatArray(X_SIZE)
-                    val airMass = FloatArray(X_SIZE)
-
-                    val res = MoonMetrics.calculateMetrics(
-                        time = currentTime,
-                        coordinates = coordinates
-                    )
-
-                    yDataMap[Charts.Moon.Daily.Elevation] = elevation
-                    yDataMap[Charts.Moon.Daily.Trajectory] = elevation
-//                    yDataMap[Charts.Moon.Daily.Illuminance] = res.illuminanceLux
-                    // Todo: fix and add Moon charts
+                    val (x, y) = generateMoonData(localDate, hoursCalc, coordinates, tzOffset, currentTime)
+                    xDataMap.putAll(x)
+                    yDataMap.putAll(y)
+                }
+                is Charts.SunMoonCombo -> {
+                    val (xSun, ySun) = generateSunData(localDate, hoursCalc, coordinates, tzOffset, dailyOzone)
+                    val (xMoon, yMoon) = generateMoonData(localDate, hoursCalc, coordinates, tzOffset, currentTime)
+                    xDataMap.putAll(xSun)
+                    xDataMap.putAll(xMoon)
+                    yDataMap.putAll(ySun)
+                    yDataMap.putAll(yMoon)
                 }
                 else -> {
                     // Todo planets
                 }
             }
 
-            chartArrays = ChartArrays(hours, azimuthsCalc, yDataMap)
+            chartArrays = ChartArrays(hours, xDataMap, yDataMap)
         }
     }
 
@@ -249,15 +206,36 @@ fun DailyPathCard(
                 }
             } else {
                 val isTrajectory = selectedChartType.javaClass.simpleName.contains("Trajectory")
-                val xValues = if (isTrajectory) arrays.azimuthXValues else arrays.timeXValues
-                val yValues = arrays.yDataSets[selectedChartType] ?: FloatArray(X_SIZE)
+//                val xValues = if (isTrajectory) arrays.xDataSets[selectedChartType] else arrays.timeXValues
+
+                val primaryXValues = when (selectedChartType) {
+                    is Charts.SunMoonCombo.Daily.Trajectory -> arrays.xDataSets[Charts.Sun.Daily.Trajectory]
+                    else -> arrays.xDataSets[selectedChartType]
+                } ?: FloatArray(X_SIZE)
+
+                val secondaryXValues = when (selectedChartType) {
+                    is Charts.SunMoonCombo.Daily.Trajectory -> arrays.xDataSets[Charts.Moon.Daily.Trajectory]
+                    else -> floatArrayOf()
+                } ?: FloatArray(X_SIZE)
+
+                val primaryYValues = when (selectedChartType) {
+                    is Charts.SunMoonCombo.Daily.Elevation -> arrays.yDataSets[Charts.Sun.Daily.Elevation]
+                    is Charts.SunMoonCombo.Daily.Trajectory -> arrays.yDataSets[Charts.Sun.Daily.Trajectory]
+                    else -> arrays.yDataSets[selectedChartType]
+                } ?: FloatArray(X_SIZE)
+
+                val secondaryYValues = when (selectedChartType) {
+                    is Charts.SunMoonCombo.Daily.Elevation -> arrays.yDataSets[Charts.Moon.Daily.Elevation]
+                    is Charts.SunMoonCombo.Daily.Trajectory -> arrays.yDataSets[Charts.Moon.Daily.Trajectory]
+                    else -> floatArrayOf()
+                } ?: FloatArray(X_SIZE)
 
                 val cornerRadius = 12.dp
 
                 if (isTrajectory) {
                     DailyAzimuthChart(
-                        xValues = xValues,
-                        yValues = yValues,
+                        xValues = arrays.xDataSets[selectedChartType] ?: FloatArray(X_SIZE),
+                        yValues = primaryYValues,
                         currentHour = currentHour,
                         chartType = selectedChartType,
                         currentAzimuth = currentAzimuth.toFloat(),
@@ -274,8 +252,9 @@ fun DailyPathCard(
                     )
                 } else {
                     DailyTimeChart(
-                        xValues = xValues,
-                        yValues = yValues,
+                        xValues = arrays.timeXValues,
+                        primaryYValues = primaryYValues,
+                        secondaryYValues = secondaryYValues,
                         currentHour = currentHour,
                         chartType = selectedChartType,
                         modifier = Modifier
@@ -347,4 +326,102 @@ internal fun CustomColumn(header: String, value: String) {
         )
         Text(text = value, style = textStyle.copy(color = MaterialTheme.colorScheme.onSurface))
     }
+}
+
+private fun generateSunData(
+    localDate: LocalDate,
+    hoursCalc: DoubleArray,
+    coordinates: Coordinates,
+    tzOffset: Double,
+    dailyOzone: Double
+): Pair<Map<Charts, FloatArray>, Map<Charts, FloatArray>> {
+    val elevationCalc = DoubleArray(X_SIZE)
+    val azimuthsCalc = FloatArray(X_SIZE)
+    val xMap = mutableMapOf<Charts, FloatArray>()
+    val yMap = mutableMapOf<Charts, FloatArray>()
+    for (i in 0 until X_SIZE) {
+        val position = SolarEphemeris.getPositionAtHour(
+            date = localDate,
+            decimalHour = hoursCalc[i],
+            latitude = coordinates.latitude,
+            longitude = coordinates.longitude,
+            tzOffsetHours = tzOffset
+        )
+        elevationCalc[i] = position.altitude
+        azimuthsCalc[i] = position.azimuth.toFloat()
+    }
+    val elevation = FloatArray(X_SIZE) { elevationCalc[it].toFloat() }
+    val irradiance = FloatArray(X_SIZE)
+    val uvIntensity = FloatArray(X_SIZE)
+    val illuminance = FloatArray(X_SIZE)
+    val shadowRatio = FloatArray(X_SIZE)
+    val colorTemp = FloatArray(X_SIZE)
+    val airMass = FloatArray(X_SIZE)
+
+    SunMetrics.calculateMetrics(
+        sunElevationsDeg = elevationCalc,
+        observerAltitudeMeters = coordinates.altitude,
+        ozoneDU = dailyOzone,
+        outIrradiance = irradiance,
+        outUvi = uvIntensity,
+        outIlluminance = illuminance,
+        outShadowRatio = shadowRatio,
+        outColorTemp = colorTemp,
+        outAirMass = airMass
+    )
+
+    // Map the arrays to their specific Sun enum keys
+    yMap[Charts.Sun.Daily.Elevation] = elevation
+    yMap[Charts.Sun.Daily.Irradiance] = irradiance
+    yMap[Charts.Sun.Daily.UvIntensity] = uvIntensity
+    yMap[Charts.Sun.Daily.Trajectory] = elevation
+    yMap[Charts.Sun.Daily.Illuminance] = illuminance
+    yMap[Charts.Sun.Daily.Shadows] = shadowRatio
+    yMap[Charts.Sun.Daily.ColorTemperature] = colorTemp
+    yMap[Charts.Sun.Daily.AirMass] = airMass
+
+    xMap[Charts.Sun.Daily.Trajectory] = azimuthsCalc
+
+    return xMap to yMap
+}
+
+private fun generateMoonData(
+    localDate: LocalDate,
+    hoursCalc: DoubleArray,
+    coordinates: Coordinates,
+    tzOffset: Double,
+    currentTime: ZonedDateTime
+): Pair<Map<Charts, FloatArray>, Map<Charts, FloatArray>> {
+    val elevationCalc = DoubleArray(X_SIZE)
+    val azimuthsCalc = FloatArray(X_SIZE)
+    val xMap = mutableMapOf<Charts, FloatArray>()
+    val yMap = mutableMapOf<Charts, FloatArray>()
+    for (i in 0 until X_SIZE) {
+        val position = LunarEphemeris.getPositionAtHour(
+            date = localDate,
+            decimalHour = hoursCalc[i],
+            coordinates = coordinates,
+            tzOffsetHours = tzOffset
+        )
+        elevationCalc[i] = position.altitude
+        azimuthsCalc[i] = position.azimuth.toFloat()
+    }
+    val elevation = FloatArray(X_SIZE) { elevationCalc[it].toFloat() }
+    val illuminance = FloatArray(X_SIZE)
+    val shadowRatio = FloatArray(X_SIZE)
+    val colorTemp = FloatArray(X_SIZE)
+    val airMass = FloatArray(X_SIZE)
+
+    val res = MoonMetrics.calculateMetrics(
+        time = currentTime,
+        coordinates = coordinates
+    )
+
+    yMap[Charts.Moon.Daily.Elevation] = elevation
+    yMap[Charts.Moon.Daily.Trajectory] = elevation
+//                    yDataMap[Charts.Moon.Daily.Illuminance] = res.illuminanceLux
+
+    xMap[Charts.Moon.Daily.Trajectory] = azimuthsCalc
+    // Todo: fix and add Moon charts
+    return xMap to yMap
 }
