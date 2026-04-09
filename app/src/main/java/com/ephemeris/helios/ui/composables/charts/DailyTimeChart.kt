@@ -58,24 +58,6 @@ fun DailyTimeChart(
     val colorScheme = MaterialTheme.colorScheme
     val dayFill = colors.dayBackground
 
-    // --- NEW: Gradient Theme Colors ---
-    // Air Mass (Clear Sky to Hazy Horizon)
-    val amZenith = Color(0xFF29B6F6).copy(alpha = 0.5f) // Clear Light Blue
-    val amHorizon = Color(0xFFCFD8DC).copy(alpha = 0.5f) // Hazy Grey/White
-
-    // Shadows (Light/Short to Dark/Long)
-    val shadowShort = Color(0xFFE0E0E0).copy(alpha = 0.5f)
-    val shadowLong = Color(0xFF424242).copy(alpha = 0.5f)
-
-    // Illuminance (Blinding Light to Dim)
-    val luxBright = Color(0xFFFFF59D).copy(alpha = 0.6f) // Glowing Pale Yellow
-    val luxDim = Color(0xFF5C6BC0).copy(alpha = 0.3f)   // Dim Twilight Blue
-
-    // Irradiance Heat Map (Warm to Hot)
-    val irrLow = Color(0xFFFFCC80).copy(alpha = 0.4f)   // Soft Dawn Gold
-    val irrMid = Color(0xFFFF9800).copy(alpha = 0.5f)   // Orange Energy
-    val irrHigh = Color(0xFFE65100).copy(alpha = 0.6f)  // Intense Heat Red
-
     val elapsedDayFill = when (chartType) {
         Charts.Sun.Daily.Elevation -> colors.elapsedDay
         else -> MaterialColors.Gray400.copy(alpha = 0.4f)
@@ -216,7 +198,7 @@ fun DailyTimeChart(
                             // Air Mass goes from 1 (Zenith) to ~10+ (Horizon)
                             // We lerp from Clear Blue to Hazy Gray
                             val fraction = ((value.coerceIn(1f, 10f) - 1f) / 9f)
-                            lerp(amZenith, amHorizon, fraction)
+                            lerp(colors.amZenith, colors.amHorizon, fraction)
                         }, params)
                         drawRect(brush = amBrush, topLeft = Offset(0f, 0f), size = Size(params.width, zeroYPixel))
                     }
@@ -225,14 +207,14 @@ fun DailyTimeChart(
                             // Shadows go from 0 (Short) to ~10+ (Long)
                             // We lerp from Light Silver to Deep Charcoal
                             val fraction = (value.coerceIn(0f, 10f) / 10f)
-                            lerp(shadowShort, shadowLong, fraction)
+                            lerp(colors.shadowShort, colors.shadowLong, fraction)
                         }, params)
                         drawRect(brush = shadowBrush, topLeft = Offset(0f, 0f), size = Size(params.width, zeroYPixel))
                     }
                     Charts.Sun.Daily.Illuminance -> {
                         val luxBrush = Brush.verticalGradient(
-                            0.0f to luxBright, // Top = Max brightness
-                            1.0f to luxDim,    // Bottom = Dim 0 lux
+                            0.0f to colors.luxBright, // Top = Max brightness
+                            1.0f to colors.luxDim,    // Bottom = Dim 0 lux
                             startY = mapY(params.maxY),
                             endY = zeroYPixel
                         )
@@ -244,8 +226,8 @@ fun DailyTimeChart(
                             val maxIrr = params.maxY.coerceAtLeast(1f)
                             val fraction = (value / maxIrr).coerceIn(0f, 1f)
                             when {
-                                fraction <= 0.5f -> lerp(irrLow, irrMid, fraction * 2f)
-                                else -> lerp(irrMid, irrHigh, (fraction - 0.5f) * 2f)
+                                fraction <= 0.5f -> lerp(colors.irrLow, colors.irrMid, fraction * 2f)
+                                else -> lerp(colors.irrMid, colors.irrHigh, (fraction - 0.5f) * 2f)
                             }
                         }, params)
 

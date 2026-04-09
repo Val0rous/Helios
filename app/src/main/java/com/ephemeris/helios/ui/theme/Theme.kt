@@ -54,6 +54,21 @@ data class CustomColorScheme(
     val nightOnPrimary: Color,
     val nightPrimaryContainer: Color,
     val nightOnPrimaryContainer: Color,
+
+    // --- NEW: Gradient Theme Colors ---
+    // Air Mass (Clear Sky to Hazy Horizon)
+    val amZenith: Color = Color(0xFF29B6F6).copy(alpha = 0.5f), // Clear Light Blue
+    val amHorizon: Color = Color(0xFFCFD8DC).copy(alpha = 0.5f), // Hazy Grey/White
+    // Shadows (Light/Short to Dark/Long)
+    val shadowShort: Color = Color(0xFFE0E0E0).copy(alpha = 0.5f),
+    val shadowLong: Color = Color(0xFF424242).copy(alpha = 0.5f),
+    // Illuminance (Blinding Light to Dim)
+    val luxBright: Color = Color(0xFFFFF59D).copy(alpha = 0.6f), // Glowing Pale Yellow
+    val luxDim: Color = Color(0xFF5C6BC0).copy(alpha = 0.3f),   // Dim Twilight Blue
+    // Irradiance Heat Map (Warm to Hot)
+    val irrLow: Color = Color(0xFFFFCC80).copy(alpha = 0.4f),   // Soft Dawn Gold
+    val irrMid: Color = Color(0xFFFF9800).copy(alpha = 0.5f),   // Orange Energy
+    val irrHigh: Color = Color(0xFFE65100).copy(alpha = 0.6f),  // Intense Heat Red
 )
 
 private val DarkCustomColors = CustomColorScheme(
