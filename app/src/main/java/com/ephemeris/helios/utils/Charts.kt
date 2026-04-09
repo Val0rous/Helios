@@ -3,6 +3,17 @@ package com.ephemeris.helios.utils
 import com.ephemeris.helios.R
 import java.io.Serializable
 
+interface ChartStrategy {
+    val minX: Float get() = 0f
+    val maxX: Float get() = 24f
+    val minY: Float get() = 0f
+    val maxY: Float get() = 90f
+    val isLogScale: Boolean get() = false
+    val zeroValue: Float get() = 0f
+
+    fun getDynamicMaxY(yValues: FloatArray): Float = maxY
+}
+
 sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serializable {
     // This ensures that when an 'object' is deserialized,
     // it returns the existing Singleton instance instead of creating a new one.

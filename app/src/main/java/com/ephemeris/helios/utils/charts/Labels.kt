@@ -31,11 +31,14 @@ fun DrawScope.drawYLabels(
 
     val yLabels = when (chartType) {
         Charts.Sun.Daily.Elevation, Charts.Sun.Daily.Trajectory,
-        Charts.Moon.Daily.Elevation, Charts.Moon.Daily.Trajectory -> (-90 until 91 step 15).map { it.toFloat()}
+        Charts.Moon.Daily.Elevation, Charts.Moon.Daily.Trajectory,
+        Charts.SunMoonCombo.Daily.Elevation, Charts.SunMoonCombo.Daily.Trajectory
+            -> (-90 until 91 step 15).map { it.toFloat() }
         Charts.Sun.Daily.Irradiance -> (0 until ((params.maxY / 100.0).roundToInt() * 100 + 1) step 100).map { it.toFloat() }
         Charts.Sun.Daily.UvIntensity -> (0 until (params.maxY.roundToInt() + 1) step floor(params.maxY / 10f).toInt().coerceAtLeast(1)).map { it.toFloat() }
         Charts.Sun.Daily.Illuminance,
-        Charts.Moon.Daily.Illuminance -> listOf(0f) + (0..5).flatMap {
+        Charts.Moon.Daily.Illuminance
+             -> listOf(0f) + (0..5).flatMap {
             val base = 10.0.pow(it.toDouble()).toFloat()
             listOf(base, base * 3f)
         }.filter { it <= params.maxY }
@@ -95,7 +98,7 @@ fun DrawScope.drawXLabels(
     val verticalGridlineColor = materialTheme.outlineVariant.copy(alpha = 0.15f) // Light and subtle
 
     val xLabels = when (chartType) {
-        Charts.Sun.Daily.Trajectory, Charts.Moon.Daily.Trajectory -> (30..330 step 30).toList()
+        Charts.Sun.Daily.Trajectory, Charts.Moon.Daily.Trajectory, Charts.SunMoonCombo.Daily.Trajectory -> (30..330 step 30).toList()
         else -> (3..21 step 3).toList()
     }
     xLabels.forEach {

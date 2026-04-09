@@ -39,47 +39,39 @@ fun getMapY(
 }
 
 fun getMinX(xValues: FloatArray, chartType: Charts): Float {
-    return when (chartType) {
-        Charts.Sun.Daily.Trajectory, Charts.Moon.Daily.Trajectory -> 0f
-        else -> 0f //xValues.minOrNull() ?: 0f
-    }
+    if (chartType.javaClass.simpleName.contains("Trajectory")) return 0f
+    return 0f //xValues.minOrNull() ?: 0f
 }
 
 fun getMaxX(xValues: FloatArray, chartType: Charts): Float {
-    return when (chartType) {
-        Charts.Sun.Daily.Trajectory, Charts.Moon.Daily.Trajectory -> 360f
-        else -> 24f //xValues.maxOrNull() ?: 24f
-    }
+    if (chartType.javaClass.simpleName.contains("Trajectory")) return 360f
+    return 24f //xValues.maxOrNull() ?: 24f
 }
 
 fun getMinY(yValues: FloatArray, chartType: Charts): Float {
-    return when (chartType) {
-        Charts.Sun.Daily.Elevation, Charts.Moon.Daily.Elevation,
-             Charts.Sun.Daily.Trajectory, Charts.Moon.Daily.Trajectory -> -90f
-        Charts.Sun.Daily.ColorTemperature -> 2000f
-        else -> 0f
-    }
+    val className = chartType.javaClass.simpleName
+    if (className.contains("Elevation")) return -90f
+    if (className.contains("Trajectory")) return -90f
+    if (className.contains("ColorTemperature")) return 2000f
+    return 0f
 }
 
 fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
-    return when (chartType) {
-        Charts.Sun.Daily.Elevation, Charts.Moon.Daily.Elevation,
-             Charts.Sun.Daily.Trajectory, Charts.Moon.Daily.Trajectory -> 90f
-        Charts.Sun.Daily.Irradiance -> max(500f, (yValues.max() / 100.0).roundToInt() * 100f)
-        Charts.Sun.Daily.UvIntensity -> max(5f, yValues.max().roundToInt().toFloat())
-        Charts.Sun.Daily.Illuminance -> max(100000f, yValues.max())
-        Charts.Sun.Daily.Shadows -> 10f
-        Charts.Sun.Daily.ColorTemperature -> max(5500f, yValues.max())
-        Charts.Sun.Daily.AirMass -> 10f // or 15f
-        else -> 90f // Todo: Change
-    }
+    val className = chartType.javaClass.simpleName
+    if (className.contains("Elevation")) return 90f
+    if (className.contains("Trajectory")) return 90f
+    if (className.contains("Irradiance")) return max(500f, (yValues.max() / 100.0).roundToInt() * 100f)
+    if (className.contains("UvIntensity")) return max(5f, yValues.max().roundToInt().toFloat())
+    if (className.contains("Illuminance")) return max(100000f, yValues.max())
+    if (className.contains("Shadows")) return 10f
+    if (className.contains("ColorTemperature")) return max(5500f, yValues.max())
+    if (className.contains("AirMass")) return 10f // or 15f
+    return 90f // Todo: Change
 }
 
 fun getZeroYPixel(chartType: Charts, mapY: (Float) -> Float): Float {
-    return when (chartType) {
-        Charts.Sun.Daily.ColorTemperature -> mapY(2000f)
+    if (chartType.javaClass.simpleName.contains("ColorTemperature")) return mapY(2000f)
 //            Charts.Sun.Daily.AirMass -> mapY(1f)
 //            Charts.Sun.Daily.AirMass -> mapY(0f)
-        else -> mapY(0f)
-    }
+    return mapY(0f)
 }
