@@ -37,7 +37,7 @@ fun rememberChartIconDrawer(chartType: Charts): DrawScope.(iconSize: Float, isIn
             val sizeObj = Size(iconSize, iconSize)
 
             if (isIndicator) {
-                // Draw the dim night indicator
+                // Draw the dim night indicator (below horizon)
                 val color = when (chartType) {
                     is Charts.Sun -> colors.sun.copy(alpha = 0.5f)
                     is Charts.Moon -> colors.moon.copy(alpha = 0.5f)

@@ -40,8 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.ChartSelectorChip
-import com.ephemeris.helios.ui.composables.charts.DailyAzimuthChart
-import com.ephemeris.helios.ui.composables.charts.DailyTimeChart
+import com.ephemeris.helios.ui.composables.charts.DailyChart
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.Charts
@@ -208,66 +207,36 @@ fun DailyPathCard(
                 val isTrajectory = selectedChartType.javaClass.simpleName.contains("Trajectory")
 //                val xValues = if (isTrajectory) arrays.xDataSets[selectedChartType] else arrays.timeXValues
 
-                val primaryXValues = when (selectedChartType) {
-                    is Charts.SunMoonCombo.Daily.Trajectory -> arrays.xDataSets[Charts.Sun.Daily.Trajectory]
-                    else -> arrays.xDataSets[selectedChartType]
-                } ?: FloatArray(X_SIZE)
-
-                val secondaryXValues = when (selectedChartType) {
-                    is Charts.SunMoonCombo.Daily.Trajectory -> arrays.xDataSets[Charts.Moon.Daily.Trajectory]
-                    else -> floatArrayOf()
-                } ?: FloatArray(X_SIZE)
-
-                val primaryYValues = when (selectedChartType) {
+                val yValues = when (selectedChartType) {
                     is Charts.SunMoonCombo.Daily.Elevation -> arrays.yDataSets[Charts.Sun.Daily.Elevation]
                     is Charts.SunMoonCombo.Daily.Trajectory -> arrays.yDataSets[Charts.Sun.Daily.Trajectory]
                     else -> arrays.yDataSets[selectedChartType]
                 } ?: FloatArray(X_SIZE)
 
-                val secondaryYValues = when (selectedChartType) {
-                    is Charts.SunMoonCombo.Daily.Elevation -> arrays.yDataSets[Charts.Moon.Daily.Elevation]
-                    is Charts.SunMoonCombo.Daily.Trajectory -> arrays.yDataSets[Charts.Moon.Daily.Trajectory]
-                    else -> floatArrayOf()
-                } ?: FloatArray(X_SIZE)
+                val xValues = if (isTrajectory) {
+                    arrays.xDataSets[selectedChartType] ?: FloatArray(X_SIZE)
+                } else {
+                    arrays.timeXValues
+                }
 
                 val cornerRadius = 12.dp
-
-                if (isTrajectory) {
-                    DailyAzimuthChart(
-                        xValues = arrays.xDataSets[selectedChartType] ?: FloatArray(X_SIZE),
-                        yValues = primaryYValues,
-                        currentHour = currentHour,
-                        chartType = selectedChartType,
-                        currentAzimuth = currentAzimuth.toFloat(),
-                        currentAltitude = currentAltitude.toFloat(),
-                        modifier = Modifier
-                            .aspectRatio(2f)
-                            .clip(
-                                RoundedCornerShape(
-                                    bottomStart = cornerRadius,
-                                    bottomEnd = cornerRadius
-                                )
+                DailyChart(
+                    xValues = xValues,
+                    yValues = yValues,
+                    currentHour = currentHour,
+                    chartType = selectedChartType,
+                    currentAzimuth = currentAzimuth.toFloat(),
+                    currentAltitude = currentAltitude.toFloat(),
+                    modifier = Modifier
+                        .aspectRatio(2f)
+                        .clip(
+                            RoundedCornerShape(
+                                bottomStart = cornerRadius,
+                                bottomEnd = cornerRadius
                             )
-                            .padding(vertical = 0.dp)
-                    )
-                } else {
-                    DailyTimeChart(
-                        xValues = arrays.timeXValues,
-                        primaryYValues = primaryYValues,
-                        secondaryYValues = secondaryYValues,
-                        currentHour = currentHour,
-                        chartType = selectedChartType,
-                        modifier = Modifier
-                            .aspectRatio(2f)
-                            .clip(
-                                RoundedCornerShape(
-                                    bottomStart = cornerRadius,
-                                    bottomEnd = cornerRadius
-                                )
-                            )
-                            .padding(vertical = 0.dp)
-                    )
-                }
+                        )
+                        .padding(vertical = 0.dp)
+                )
             }
             Row(
                 modifier = Modifier
@@ -328,7 +297,7 @@ internal fun CustomColumn(header: String, value: String) {
     }
 }
 
-private fun generateSunData(
+internal fun generateSunData(
     localDate: LocalDate,
     hoursCalc: DoubleArray,
     coordinates: Coordinates,
@@ -385,7 +354,7 @@ private fun generateSunData(
     return xMap to yMap
 }
 
-private fun generateMoonData(
+internal fun generateMoonData(
     localDate: LocalDate,
     hoursCalc: DoubleArray,
     coordinates: Coordinates,

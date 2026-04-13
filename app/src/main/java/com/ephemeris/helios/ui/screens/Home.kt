@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.ephemeris.helios.ui.composables.cards.DailyComboPathCard
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.LunarEphemeris
@@ -27,12 +28,14 @@ fun Home(
         modifier = Modifier.fillMaxSize()
     ) {
         item {
-            DailyPathCard(
+            DailyComboPathCard(
                 currentTime = currentTime,
                 coordinates = coordinates,
                 dayLength = sunEvents.dayLength,
-                currentAltitude = currentSunPosition.altitude,
-                currentAzimuth = currentSunPosition.azimuth,
+                currentSunAltitude = currentSunPosition.altitude,
+                currentSunAzimuth = currentSunPosition.azimuth,
+                currentMoonAltitude = currentMoonPosition.altitude,
+                currentMoonAzimuth = currentMoonPosition.azimuth,
                 type = Charts.SunMoonCombo.Daily.Elevation
             )
         }
