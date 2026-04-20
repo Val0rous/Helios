@@ -6,6 +6,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -26,13 +27,17 @@ import androidx.core.graphics.createBitmap
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.theme.LocalCustomColors
+import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.SolarEphemeris
+import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.maps.android.SphericalUtil
 import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberUpdatedMarkerState
+import kotlinx.coroutines.delay
 import kotlin.math.cos
 import kotlin.math.pow
 
@@ -41,10 +46,13 @@ import kotlin.math.pow
 fun FullscreenMap(
     location: Coordinates,
     currentSolarPosition: SolarEphemeris.SolarPosition,
+    currentLunarPosition: LunarEphemeris.LunarPosition,
     solarEvents: SolarEphemeris.DailyEvents,
+    lunarEvents: LunarEphemeris.LunarDailyEvents,
     modifier: Modifier = Modifier,
     sunChartArrays: ChartArrays?,
-    moonChartArrays: ChartArrays?
+    moonChartArrays: ChartArrays?,
+    onMapCenterSettled: (Coordinates) -> Unit
 ) {
     val context = LocalContext.current
     val effectiveIsDarkTheme = isSystemInDarkTheme()
@@ -55,23 +63,79 @@ fun FullscreenMap(
         position = CameraPosition.fromLatLngZoom(centerCoordinates, 10f)
     }
 
+    // --- TWO-WAY BINDING: MAP TO VIEWMODEL ---
+    // Watch the user panning the map. When they stop, wait 500ms and update the ViewModel
+    LaunchedEffect(cameraPositionState.isMoving) {
+        if (!cameraPositionState.isMoving) {
+            delay(500) // The Debounce
+            val newTarget = cameraPositionState.position.target
+            val oldTarget = LatLng(location.latitude, location.longitude)
+
+            // Only trigger a heavy re-calculation if they actually panned away (e.g. > 10 meters)
+            if (SphericalUtil.computeDistanceBetween(oldTarget, newTarget) > 10.0) {
+                onMapCenterSettled(
+                    location.copy(
+                        latitude = newTarget.latitude,
+                        longitude = newTarget.longitude,
+                        locationName = null, // Null forces ViewModel to fetch new Geocoded Address!
+                        timezoneId = null    // Null forces ViewModel to fetch new Timezone!
+                    )
+                )
+            }
+        }
+    }
+
+    // --- TWO-WAY BINDING: VIEWMODEL TO MAP ---
+    // If the global location updates externally (e.g. user hits the GPS button in the TopBar),
+    // animate the camera back to the new GPS location.
+    LaunchedEffect(location.latitude, location.longitude) {
+        val currentTarget = cameraPositionState.position.target
+        val newTarget = LatLng(location.latitude, location.longitude)
+        if (SphericalUtil.computeDistanceBetween(currentTarget, newTarget) > 10.0) {
+            cameraPositionState.animate(CameraUpdateFactory.newLatLng(newTarget))
+        }
+    }
+
+    // --- DYNAMIC DRAW CENTER ---
+    // Use the camera target as the center for all drawing, so elements never leave the screen
+    val drawCenter = cameraPositionState.position.target
     val currentZoom = cameraPositionState.position.zoom.takeIf { it > 0f }?.toDouble() ?: 13.0
-    val radiusMeters = 2500.0 * 2.0.pow(13.0 - currentZoom)  // Compass ring size
+
+    val mercatorScale = cos(Math.toRadians(drawCenter.latitude))
+    val radiusMeters = 2500.0 * 2.0.pow(13.0 - currentZoom) * mercatorScale  // Compass ring size
     val textRadiusMeters = radiusMeters * 1.08  // Places text 8% outside the main circle
     // --- SPHERICAL UTILITY MAGIC ---
     // Calculate exactly where the lines should end on the edge of the 2km circle
     // Note: Ensure your azimuth properties match your actual data class variable names!
-    val sunrisePoint = SphericalUtil.computeOffset(centerCoordinates, radiusMeters, solarEvents.sunriseAzimuth!!)
-    val sunsetPoint = SphericalUtil.computeOffset(centerCoordinates, radiusMeters, solarEvents.sunsetAzimuth!!)
+    val sunrisePoint = solarEvents.sunriseAzimuth?.let { azimuth ->
+        SphericalUtil.computeOffset(drawCenter, radiusMeters, azimuth)
+    }
+    val sunsetPoint = solarEvents.sunsetAzimuth?.let { azimuth ->
+        SphericalUtil.computeOffset(drawCenter, radiusMeters, azimuth)
+    }
 
     // PROJECTED SUN POSITION: Maps altitude to the circle's radius!
     val currentSunElevation = currentSolarPosition.altitude
+    // Todo: make it pull from official sunrise/sunset boundary
     val currentSunDist = if (currentSunElevation >= 0.0) {
         // Cosine of 0 = 1.0 (Edge). Cosine of 90 = 0.0 (Center). Cosine of 60 = 0.5.
         radiusMeters * cos(Math.toRadians(currentSunElevation))
     } else radiusMeters // Locks to the horizon ring if the sun has set
-    val currentSunPoint = SphericalUtil.computeOffset(centerCoordinates, currentSunDist, currentSolarPosition.azimuth)
+    val currentSunPoint = SphericalUtil.computeOffset(drawCenter, currentSunDist, currentSolarPosition.azimuth)
 
+    val moonrisePoint = lunarEvents.moonriseAzimuth?.let { azimuth ->
+        SphericalUtil.computeOffset(drawCenter, radiusMeters, azimuth)
+    }
+    val moonsetPoint = lunarEvents.moonsetAzimuth?.let { azimuth ->
+        SphericalUtil.computeOffset(drawCenter, radiusMeters, azimuth)
+    }
+
+    // Projected Moon Position
+    val currentMoonElevation = currentLunarPosition.altitude
+    val currentMoonDist = if (currentMoonElevation >= 0.0) {
+        radiusMeters * cos(Math.toRadians(currentMoonElevation))
+    } else radiusMeters
+    val currentMoonPoint = SphericalUtil.computeOffset(drawCenter, currentMoonDist, currentLunarPosition.azimuth)
 
     GoogleMap(
         modifier = Modifier.fillMaxSize(),
@@ -98,30 +162,52 @@ fun FullscreenMap(
     ) {
         // 1. The Outer Compass Ring
         Circle(
-            center = centerCoordinates,
+            center = drawCenter,
             radius = radiusMeters,
             fillColor = Color.Transparent,
             strokeColor = Color.Gray.copy(alpha = 0.4f),
             strokeWidth = 4f
         )
 
-        // 2. Sunrise Line
-        Polyline(
-            points = listOf(centerCoordinates, sunrisePoint),
-            color = Color(0xFFFFB300), // Amber/Orange
-            width = 6f,
+        // 2a. Sunrise Line
+        if (sunrisePoint != null) {
+            Polyline(
+                points = listOf(drawCenter, sunrisePoint),
+                color = Color(0xFFFFB300), // Amber/Orange
+                width = 6f,
 //            pattern = listOf(Dash(20f), Gap(20f))
-        )
+            )
+        }
 
-        // 3. Sunset Line
-        Polyline(
-            points = listOf(centerCoordinates, sunsetPoint),
-            color = Color(0xFFFF5252), // Red/Orange
-            width = 6f,
+        // 2b. Sunset Line
+        if (sunsetPoint != null) {
+            Polyline(
+                points = listOf(drawCenter, sunsetPoint),
+                color = Color(0xFFFF5252), // Red/Orange
+                width = 6f,
 //            pattern = listOf(Dash(20f), Gap(20f))
-        )
+            )
+        }
 
-        // --- DRAW THE CURVED SUN PATH ---
+        // 2c. Moonrise Line
+        if (moonrisePoint != null) {
+            Polyline(
+                points = listOf(drawCenter, moonrisePoint),
+                color = MaterialColors.Blue500,
+                width = 6f,
+            )
+        }
+
+        // 2d. Moonset Line
+        if (moonsetPoint != null) {
+            Polyline(
+                points = listOf(drawCenter, moonsetPoint),
+                color = MaterialColors.Blue700,
+                width = 6f,
+            )
+        }
+
+        // 3a. Curved Sun Path
         if (sunChartArrays != null) {
             val elevations = sunChartArrays.yDataSets[Charts.Sun.Daily.Elevation]
             val azimuths = sunChartArrays.xDataSets[Charts.Sun.Daily.Trajectory]
@@ -132,7 +218,7 @@ fun FullscreenMap(
                     val el = elevations[i]
                     if (el >= 0f) { // Only draw the path while above the horizon
                         val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
-                        pathPoints.add(SphericalUtil.computeOffset(centerCoordinates, dist, azimuths[i].toDouble()))
+                        pathPoints.add(SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble()))
                     }
                 }
                 if (pathPoints.isNotEmpty()) {
@@ -145,10 +231,41 @@ fun FullscreenMap(
             }
         }
 
-        // 4. Current Sun Line (Solid)
+        // 3b. Curved Moon Path
+        if (moonChartArrays != null) {
+            val elevations = moonChartArrays.yDataSets[Charts.Moon.Daily.Elevation]
+            val azimuths = moonChartArrays.xDataSets[Charts.Moon.Daily.Trajectory]
+
+            if (elevations != null && azimuths != null) {
+                val pathPoints = mutableListOf<LatLng>()
+                for (i in elevations.indices) {
+                    val el = elevations[i]
+                    if (el >= 0f) { // Only draw the path while above the horizon
+                        val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
+                        pathPoints.add(SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble()))
+                    }
+                }
+                if (pathPoints.isNotEmpty()) {
+                    Polyline(
+                        points = pathPoints,
+                        color = colors.moon.copy(alpha = 0.4f), // Slightly transparent to look like a track
+                        width = 6f
+                    )
+                }
+            }
+        }
+
+        // 4a. Current Sun Line (Solid)
         Polyline(
-            points = listOf(centerCoordinates, currentSunPoint),
+            points = listOf(drawCenter, currentSunPoint),
             color = colors.sun,
+            width = 8f
+        )
+
+        // 4b. Current Moon Line (Solid)
+        Polyline(
+            points = listOf(drawCenter, currentMoonPoint),
+            color = colors.moon,
             width = 8f
         )
 
@@ -159,7 +276,7 @@ fun FullscreenMap(
         )
         val textColor = if (effectiveIsDarkTheme) Color.LightGray else Color.DarkGray
         directions.forEach { (azimuth, label) ->
-            val point = SphericalUtil.computeOffset(centerCoordinates, textRadiusMeters, azimuth)
+            val point = SphericalUtil.computeOffset(drawCenter, textRadiusMeters, azimuth)
 
             // Cache the text bitmap so we don't redraw it every frame
             val textIcon = remember(label, textColor) {
@@ -178,7 +295,7 @@ fun FullscreenMap(
             )
         }
 
-        // 6. The Sun Icon Marker
+        // 6a. The Sun Icon Marker
         val sunIcon = remember(colors.sun) {
             bitmapDescriptorFromVector(context, R.drawable.ic_brightness_empty_filled, colors.sun)
         }
@@ -191,6 +308,21 @@ fun FullscreenMap(
             anchor = Offset(0.5f, 0.5f), // Centers the icon perfectly on the line end
             title = "Sun",
             snippet = "Azimuth: ${currentSolarPosition.azimuth.toInt()}°"
+        )
+
+        // 6b. The Moon Icon Marker
+        val moonIcon = remember(colors.moon) {
+            bitmapDescriptorFromVector(context, R.drawable.ic_nightlight_filled, colors.moon)
+        }
+        val moonMarkerState = rememberUpdatedMarkerState(position = currentMoonPoint)
+        moonMarkerState.position = currentMoonPoint
+
+        Marker(
+            state = moonMarkerState,
+            icon = moonIcon,
+            anchor = Offset(0.5f, 0.5f),
+            title = "Moon",
+            snippet = "Azimuth: ${currentLunarPosition.azimuth.toInt()}°"
         )
     }
 }

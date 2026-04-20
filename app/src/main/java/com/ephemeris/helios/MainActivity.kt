@@ -239,7 +239,8 @@ class MainActivity : ComponentActivity() {
                                     currentLunarPosition = vm.liveData!!.currentMoonPosition,
                                     lunarEvents = vm.dayData!!.lunarEvents,
                                     sunChartArrays = vm.sunChartArrays,
-                                    moonChartArrays = vm.moonChartArrays
+                                    moonChartArrays = vm.moonChartArrays,
+                                    onMapCenterSettled = { vm.saveCoordinates(it) }
                                 )
                             }
                         }

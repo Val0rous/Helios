@@ -19,7 +19,8 @@ fun Maps(
     sunChartArrays: ChartArrays?,
     currentLunarPosition: LunarEphemeris.LunarPosition,
     lunarEvents: LunarEphemeris.LunarDailyEvents,
-    moonChartArrays: ChartArrays?
+    moonChartArrays: ChartArrays?,
+    onMapCenterSettled: (Coordinates) -> Unit
 ) {
     Box(
         contentAlignment = Alignment.Center,
@@ -30,9 +31,12 @@ fun Maps(
         FullscreenMap(
             location = coordinates,
             currentSolarPosition = currentSolarPosition,
+            currentLunarPosition = currentLunarPosition,
             solarEvents = solarEvents,
+            lunarEvents = lunarEvents,
             sunChartArrays = sunChartArrays,
-            moonChartArrays = moonChartArrays
+            moonChartArrays = moonChartArrays,
+            onMapCenterSettled = onMapCenterSettled
         )
     }
 }
