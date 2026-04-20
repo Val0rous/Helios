@@ -2,6 +2,8 @@ package com.ephemeris.helios.ui.composables
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Typeface
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,7 +33,10 @@ import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.SolarEphemeris
+import com.ephemeris.helios.utils.formatHour
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.Dot
+import com.google.android.gms.maps.model.Gap
 import com.google.android.gms.maps.model.Polyline
 import com.google.maps.android.SphericalUtil
 import com.google.maps.android.compose.Circle
@@ -39,8 +44,11 @@ import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberUpdatedMarkerState
 import kotlinx.coroutines.delay
+import kotlin.collections.associateWith
 import kotlin.math.cos
 import kotlin.math.pow
+import androidx.core.graphics.toColorInt
+import androidx.core.graphics.withRotation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +112,7 @@ fun FullscreenMap(
     val currentZoom = cameraPositionState.position.zoom.takeIf { it > 0f }?.toDouble() ?: 13.0
 
     val mercatorScale = cos(Math.toRadians(drawCenter.latitude))
-    val radiusMeters = 3000.0 * 2.0.pow(13.0 - currentZoom) * mercatorScale  // Compass ring size
+    val radiusMeters = 3500.0 * 2.0.pow(13.0 - currentZoom) * mercatorScale  // Compass ring size
     val textRadiusMeters = radiusMeters * 1.08  // Places text 8% outside the main circle
     // --- SPHERICAL UTILITY MAGIC ---
     // Calculate exactly where the lines should end on the edge of the 2km circle
@@ -157,13 +165,35 @@ fun FullscreenMap(
             )
         }
     ) {
-        // 1. The Outer Compass Ring
+        // --- PRE-COMPUTE HOURLY ICON BITMAPS FOR PERFORMANCE ---
+        val sunHourlyIcons = remember(colors.sun) {
+            (0..23).associateWith { hour ->
+                bitmapDescriptorForHourlyMark(formatHour(hour, true, context), colors.sun)
+            }
+        }
+
+        val moonHourlyIcons = remember(colors.moon) {
+            (0..23).associateWith { hour ->
+                bitmapDescriptorForHourlyMark(formatHour(hour, true, context), colors.moon)
+            }
+        }
+
+        // 1a. The Outer Compass Ring
         Circle(
             center = drawCenter,
             radius = radiusMeters,
             fillColor = Color.Transparent,
             strokeColor = Color.Gray.copy(alpha = 0.4f),
             strokeWidth = 4f
+        )
+
+        // 1b. Translucent Dark Gray Band for Compass Directions
+        Circle(
+            center = drawCenter,
+            radius = textRadiusMeters,
+            fillColor = Color.Transparent,
+            strokeColor = Color.DarkGray.copy(alpha = 0.5f),
+            strokeWidth = 55f
         )
 
         // 2a. Sunrise Line
@@ -229,6 +259,18 @@ fun FullscreenMap(
                         currentSegment = mutableListOf(pt)
                         wasAbove = isAbove
                     }
+
+                    // --- HOURLY MARKS ---
+                    // Since points are every 0.05 hours, an exact hour is every 20 indices
+                    if (i % 20 == 0 && isAbove) {
+                        val hourInt = (i / 20) % 24
+                        val iconData = sunHourlyIcons[hourInt]
+                        if (iconData != null) {
+                            val markState = rememberUpdatedMarkerState(position = pt)
+                            markState.position = pt
+                            Marker(state = markState, icon = iconData.first, anchor = iconData.second)
+                        }
+                    }
                 }
                 // Catch any streak that was still going at midnight
                 if (currentSegment.isNotEmpty()) {
@@ -245,7 +287,8 @@ fun FullscreenMap(
                     Polyline(
                         points = pathPoints,
                         color = Color.Gray.copy(alpha = 0.4f),
-                        width = 6f
+                        width = 6f,
+                        pattern = listOf(Dot(), Gap(6f))
                     )
                 }
             }
@@ -276,6 +319,17 @@ fun FullscreenMap(
                         currentSegment = mutableListOf(pt)
                         wasAbove = isAbove
                     }
+
+                    // --- HOURLY MARKS ---
+                    if (i % 20 == 0 && isAbove) {
+                        val hourInt = (i / 20) % 24
+                        val iconData = moonHourlyIcons[hourInt]
+                        if (iconData != null) {
+                            val markState = rememberUpdatedMarkerState(position = pt)
+                            markState.position = pt
+                            Marker(state = markState, icon = iconData.first, anchor = iconData.second)
+                        }
+                    }
                 }
                 // Catch any streak that was still going on at midnight
                 if (currentSegment.isNotEmpty()) {
@@ -292,7 +346,8 @@ fun FullscreenMap(
                     Polyline(
                         points = pathPoints,
                         color = Color.Gray.copy(alpha = 0.4f),
-                        width = 6f
+                        width = 6f,
+                        pattern = listOf(Dot(), Gap(6f))
                     )
                 }
             }
@@ -312,14 +367,32 @@ fun FullscreenMap(
             width = 8f
         )
 
-        // 5. Compass Direction Text Band (N, NE, E, etc.)
+        // 5. Compass Direction Text Band (Full 16-Point Compass)
         val directions = listOf(
-            0.0 to "N", 45.0 to "NE", 90.0 to "E", 135.0 to "SE",
-            180.0 to "S", 225.0 to "SW", 270.0 to "W", 315.0 to "NW"
+            0.0 to "N", 22.5 to "NNE", 45.0 to "NE", 67.5 to "ENE",
+            90.0 to "E", 112.5 to "ESE", 135.0 to "SE", 157.5 to "SSE",
+            180.0 to "S", 202.5 to "SSW", 225.0 to "SW", 247.5 to "WSW",
+            270.0 to "W", 292.5 to "WNW", 315.0 to "NW", 337.5 to "NNW"
         )
-        val textColor = if (effectiveIsDarkTheme) Color.LightGray else Color.DarkGray
+        val mapBearing = cameraPositionState.position.bearing
         directions.forEach { (azimuth, label) ->
             val point = SphericalUtil.computeOffset(drawCenter, textRadiusMeters, azimuth)
+
+            // --- DYNAMIC TANGENT MATH ---
+            // 1. Find the screen-relative angle of this point
+            var screenAngle = (azimuth - mapBearing).toFloat()
+            screenAngle = (screenAngle % 360f + 360f) % 360f
+
+            // 2. Adjust rotation so the text stays right-side up
+            val textRotation = when {
+                screenAngle > 90f && screenAngle < 270f -> screenAngle - 180f
+                screenAngle >= 270f -> screenAngle - 360f
+                else -> screenAngle
+            }
+
+            // --- DIMMING SECONDARY DIRECTIONS ---
+            // 3-letter strings (e.g. "WSW") get a 50% opacity fade
+            val textColor = if (label.length > 2) MaterialColors.White.copy(alpha = 0.85f) else MaterialColors.Red400.copy(alpha = 0.95f)
 
             // Cache the text bitmap so we don't redraw it every frame
             val textIcon = remember(label, textColor) {
@@ -334,11 +407,19 @@ fun FullscreenMap(
             Marker(
                 state = markerState,
                 icon = textIcon,
-                anchor = Offset(0.5f, 0.5f)
+                anchor = Offset(0.5f, 0.5f),
+                rotation = textRotation
             )
         }
 
-        // 6a. The Sun Icon Marker
+        // 6. The User Center Dot
+        val centerColor = if (effectiveIsDarkTheme) Color.White else Color.DarkGray
+        val centerDotIcon = remember(centerColor) { bitmapDescriptorForCenterDot(centerColor) }
+        val centerState = rememberUpdatedMarkerState(position = drawCenter)
+        centerState.position = drawCenter
+        Marker(state = centerState, icon = centerDotIcon, anchor = Offset(0.5f, 0.5f))
+
+        // 7a. The Sun Icon Marker
         val isSunAbove = currentSunElevation >= 0.0
         val sunIcon = remember(colors.sun, isSunAbove, isLightMode) {
             bitmapDescriptorForCelestialBody(context, true, isSunAbove, isLightMode, colors.sun)
@@ -354,7 +435,7 @@ fun FullscreenMap(
             snippet = "Azimuth: ${currentSolarPosition.azimuth.toInt()}°"
         )
 
-        // 6b. The Moon Icon Marker
+        // 7b. The Moon Icon Marker
         val isMoonAbove = currentMoonElevation >= 0.0
         val moonIcon = remember(colors.moon, isMoonAbove, isLightMode) {
             bitmapDescriptorForCelestialBody(context, false, isMoonAbove, isLightMode, colors.moon)
@@ -369,13 +450,14 @@ fun FullscreenMap(
             title = "Moon",
             snippet = "Azimuth: ${currentLunarPosition.azimuth.toInt()}°"
         )
+
     }
 }
 
 fun bitmapDescriptorFromVector(
     context: Context,
     vectorResId: Int,
-    tintColor: androidx.compose.ui.graphics.Color
+    tintColor: Color
 ): BitmapDescriptor? {
     val drawable = ContextCompat.getDrawable(context, vectorResId) ?: return null
 
@@ -406,8 +488,8 @@ fun bitmapDescriptorForCelestialBody(
     val density = context.resources.displayMetrics.density
     val sizePx = (sizeDp * density).toInt()
 
-    val bitmap = android.graphics.Bitmap.createBitmap(sizePx, sizePx, android.graphics.Bitmap.Config.ARGB_8888)
-    val canvas = android.graphics.Canvas(bitmap)
+    val bitmap = createBitmap(sizePx, sizePx)
+    val canvas = Canvas(bitmap)
     canvas.drawColor(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
 
     if (!isAboveHorizon) {
@@ -434,7 +516,7 @@ fun bitmapDescriptorForCelestialBody(
             if (isLightMode) {
                 val outline = ContextCompat.getDrawable(context, R.drawable.ic_brightness_empty_200_high_emphasis) ?: return null
                 // Overlay color matching MaterialColors.Orange900
-                val overlayColor = android.graphics.Color.parseColor("#E65100")
+                val overlayColor = "#E65100".toColorInt()
                 outline.setTint(overlayColor)
                 outline.setBounds(0, 0, sizePx, sizePx)
                 outline.draw(canvas)
@@ -445,12 +527,11 @@ fun bitmapDescriptorForCelestialBody(
                 (bodyColor.alpha * 255).toInt(), (bodyColor.red * 255).toInt(),
                 (bodyColor.green * 255).toInt(), (bodyColor.blue * 255).toInt()
             ))
-            canvas.save()
-            // Match the -35f rotation from ChartIconDrawer
-            canvas.rotate(-35f, sizePx / 2f, sizePx / 2f)
-            moon.setBounds(0, 0, sizePx, sizePx)
-            moon.draw(canvas)
-            canvas.restore()
+            canvas.withRotation(-35f, sizePx / 2f, sizePx / 2f) {
+                // Match the -35f rotation from ChartIconDrawer
+                moon.setBounds(0, 0, sizePx, sizePx)
+                moon.draw(this)
+            }
         }
     }
 
@@ -461,16 +542,16 @@ fun bitmapDescriptorFromText(
     text: String,
     textColor: Color
 ): BitmapDescriptor {
-    val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = android.graphics.Color.argb(
             (textColor.alpha * 255).toInt(),
             (textColor.red * 255).toInt(),
             (textColor.green * 255).toInt(),
             (textColor.blue * 255).toInt()
         )
-        textSize = 40f
-        textAlign = android.graphics.Paint.Align.CENTER
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
+        textSize = 30f
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.DEFAULT_BOLD
     }
 
     val padding = 10f
@@ -478,12 +559,66 @@ fun bitmapDescriptorFromText(
     val width = (paint.measureText(text) + padding * 2).toInt()
     val height = (baseline + paint.descent() + padding).toInt()
 
-    val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
-    val canvas = android.graphics.Canvas(bitmap)
+    val bitmap = createBitmap(width, height)
+    val canvas = Canvas(bitmap)
 
     // Ensure the background is totally transparent
     canvas.drawColor(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
     canvas.drawText(text, width / 2f, baseline, paint)
 
+    return BitmapDescriptorFactory.fromBitmap(bitmap)
+}
+
+fun bitmapDescriptorForHourlyMark(
+    text: String,
+    textColor: Color
+): Pair<BitmapDescriptor, Offset> {
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.argb(
+            (textColor.alpha * 255).toInt(), (textColor.red * 255).toInt(),
+            (textColor.green * 255).toInt(), (textColor.blue * 255).toInt()
+        )
+        textSize = 28f
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.DEFAULT_BOLD
+    }
+
+    val dotRadius = 6f
+    val gap = 4f
+    val textHeight = -paint.ascent() + paint.descent()
+    val textWidth = paint.measureText(text)
+
+    // Calculate canvas size to comfortably fit text and the dot beneath it
+    val width = textWidth.coerceAtLeast(dotRadius * 2).toInt() + 10
+    val height = (textHeight + gap + dotRadius * 2).toInt() + 10
+
+    val bitmap = createBitmap(width, height)
+    val canvas = Canvas(bitmap)
+
+    val centerX = width / 2f
+    val textY = -paint.ascent() + 2f // Top padding
+    val dotY = textY + paint.descent() + gap + dotRadius
+
+    canvas.drawText(text, centerX, textY, paint)
+    canvas.drawCircle(centerX, dotY, dotRadius, paint)
+
+    // Dynamically calculate the anchor so the DOT sits perfectly on the map coordinate
+    val anchorX = 0.5f
+    val anchorY = dotY / height.toFloat()
+
+    return Pair(BitmapDescriptorFactory.fromBitmap(bitmap), Offset(anchorX, anchorY))
+}
+
+fun bitmapDescriptorForCenterDot(color: Color): BitmapDescriptor {
+    val radius = 12f // 12px gives a clean, small but visible dot
+    val bitmap = createBitmap((radius * 2).toInt(), (radius * 2).toInt())
+    val canvas = Canvas(bitmap)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        this.color = android.graphics.Color.argb(
+            (color.alpha * 255).toInt(), (color.red * 255).toInt(),
+            (color.green * 255).toInt(), (color.blue * 255).toInt()
+        )
+    }
+    canvas.drawCircle(radius, radius, radius, paint)
     return BitmapDescriptorFactory.fromBitmap(bitmap)
 }
