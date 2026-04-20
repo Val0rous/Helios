@@ -37,7 +37,6 @@ import com.ephemeris.helios.utils.formatHour
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.Dot
 import com.google.android.gms.maps.model.Gap
-import com.google.android.gms.maps.model.Polyline
 import com.google.maps.android.SphericalUtil
 import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.Marker
@@ -52,7 +51,7 @@ import androidx.core.graphics.withRotation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FullscreenMap(
+fun FullscreenAzimuthMap(
     location: Coordinates,
     currentSolarPosition: SolarEphemeris.SolarPosition,
     currentLunarPosition: LunarEphemeris.LunarPosition,
@@ -112,7 +111,7 @@ fun FullscreenMap(
     val currentZoom = cameraPositionState.position.zoom.takeIf { it > 0f }?.toDouble() ?: 13.0
 
     val mercatorScale = cos(Math.toRadians(drawCenter.latitude))
-    val radiusMeters = 3500.0 * 2.0.pow(13.0 - currentZoom) * mercatorScale  // Compass ring size
+    val radiusMeters = 3200.0 * 2.0.pow(13.0 - currentZoom) * mercatorScale  // Compass ring size
     val textRadiusMeters = radiusMeters * 1.08  // Places text 8% outside the main circle
     // --- SPHERICAL UTILITY MAGIC ---
     // Calculate exactly where the lines should end on the edge of the 2km circle
