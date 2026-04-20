@@ -21,6 +21,7 @@ class LocationDataStore(private val context: Context) {
     private val longitudeKey = doublePreferencesKey("longitude")
     private val altitudeKey = doublePreferencesKey("altitude")
     private val locationNameKey = stringPreferencesKey("location_name")
+    private val timezoneIdKey = stringPreferencesKey("timezone_id")
 
     // 2. Expose a Flow to read the coordinates
     val coordinatesFlow: Flow<Coordinates?> = context.dataStore.data
@@ -30,9 +31,10 @@ class LocationDataStore(private val context: Context) {
             val lon = preferences[longitudeKey]
             val alt = preferences[altitudeKey]
             val name = preferences[locationNameKey]
+            val tzId = preferences[timezoneIdKey]
 
             if (lat != null && lon != null && alt != null) {
-                Coordinates(lat, lon, alt, name)
+                Coordinates(lat, lon, alt, name, tzId)
             } else null
         }
 
@@ -48,6 +50,13 @@ class LocationDataStore(private val context: Context) {
                 preferences[locationNameKey] = coordinates.locationName
             } else {
                 preferences.remove(locationNameKey)
+            }
+
+            // Save timezone (or remove if null)
+            if (coordinates.timezoneId != null) {
+                preferences[timezoneIdKey] = coordinates.timezoneId
+            } else {
+                preferences.remove(timezoneIdKey)
             }
         }
     }

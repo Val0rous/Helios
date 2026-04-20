@@ -5,5 +5,5 @@ sealed class Routes(val route: String) {
     data object Exposure: Routes("exposure")
     data object Sun: Routes("sun")
     data object Moon: Routes("moon")
-    data object Planets: Routes("planets")
+    data object Maps: Routes("maps")
 }

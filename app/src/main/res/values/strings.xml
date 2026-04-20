@@ -6,6 +6,7 @@
     <string name="sun">Sun</string>
     <string name="moon">Moon</string>
     <string name="planets">Planets</string>
+    <string name="maps">Maps</string>
 
     <string name="elevation">Elevation</string>
     <string name="irradiance">Irradiance</string>

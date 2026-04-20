@@ -35,6 +35,7 @@ import com.ephemeris.helios.ui.composables.Navbar
 import com.ephemeris.helios.ui.composables.TimeMachine
 import com.ephemeris.helios.ui.composables.TopBar
 import com.ephemeris.helios.ui.screens.Home
+import com.ephemeris.helios.ui.screens.Maps
 import com.ephemeris.helios.ui.screens.Moon
 import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
@@ -226,8 +227,14 @@ class MainActivity : ComponentActivity() {
                                     liveMetrics = vm.liveData!!.liveMoonMetrics
                                 )
                             }
-                            composable(Routes.Planets.route) {
-                                //Planets()
+                            composable(Routes.Maps.route) {
+                                Maps(
+                                    coordinates = coordinates!!,
+                                    currentSolarPosition = vm.liveData!!.currentSunPosition,
+                                    solarEvents = vm.dayData!!.events,
+                                    currentLunarPosition = vm.liveData!!.currentMoonPosition,
+                                    lunarEvents = vm.dayData!!.lunarEvents
+                                )
                             }
                         }
                     }

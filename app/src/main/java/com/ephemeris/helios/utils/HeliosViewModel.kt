@@ -14,11 +14,13 @@ import com.ephemeris.helios.utils.calc.getLiveUpdates
 import com.ephemeris.helios.utils.datastore.LocationDataStore
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.location.NativeGeocodingEngine
+import com.ephemeris.helios.utils.network.TimeApiClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.ZoneId
 import java.time.ZonedDateTime
 
 class HeliosViewModel(application: Application) : AndroidViewModel(application) {
@@ -32,7 +34,10 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
         initialValue = null
     )
 
-    var currentTime: ZonedDateTime by mutableStateOf(ZonedDateTime.now())
+    var currentZoneId by mutableStateOf(ZoneId.systemDefault())
+        private set
+
+    var currentTime: ZonedDateTime by mutableStateOf(ZonedDateTime.now(currentZoneId))
     var isAutoUpdateEnabled by mutableStateOf(true)
 
     var dayData by mutableStateOf<DayEphemerisData?>(null)
@@ -52,13 +57,36 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
                 isDataStoreLoaded = true
             }
         }
+
+        // No API calls here, just listen for cached data from DataStore
+        viewModelScope.launch(Dispatchers.IO) {
+            coordinatesState.collect { coords ->
+                if (coords?.timezoneId != null) {
+                    try {
+                        val newZone = ZoneId.of(coords.timezoneId)
+                        // Only update if the timezone actually changed
+                        if (currentZoneId != newZone) {
+                            currentZoneId = newZone
+                            if (isAutoUpdateEnabled) {
+                                currentTime = ZonedDateTime.now(currentZoneId)
+                            } else {
+                                currentTime = currentTime.withZoneSameInstant(currentZoneId)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
     }
 
     fun saveCoordinates(newCoordinates: Coordinates) {
         // Run on IO Dispatcher so the geocoder doesn't block the UI
         viewModelScope.launch(Dispatchers.IO) {
-            // Check if we need to fetch the name
-            val finalCoords = if (newCoordinates.locationName == null) {
+            var finalCoords = newCoordinates
+            // Fetch Street Address if missing
+            if (newCoordinates.locationName == null) {
                 // Convert to Android Location object for the Geocoder
                 val loc = Location("").apply {
                     latitude = newCoordinates.latitude
@@ -66,11 +94,18 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 // Fetch street address
                 val fetchedName = geocodingEngine.getStreetAddress(loc)
-                newCoordinates.copy(locationName = fetchedName ?: "Unknown location")
-            } else {
-                newCoordinates  // Name already exists (e.g. from a forward search)
+                finalCoords = finalCoords.copy(locationName = fetchedName ?: "Unknown location")
             }
 
+            // Fetch Timezone API if missing
+            if (finalCoords.timezoneId == null) {
+                val tzResponse = TimeApiClient.getTimezoneForCoordinates(finalCoords.latitude, finalCoords.longitude)
+                if (tzResponse != null) {
+                    finalCoords = finalCoords.copy(timezoneId = tzResponse.timezone)
+                }
+            }
+
+            // Save to disk
             locationDataStore.saveCoordinates(finalCoords)
         }
     }
@@ -86,7 +121,7 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
     fun startLiveUpdatesTicker(coordinates: Coordinates) {
         viewModelScope.launch(Dispatchers.Default) {
             if (isAutoUpdateEnabled) {
-                liveData = getLiveUpdates(ZonedDateTime.now(), coordinates)
+                liveData = getLiveUpdates(ZonedDateTime.now(currentZoneId), coordinates)
             } else {
                 liveData = getLiveUpdates(currentTime, coordinates)
             }
@@ -98,7 +133,7 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch(Dispatchers.Default) {
             while (true) {
                 if (isAutoUpdateEnabled) {
-                    currentTime = ZonedDateTime.now()
+                    currentTime = ZonedDateTime.now(currentZoneId)
                 }
                 delay(1000)
             }

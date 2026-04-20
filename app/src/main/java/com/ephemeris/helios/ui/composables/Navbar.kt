@@ -53,10 +53,10 @@ object NavbarItems {
             route = Routes.Moon.route
         ),
         NavbarItem(
-            label = R.string.planets,
-            icon = R.drawable.ic_planet,
-            filledIcon = R.drawable.ic_planet_filled,
-            route = Routes.Planets.route
+            label = R.string.maps,
+            icon = R.drawable.ic_explore,
+            filledIcon = R.drawable.ic_explore_filled,
+            route = Routes.Maps.route
         )
     )
 }
