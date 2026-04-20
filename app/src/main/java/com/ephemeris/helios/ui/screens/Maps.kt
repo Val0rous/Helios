@@ -1,12 +1,11 @@
 package com.ephemeris.helios.ui.screens
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.ephemeris.helios.ui.composables.FullScreenMapView
+import com.ephemeris.helios.ui.composables.FullscreenMap
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.location.Coordinates
@@ -21,10 +20,14 @@ fun Maps(
 ) {
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+//            .clip(RoundedCornerShape(16.dp))
     ) {
-        FullScreenMapView(
-            location = coordinates
+        FullscreenMap(
+            location = coordinates,
+            currentSolarPosition = currentSolarPosition,
+            solarEvents = solarEvents,
         )
     }
 }
