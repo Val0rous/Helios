@@ -32,6 +32,7 @@ import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.model.Polyline
 import com.google.maps.android.SphericalUtil
 import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.Marker
@@ -56,6 +57,7 @@ fun FullscreenMap(
 ) {
     val context = LocalContext.current
     val effectiveIsDarkTheme = isSystemInDarkTheme()
+    val isLightMode = !effectiveIsDarkTheme
     val colors = LocalCustomColors.current
 
     val centerCoordinates = LatLng(location.latitude, location.longitude)
@@ -102,7 +104,7 @@ fun FullscreenMap(
     val currentZoom = cameraPositionState.position.zoom.takeIf { it > 0f }?.toDouble() ?: 13.0
 
     val mercatorScale = cos(Math.toRadians(drawCenter.latitude))
-    val radiusMeters = 2500.0 * 2.0.pow(13.0 - currentZoom) * mercatorScale  // Compass ring size
+    val radiusMeters = 3000.0 * 2.0.pow(13.0 - currentZoom) * mercatorScale  // Compass ring size
     val textRadiusMeters = radiusMeters * 1.08  // Places text 8% outside the main circle
     // --- SPHERICAL UTILITY MAGIC ---
     // Calculate exactly where the lines should end on the edge of the 2km circle
@@ -117,10 +119,7 @@ fun FullscreenMap(
     // PROJECTED SUN POSITION: Maps altitude to the circle's radius!
     val currentSunElevation = currentSolarPosition.altitude
     // Todo: make it pull from official sunrise/sunset boundary
-    val currentSunDist = if (currentSunElevation >= 0.0) {
-        // Cosine of 0 = 1.0 (Edge). Cosine of 90 = 0.0 (Center). Cosine of 60 = 0.5.
-        radiusMeters * cos(Math.toRadians(currentSunElevation))
-    } else radiusMeters // Locks to the horizon ring if the sun has set
+    val currentSunDist = radiusMeters * cos(Math.toRadians(currentSunElevation))
     val currentSunPoint = SphericalUtil.computeOffset(drawCenter, currentSunDist, currentSolarPosition.azimuth)
 
     val moonrisePoint = lunarEvents.moonriseAzimuth?.let { azimuth ->
@@ -132,9 +131,7 @@ fun FullscreenMap(
 
     // Projected Moon Position
     val currentMoonElevation = currentLunarPosition.altitude
-    val currentMoonDist = if (currentMoonElevation >= 0.0) {
-        radiusMeters * cos(Math.toRadians(currentMoonElevation))
-    } else radiusMeters
+    val currentMoonDist = radiusMeters * cos(Math.toRadians(currentMoonElevation))
     val currentMoonPoint = SphericalUtil.computeOffset(drawCenter, currentMoonDist, currentLunarPosition.azimuth)
 
     GoogleMap(
@@ -207,24 +204,47 @@ fun FullscreenMap(
             )
         }
 
-        // 3a. Curved Sun Path
+        // 3a. Curved Sun Path (Day and Night Segments)
         if (sunChartArrays != null) {
             val elevations = sunChartArrays.yDataSets[Charts.Sun.Daily.Elevation]
             val azimuths = sunChartArrays.xDataSets[Charts.Sun.Daily.Trajectory]
 
-            if (elevations != null && azimuths != null) {
-                val pathPoints = mutableListOf<LatLng>()
+            if (elevations != null && azimuths != null && elevations.isNotEmpty()) {
+                val daySegments = mutableListOf<List<LatLng>>()
+                val nightSegments = mutableListOf<List<LatLng>>()
+                var currentSegment = mutableListOf<LatLng>()
+                var wasAbove = elevations[0] >= 0f
+
                 for (i in elevations.indices) {
                     val el = elevations[i]
-                    if (el >= 0f) { // Only draw the path while above the horizon
-                        val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
-                        pathPoints.add(SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble()))
+                    val isAbove = el >= 0f
+                    val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
+                    val pt = SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble())
+                    if (isAbove == wasAbove) {
+                        currentSegment.add(pt)
+                    } else {
+                        // The moment we cross the horizon, add the exact crossover point to connect BOTH lists to they connect perfectly!
+                        currentSegment.add(pt)
+                        if (wasAbove) daySegments.add(currentSegment) else nightSegments.add(currentSegment)
+                        currentSegment = mutableListOf(pt)
+                        wasAbove = isAbove
                     }
                 }
-                if (pathPoints.isNotEmpty()) {
+                // Catch any streak that was still going at midnight
+                if (currentSegment.isNotEmpty()) {
+                    if (wasAbove) daySegments.add(currentSegment) else nightSegments.add(currentSegment)
+                }
+                daySegments.forEach { pathPoints ->
                     Polyline(
                         points = pathPoints,
                         color = colors.sun.copy(alpha = 0.4f), // Slightly transparent to look like a track
+                        width = 6f
+                    )
+                }
+                nightSegments.forEach { pathPoints ->
+                    Polyline(
+                        points = pathPoints,
+                        color = Color.Gray.copy(alpha = 0.4f),
                         width = 6f
                     )
                 }
@@ -236,19 +256,42 @@ fun FullscreenMap(
             val elevations = moonChartArrays.yDataSets[Charts.Moon.Daily.Elevation]
             val azimuths = moonChartArrays.xDataSets[Charts.Moon.Daily.Trajectory]
 
-            if (elevations != null && azimuths != null) {
-                val pathPoints = mutableListOf<LatLng>()
+            if (elevations != null && azimuths != null && elevations.isNotEmpty()) {
+                val daySegments = mutableListOf<List<LatLng>>()
+                val nightSegments = mutableListOf<List<LatLng>>()
+                var currentSegment = mutableListOf<LatLng>()
+                var wasAbove = elevations[0] >= 0f
+
                 for (i in elevations.indices) {
                     val el = elevations[i]
-                    if (el >= 0f) { // Only draw the path while above the horizon
-                        val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
-                        pathPoints.add(SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble()))
+                    val isAbove = el >= 0f
+                    val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
+                    val pt = SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble())
+
+                    if (isAbove == wasAbove) {
+                        currentSegment.add(pt)
+                    } else {
+                        currentSegment.add(pt)
+                        if (wasAbove) daySegments.add(currentSegment) else nightSegments.add(currentSegment)
+                        currentSegment = mutableListOf(pt)
+                        wasAbove = isAbove
                     }
                 }
-                if (pathPoints.isNotEmpty()) {
+                // Catch any streak that was still going on at midnight
+                if (currentSegment.isNotEmpty()) {
+                    if (wasAbove) daySegments.add(currentSegment) else nightSegments.add(currentSegment)
+                }
+                daySegments.forEach { pathPoints ->
                     Polyline(
                         points = pathPoints,
                         color = colors.moon.copy(alpha = 0.4f), // Slightly transparent to look like a track
+                        width = 6f
+                    )
+                }
+                nightSegments.forEach { pathPoints ->
+                    Polyline(
+                        points = pathPoints,
+                        color = Color.Gray.copy(alpha = 0.4f),
                         width = 6f
                     )
                 }
@@ -296,8 +339,9 @@ fun FullscreenMap(
         }
 
         // 6a. The Sun Icon Marker
-        val sunIcon = remember(colors.sun) {
-            bitmapDescriptorFromVector(context, R.drawable.ic_brightness_empty_filled, colors.sun)
+        val isSunAbove = currentSunElevation >= 0.0
+        val sunIcon = remember(colors.sun, isSunAbove, isLightMode) {
+            bitmapDescriptorForCelestialBody(context, true, isSunAbove, isLightMode, colors.sun)
         }
         val sunMarkerState = rememberUpdatedMarkerState(position = currentSunPoint)
         sunMarkerState.position = currentSunPoint
@@ -311,8 +355,9 @@ fun FullscreenMap(
         )
 
         // 6b. The Moon Icon Marker
-        val moonIcon = remember(colors.moon) {
-            bitmapDescriptorFromVector(context, R.drawable.ic_nightlight_filled, colors.moon)
+        val isMoonAbove = currentMoonElevation >= 0.0
+        val moonIcon = remember(colors.moon, isMoonAbove, isLightMode) {
+            bitmapDescriptorForCelestialBody(context, false, isMoonAbove, isLightMode, colors.moon)
         }
         val moonMarkerState = rememberUpdatedMarkerState(position = currentMoonPoint)
         moonMarkerState.position = currentMoonPoint
@@ -346,6 +391,68 @@ fun bitmapDescriptorFromVector(
     val bitmap = createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight)
     val canvas = Canvas(bitmap)
     drawable.draw(canvas)
+
+    return BitmapDescriptorFactory.fromBitmap(bitmap)
+}
+
+fun bitmapDescriptorForCelestialBody(
+    context: Context,
+    isSun: Boolean,
+    isAboveHorizon: Boolean,
+    isLightMode: Boolean,
+    bodyColor: Color
+): BitmapDescriptor? {
+    val sizeDp = if (isAboveHorizon) 24f else 12f
+    val density = context.resources.displayMetrics.density
+    val sizePx = (sizeDp * density).toInt()
+
+    val bitmap = android.graphics.Bitmap.createBitmap(sizePx, sizePx, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    canvas.drawColor(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
+
+    if (!isAboveHorizon) {
+        // Dim Indicator for Nighttime
+        val indicator = ContextCompat.getDrawable(context, R.drawable.ic_circle_filled) ?: return null
+        indicator.setTint(android.graphics.Color.argb(
+            (0.5f * 255).toInt(),
+            (bodyColor.red * 255).toInt(),
+            (bodyColor.green * 255).toInt(),
+            (bodyColor.blue * 255).toInt()
+        ))
+        indicator.setBounds(0, 0, sizePx, sizePx)
+        indicator.draw(canvas)
+    } else {
+        if (isSun) {
+            val filled = ContextCompat.getDrawable(context, R.drawable.ic_brightness_empty_filled) ?: return null
+            filled.setTint(android.graphics.Color.argb(
+                (bodyColor.alpha * 255).toInt(), (bodyColor.red * 255).toInt(),
+                (bodyColor.green * 255).toInt(), (bodyColor.blue * 255).toInt()
+            ))
+            filled.setBounds(0, 0, sizePx, sizePx)
+            filled.draw(canvas)
+
+            if (isLightMode) {
+                val outline = ContextCompat.getDrawable(context, R.drawable.ic_brightness_empty_200_high_emphasis) ?: return null
+                // Overlay color matching MaterialColors.Orange900
+                val overlayColor = android.graphics.Color.parseColor("#E65100")
+                outline.setTint(overlayColor)
+                outline.setBounds(0, 0, sizePx, sizePx)
+                outline.draw(canvas)
+            }
+        } else {
+            val moon = ContextCompat.getDrawable(context, R.drawable.ic_nightlight_filled) ?: return null
+            moon.setTint(android.graphics.Color.argb(
+                (bodyColor.alpha * 255).toInt(), (bodyColor.red * 255).toInt(),
+                (bodyColor.green * 255).toInt(), (bodyColor.blue * 255).toInt()
+            ))
+            canvas.save()
+            // Match the -35f rotation from ChartIconDrawer
+            canvas.rotate(-35f, sizePx / 2f, sizePx / 2f)
+            moon.setBounds(0, 0, sizePx, sizePx)
+            moon.draw(canvas)
+            canvas.restore()
+        }
+    }
 
     return BitmapDescriptorFactory.fromBitmap(bitmap)
 }
