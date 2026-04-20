@@ -53,51 +53,16 @@ fun DailyComboPathCard(
     currentMoonAltitude: Double,
     currentMoonAzimuth: Double,
     phase: String = "",
-    type: Charts
+    type: Charts,
+    sunChartArrays: ChartArrays?,
+    moonChartArrays: ChartArrays?
 ) {
     var selectedChartType by rememberSaveable { mutableStateOf(type) }
-    var chartArrays by remember { mutableStateOf<ChartArrays?>(null) }
 
     val currentHour: Float by remember(currentTime) {
         derivedStateOf {
             // Always pass time (0-24). Never pass Azimuth!
             currentTime.hour.toFloat() + currentTime.minute / 60f + currentTime.second / 3600f
-        }
-    }
-
-    // Isolate the 480-iteration math loop.
-    // It will ONLY run when the Date or Coordinate change, ignoring the 12-second time tick.
-    LaunchedEffect(currentTime.toLocalDate(), coordinates) {
-        withContext(Dispatchers.Default) {
-            val hoursCalc = DoubleArray(X_SIZE) { round(it * 5.0) / 100.0 }
-            val hours = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
-
-            val xDataMap = mutableMapOf<Charts, FloatArray>()
-            val yDataMap = mutableMapOf<Charts, FloatArray>()
-
-            val tzOffset = currentTime.offset.totalSeconds / 3600.0
-            val localDate = currentTime.toLocalDate()
-
-            val dailyOzone = estimateHistoricalOzone(
-                latitude = coordinates.latitude,
-                date = localDate
-            )
-
-            when (type) {
-                is Charts.SunMoonCombo -> {
-                    val (xSun, ySun) = generateSunData(localDate, hoursCalc, coordinates, tzOffset, dailyOzone)
-                    val (xMoon, yMoon) = generateMoonData(localDate, hoursCalc, coordinates, tzOffset, currentTime)
-                    xDataMap.putAll(xSun)
-                    xDataMap.putAll(xMoon)
-                    yDataMap.putAll(ySun)
-                    yDataMap.putAll(yMoon)
-                }
-                else -> {
-                    // Todo planets
-                }
-            }
-
-            chartArrays = ChartArrays(hours, xDataMap, yDataMap)
         }
     }
 
@@ -129,8 +94,7 @@ fun DailyComboPathCard(
                 }
             }
             // Show a placeholder or empty box while arrays are generating in the background
-            val arrays = chartArrays
-            if (arrays == null) {
+            if (sunChartArrays == null || moonChartArrays == null) {
                 Box(modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(2f), contentAlignment = Alignment.Center) {
@@ -141,26 +105,26 @@ fun DailyComboPathCard(
 //                val xValues = if (isTrajectory) arrays.xDataSets[selectedChartType] else arrays.timeXValues
 
                 val primaryXValues = if (isTrajectory) {
-                    arrays.xDataSets[Charts.Sun.Daily.Trajectory] ?: FloatArray(X_SIZE)
+                    sunChartArrays.xDataSets[Charts.Sun.Daily.Trajectory] ?: FloatArray(X_SIZE)
                 } else {
-                    arrays.timeXValues
+                    sunChartArrays.timeXValues
                 }
 
                 val secondaryXValues = if (isTrajectory) {
-                    arrays.xDataSets[Charts.Moon.Daily.Trajectory] ?: FloatArray(X_SIZE)
+                    moonChartArrays.xDataSets[Charts.Moon.Daily.Trajectory] ?: FloatArray(X_SIZE)
                 } else {
-                    arrays.timeXValues
+                    moonChartArrays.timeXValues
                 }
 
                 val primaryYValues = when (selectedChartType) {
-                    is Charts.SunMoonCombo.Daily.Elevation -> arrays.yDataSets[Charts.Sun.Daily.Elevation]
-                    is Charts.SunMoonCombo.Daily.Trajectory -> arrays.yDataSets[Charts.Sun.Daily.Trajectory]
-                    else -> arrays.yDataSets[selectedChartType]
+                    is Charts.SunMoonCombo.Daily.Elevation -> sunChartArrays.yDataSets[Charts.Sun.Daily.Elevation]
+                    is Charts.SunMoonCombo.Daily.Trajectory -> sunChartArrays.yDataSets[Charts.Sun.Daily.Trajectory]
+                    else -> sunChartArrays.yDataSets[selectedChartType]
                 } ?: FloatArray(X_SIZE)
 
                 val secondaryYValues = when (selectedChartType) {
-                    is Charts.SunMoonCombo.Daily.Elevation -> arrays.yDataSets[Charts.Moon.Daily.Elevation]
-                    is Charts.SunMoonCombo.Daily.Trajectory -> arrays.yDataSets[Charts.Moon.Daily.Trajectory]
+                    is Charts.SunMoonCombo.Daily.Elevation -> moonChartArrays.yDataSets[Charts.Moon.Daily.Elevation]
+                    is Charts.SunMoonCombo.Daily.Trajectory -> moonChartArrays.yDataSets[Charts.Moon.Daily.Trajectory]
                     else -> floatArrayOf()
                 } ?: FloatArray(X_SIZE)
 

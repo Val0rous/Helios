@@ -8,6 +8,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
@@ -23,17 +24,16 @@ import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.rememberCameraPositionState
 import androidx.core.graphics.createBitmap
 import com.ephemeris.helios.R
+import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.theme.LocalCustomColors
+import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.SolarEphemeris
-import com.google.android.gms.maps.model.Dash
-import com.google.android.gms.maps.model.Gap
 import com.google.maps.android.SphericalUtil
 import com.google.maps.android.compose.Circle
 import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
-import com.google.maps.android.compose.rememberMarkerState
 import com.google.maps.android.compose.rememberUpdatedMarkerState
+import kotlin.math.cos
 import kotlin.math.pow
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,7 +42,9 @@ fun FullscreenMap(
     location: Coordinates,
     currentSolarPosition: SolarEphemeris.SolarPosition,
     solarEvents: SolarEphemeris.DailyEvents,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sunChartArrays: ChartArrays?,
+    moonChartArrays: ChartArrays?
 ) {
     val context = LocalContext.current
     val effectiveIsDarkTheme = isSystemInDarkTheme()
@@ -61,7 +63,14 @@ fun FullscreenMap(
     // Note: Ensure your azimuth properties match your actual data class variable names!
     val sunrisePoint = SphericalUtil.computeOffset(centerCoordinates, radiusMeters, solarEvents.sunriseAzimuth!!)
     val sunsetPoint = SphericalUtil.computeOffset(centerCoordinates, radiusMeters, solarEvents.sunsetAzimuth!!)
-    val currentSunPoint = SphericalUtil.computeOffset(centerCoordinates, radiusMeters, currentSolarPosition.azimuth)
+
+    // PROJECTED SUN POSITION: Maps altitude to the circle's radius!
+    val currentSunElevation = currentSolarPosition.altitude
+    val currentSunDist = if (currentSunElevation >= 0.0) {
+        // Cosine of 0 = 1.0 (Edge). Cosine of 90 = 0.0 (Center). Cosine of 60 = 0.5.
+        radiusMeters * cos(Math.toRadians(currentSunElevation))
+    } else radiusMeters // Locks to the horizon ring if the sun has set
+    val currentSunPoint = SphericalUtil.computeOffset(centerCoordinates, currentSunDist, currentSolarPosition.azimuth)
 
 
     GoogleMap(
@@ -112,6 +121,30 @@ fun FullscreenMap(
 //            pattern = listOf(Dash(20f), Gap(20f))
         )
 
+        // --- DRAW THE CURVED SUN PATH ---
+        if (sunChartArrays != null) {
+            val elevations = sunChartArrays.yDataSets[Charts.Sun.Daily.Elevation]
+            val azimuths = sunChartArrays.xDataSets[Charts.Sun.Daily.Trajectory]
+
+            if (elevations != null && azimuths != null) {
+                val pathPoints = mutableListOf<LatLng>()
+                for (i in elevations.indices) {
+                    val el = elevations[i]
+                    if (el >= 0f) { // Only draw the path while above the horizon
+                        val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
+                        pathPoints.add(SphericalUtil.computeOffset(centerCoordinates, dist, azimuths[i].toDouble()))
+                    }
+                }
+                if (pathPoints.isNotEmpty()) {
+                    Polyline(
+                        points = pathPoints,
+                        color = colors.sun.copy(alpha = 0.4f), // Slightly transparent to look like a track
+                        width = 6f
+                    )
+                }
+            }
+        }
+
         // 4. Current Sun Line (Solid)
         Polyline(
             points = listOf(centerCoordinates, currentSunPoint),
@@ -133,11 +166,15 @@ fun FullscreenMap(
                 bitmapDescriptorFromText(label, textColor)
             }
 
+            // Explicitly assign the dynamically calculated position to the marker state every frame
+            val markerState = rememberUpdatedMarkerState(position = point)
+            markerState.position = point
+
             // Note: We DO use `remember` here because the compass labels never move relative to the center
             Marker(
-                state = remember { MarkerState(position = point) },
+                state = markerState,
                 icon = textIcon,
-                anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.5f)
+                anchor = Offset(0.5f, 0.5f)
             )
         }
 
@@ -151,7 +188,7 @@ fun FullscreenMap(
         Marker(
             state = sunMarkerState,
             icon = sunIcon,
-            anchor = androidx.compose.ui.geometry.Offset(0.5f, 0.5f), // Centers the icon perfectly on the line end
+            anchor = Offset(0.5f, 0.5f), // Centers the icon perfectly on the line end
             title = "Sun",
             snippet = "Azimuth: ${currentSolarPosition.azimuth.toInt()}°"
         )

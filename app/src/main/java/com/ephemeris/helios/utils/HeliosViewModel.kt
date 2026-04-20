@@ -7,6 +7,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ephemeris.helios.ui.composables.cards.ChartArrays
+import com.ephemeris.helios.ui.composables.cards.X_SIZE
+import com.ephemeris.helios.ui.composables.cards.generateMoonData
+import com.ephemeris.helios.ui.composables.cards.generateSunData
 import com.ephemeris.helios.utils.calc.DayEphemerisData
 import com.ephemeris.helios.utils.calc.LiveUpdatesData
 import com.ephemeris.helios.utils.calc.getDailyEphemerisData
@@ -14,6 +18,7 @@ import com.ephemeris.helios.utils.calc.getLiveUpdates
 import com.ephemeris.helios.utils.datastore.LocationDataStore
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.location.NativeGeocodingEngine
+import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import com.ephemeris.helios.utils.network.TimeApiClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -22,6 +27,8 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import kotlin.div
+import kotlin.math.round
 
 class HeliosViewModel(application: Application) : AndroidViewModel(application) {
     private val locationDataStore = LocationDataStore(application)
@@ -46,6 +53,11 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
         private set
 
     var isDataStoreLoaded by mutableStateOf(false)
+        private set
+
+    var sunChartArrays by mutableStateOf<ChartArrays?>(null)
+        private set
+    var moonChartArrays by mutableStateOf<ChartArrays?>(null)
         private set
 
     init {
@@ -114,6 +126,29 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
     fun updateDayData(coordinates: Coordinates) {
         viewModelScope.launch(Dispatchers.Default) {
             dayData = getDailyEphemerisData(currentTime, coordinates)
+
+            // Isolate the 480-iteration math loop
+            val hoursCalc = DoubleArray(X_SIZE) { round(it * 5.0) / 100.0 }
+            val hours = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
+
+//            val xDataMap = mutableMapOf<Charts, FloatArray>()
+//            val yDataMap = mutableMapOf<Charts, FloatArray>()
+
+            val tzOffset = currentTime.offset.totalSeconds / 3600.0
+            val localDate = currentTime.toLocalDate()
+
+            val dailyOzone = estimateHistoricalOzone(
+                latitude = coordinates.latitude,
+                date = localDate
+            )
+
+            val (xSun, ySun) = generateSunData(localDate, hoursCalc, coordinates, tzOffset, dailyOzone)
+            sunChartArrays = ChartArrays(hours, xSun, ySun)
+
+            val (xMoon, yMoon) = generateMoonData(localDate, hoursCalc, coordinates, tzOffset, currentTime)
+            moonChartArrays = ChartArrays(hours, xMoon, yMoon)
+
+            // Todo Planets
         }
     }
 

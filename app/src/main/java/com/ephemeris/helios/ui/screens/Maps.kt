@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.ephemeris.helios.ui.composables.FullscreenMap
+import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.location.Coordinates
@@ -15,8 +16,10 @@ fun Maps(
     coordinates: Coordinates,
     currentSolarPosition: SolarEphemeris.SolarPosition,
     solarEvents: SolarEphemeris.DailyEvents,
+    sunChartArrays: ChartArrays?,
     currentLunarPosition: LunarEphemeris.LunarPosition,
-    lunarEvents: LunarEphemeris.LunarDailyEvents
+    lunarEvents: LunarEphemeris.LunarDailyEvents,
+    moonChartArrays: ChartArrays?
 ) {
     Box(
         contentAlignment = Alignment.Center,
@@ -28,6 +31,8 @@ fun Maps(
             location = coordinates,
             currentSolarPosition = currentSolarPosition,
             solarEvents = solarEvents,
+            sunChartArrays = sunChartArrays,
+            moonChartArrays = moonChartArrays
         )
     }
 }

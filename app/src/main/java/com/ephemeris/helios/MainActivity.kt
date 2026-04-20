@@ -198,7 +198,9 @@ class MainActivity : ComponentActivity() {
                                     currentSunPosition = vm.liveData!!.currentSunPosition,
                                     sunEvents = vm.dayData!!.events,
                                     currentMoonPosition = vm.liveData!!.currentMoonPosition,
-                                    moonEvents = vm.dayData!!.lunarEvents
+                                    moonEvents = vm.dayData!!.lunarEvents,
+                                    sunChartArrays = vm.sunChartArrays,
+                                    moonChartArrays = vm.moonChartArrays
                                 )
                             }
                             composable(Routes.Exposure.route) {
@@ -214,7 +216,8 @@ class MainActivity : ComponentActivity() {
                                     dailyPeakMetrics = vm.dayData!!.dailyPeakMetrics,
                                     liveMetrics = vm.liveData!!.liveSunMetrics,
                                     seasonalEvents = vm.dayData!!.seasonalEvents,
-                                    seasonalDailyEvents = vm.dayData!!.seasonalDailyEvents
+                                    seasonalDailyEvents = vm.dayData!!.seasonalDailyEvents,
+                                    sunChartArrays = vm.sunChartArrays
                                 )
                             }
                             composable(Routes.Moon.route) {
@@ -224,7 +227,8 @@ class MainActivity : ComponentActivity() {
                                     currentPosition = vm.liveData!!.currentMoonPosition,
                                     events = vm.dayData!!.lunarEvents,
                                     dailyPeakMetrics = vm.dayData!!.lunarDailyPeakMetrics!!,
-                                    liveMetrics = vm.liveData!!.liveMoonMetrics
+                                    liveMetrics = vm.liveData!!.liveMoonMetrics,
+                                    moonChartArrays = vm.moonChartArrays
                                 )
                             }
                             composable(Routes.Maps.route) {
@@ -233,7 +237,9 @@ class MainActivity : ComponentActivity() {
                                     currentSolarPosition = vm.liveData!!.currentSunPosition,
                                     solarEvents = vm.dayData!!.events,
                                     currentLunarPosition = vm.liveData!!.currentMoonPosition,
-                                    lunarEvents = vm.dayData!!.lunarEvents
+                                    lunarEvents = vm.dayData!!.lunarEvents,
+                                    sunChartArrays = vm.sunChartArrays,
+                                    moonChartArrays = vm.moonChartArrays
                                 )
                             }
                         }

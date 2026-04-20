@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.entries.LunarCulminationEntry
@@ -25,7 +26,8 @@ fun Moon(
     currentPosition: LunarEphemeris.LunarPosition,
     events: LunarEphemeris.LunarDailyEvents,
     dailyPeakMetrics: MoonMetrics.LunarMetricsResult,
-    liveMetrics: MoonMetrics.LunarMetricsResult
+    liveMetrics: MoonMetrics.LunarMetricsResult,
+    moonChartArrays: ChartArrays?
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -39,7 +41,8 @@ fun Moon(
                 currentAltitude = currentPosition.altitude,
                 currentAzimuth = currentPosition.azimuth,
                 phase = liveMetrics.phase.displayName,
-                type = Charts.Moon.Daily.Elevation
+                type = Charts.Moon.Daily.Elevation,
+                chartArrays = moonChartArrays
             )
         }
         item {

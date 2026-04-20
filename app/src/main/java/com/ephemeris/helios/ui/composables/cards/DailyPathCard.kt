@@ -111,10 +111,10 @@ fun DailyPathCard(
     currentAltitude: Double,
     currentAzimuth: Double,
     phase: String = "",
-    type: Charts
+    type: Charts,
+    chartArrays: ChartArrays?
 ) {
     var selectedChartType by rememberSaveable { mutableStateOf(type) }
-    var chartArrays by remember { mutableStateOf<ChartArrays?>(null) }
 
     val currentHour: Float by remember(currentTime) {
         derivedStateOf {
@@ -123,51 +123,7 @@ fun DailyPathCard(
         }
     }
 
-    // Isolate the 480-iteration math loop.
-    // It will ONLY run when the Date or Coordinate change, ignoring the 12-second time tick.
-    LaunchedEffect(currentTime.toLocalDate(), coordinates) {
-        withContext(Dispatchers.Default) {
-            val hoursCalc = DoubleArray(X_SIZE) { round(it * 5.0) / 100.0 }
-            val hours = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
 
-            val xDataMap = mutableMapOf<Charts, FloatArray>()
-            val yDataMap = mutableMapOf<Charts, FloatArray>()
-
-            val tzOffset = currentTime.offset.totalSeconds / 3600.0
-            val localDate = currentTime.toLocalDate()
-
-            val dailyOzone = estimateHistoricalOzone(
-                latitude = coordinates.latitude,
-                date = localDate
-            )
-
-            when (type) {
-                is Charts.Sun -> {
-                    val (x, y) = generateSunData(localDate, hoursCalc, coordinates, tzOffset, dailyOzone)
-                    xDataMap.putAll(x)
-                    yDataMap.putAll(y)
-                }
-                is Charts.Moon -> {
-                    val (x, y) = generateMoonData(localDate, hoursCalc, coordinates, tzOffset, currentTime)
-                    xDataMap.putAll(x)
-                    yDataMap.putAll(y)
-                }
-                is Charts.SunMoonCombo -> {
-                    val (xSun, ySun) = generateSunData(localDate, hoursCalc, coordinates, tzOffset, dailyOzone)
-                    val (xMoon, yMoon) = generateMoonData(localDate, hoursCalc, coordinates, tzOffset, currentTime)
-                    xDataMap.putAll(xSun)
-                    xDataMap.putAll(xMoon)
-                    yDataMap.putAll(ySun)
-                    yDataMap.putAll(yMoon)
-                }
-                else -> {
-                    // Todo planets
-                }
-            }
-
-            chartArrays = ChartArrays(hours, xDataMap, yDataMap)
-        }
-    }
 
     Card(
         modifier = Modifier

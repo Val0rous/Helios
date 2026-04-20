@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
+import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.entries.DailyPeaksEntry
@@ -44,7 +45,8 @@ fun Sun(
     dailyPeakMetrics: SunMetrics.SunMetricsResult,
     liveMetrics: SunMetrics.SunMetricsResult,
     seasonalEvents: SeasonalEphemeris.SeasonalEvents,
-    seasonalDailyEvents: SeasonalEphemeris.SeasonalDailyEvents
+    seasonalDailyEvents: SeasonalEphemeris.SeasonalDailyEvents,
+    sunChartArrays: ChartArrays?
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -58,7 +60,8 @@ fun Sun(
                 currentAltitude = currentSolarPosition.altitude,
                 currentAzimuth = currentSolarPosition.azimuth,
                 phase = getSunPhase(currentSolarPosition.altitude).desc,
-                type = Charts.Sun.Daily.Elevation
+                type = Charts.Sun.Daily.Elevation,
+                chartArrays = sunChartArrays
             )
         }
         item {
