@@ -128,6 +128,8 @@ fun FullscreenAzimuthMap(
     val currentSunDist = radiusMeters * cos(Math.toRadians(currentSunElevation))
     val currentSunPoint = SphericalUtil.computeOffset(drawCenter, currentSunDist, currentSolarPosition.azimuth)
 
+    val currentSunEdgePoint = SphericalUtil.computeOffset(drawCenter, radiusMeters, currentSolarPosition.azimuth)
+
     val moonrisePoint = lunarEvents.moonriseAzimuth?.let { azimuth ->
         SphericalUtil.computeOffset(drawCenter, radiusMeters, azimuth)
     }
@@ -139,6 +141,8 @@ fun FullscreenAzimuthMap(
     val currentMoonElevation = currentLunarPosition.altitude
     val currentMoonDist = radiusMeters * cos(Math.toRadians(currentMoonElevation))
     val currentMoonPoint = SphericalUtil.computeOffset(drawCenter, currentMoonDist, currentLunarPosition.azimuth)
+
+    val currentMoonEdgePoint = SphericalUtil.computeOffset(drawCenter, radiusMeters, currentLunarPosition.azimuth)
 
     GoogleMap(
         modifier = Modifier.fillMaxSize(),
@@ -175,6 +179,14 @@ fun FullscreenAzimuthMap(
                 bitmapDescriptorForHourlyMark(formatHour(hour, true, context), colors.moon)
             }
         }
+
+        // --- PRE-COMPUTE EDGE DOTS ---
+        val sunriseDotIcon = remember { bitmapDescriptorForCenterDot(Color(0xFFFFB300)) }
+        val sunsetDotIcon = remember { bitmapDescriptorForCenterDot(Color(0xFFFF5252)) }
+        val moonriseDotIcon = remember { bitmapDescriptorForCenterDot(MaterialColors.Blue500) }
+        val moonsetDotIcon = remember { bitmapDescriptorForCenterDot(MaterialColors.Blue700) }
+        val sunEdgeDotIcon = remember(colors.sun) { bitmapDescriptorForCenterDot(colors.sun) }
+        val moonEdgeDotIcon = remember(colors.moon) { bitmapDescriptorForCenterDot(colors.moon) }
 
         // 1a. The Outer Compass Ring
         Circle(
@@ -232,29 +244,46 @@ fun FullscreenAzimuthMap(
             )
         }
 
-        // 3a. Curved Sun Path (Day and Night Segments)
+        // 3a. Curved Sun Path (Day and Night Segments) & Yellow Perimeter
         if (sunChartArrays != null) {
             val elevations = sunChartArrays.yDataSets[Charts.Sun.Daily.Elevation]
             val azimuths = sunChartArrays.xDataSets[Charts.Sun.Daily.Trajectory]
 
             if (elevations != null && azimuths != null && elevations.isNotEmpty()) {
                 val daySegments = mutableListOf<List<LatLng>>()
+                val dayPerimeterSegments = mutableListOf<List<LatLng>>()
                 val nightSegments = mutableListOf<List<LatLng>>()
                 var currentSegment = mutableListOf<LatLng>()
+                var currentPerimeterSegment = mutableListOf<LatLng>()
                 var wasAbove = elevations[0] >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()
+
+                // Seed the perimeter if starting in the day
+                if (wasAbove) currentPerimeterSegment.add(SphericalUtil.computeOffset(drawCenter, radiusMeters, azimuths[0].toDouble()))
 
                 for (i in elevations.indices) {
                     val el = elevations[i]
                     val isAbove = el >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()
                     val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
                     val pt = SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble())
+                    val perimeterPt = SphericalUtil.computeOffset(drawCenter, radiusMeters, azimuths[i].toDouble())
+
                     if (isAbove == wasAbove) {
                         currentSegment.add(pt)
+                        if (isAbove) currentPerimeterSegment.add(perimeterPt)
                     } else {
                         // The moment we cross the horizon, add the exact crossover point to connect BOTH lists to they connect perfectly!
                         currentSegment.add(pt)
-                        if (wasAbove) daySegments.add(currentSegment) else nightSegments.add(currentSegment)
+                        if (wasAbove) {
+                            // Transition to Night
+                            currentPerimeterSegment.add(perimeterPt)
+                            daySegments.add(currentSegment)
+                            dayPerimeterSegments.add(currentPerimeterSegment)
+                        } else {
+                            // Transition to Day
+                            nightSegments.add(currentSegment)
+                        }
                         currentSegment = mutableListOf(pt)
+                        currentPerimeterSegment = if (isAbove) mutableListOf(perimeterPt) else mutableListOf()
                         wasAbove = isAbove
                     }
 
@@ -272,7 +301,12 @@ fun FullscreenAzimuthMap(
                 }
                 // Catch any streak that was still going at midnight
                 if (currentSegment.isNotEmpty()) {
-                    if (wasAbove) daySegments.add(currentSegment) else nightSegments.add(currentSegment)
+                    if (wasAbove) {
+                        daySegments.add(currentSegment)
+                        dayPerimeterSegments.add(currentPerimeterSegment)
+                    } else {
+                        nightSegments.add(currentSegment)
+                    }
                 }
                 daySegments.forEach { pathPoints ->
                     Polyline(
@@ -287,6 +321,13 @@ fun FullscreenAzimuthMap(
                         color = Color.Gray.copy(alpha = 0.4f),
                         width = 6f,
                         pattern = listOf(Dot(), Gap(6f))
+                    )
+                }
+                dayPerimeterSegments.forEach { pathPoints ->
+                    Polyline(
+                        points = pathPoints,
+                        color = colors.sun,
+                        width = 6f
                     )
                 }
             }
@@ -353,14 +394,14 @@ fun FullscreenAzimuthMap(
 
         // 4a. Current Sun Line (Solid)
         Polyline(
-            points = listOf(drawCenter, currentSunPoint),
+            points = listOf(drawCenter, currentSunEdgePoint),
             color = colors.sun,
             width = 8f
         )
 
         // 4b. Current Moon Line (Solid)
         Polyline(
-            points = listOf(drawCenter, currentMoonPoint),
+            points = listOf(drawCenter, currentMoonEdgePoint),
             color = colors.moon,
             width = 8f
         )
@@ -416,6 +457,36 @@ fun FullscreenAzimuthMap(
         val centerState = rememberUpdatedMarkerState(position = drawCenter)
         centerState.position = drawCenter
         Marker(state = centerState, icon = centerDotIcon, anchor = Offset(0.5f, 0.5f))
+
+        // --- NEW: ALL PERIMETER DOTS ---
+        if (sunrisePoint != null) {
+            val state = rememberUpdatedMarkerState(position = sunrisePoint)
+            state.position = sunrisePoint
+            Marker(state = state, icon = sunriseDotIcon, anchor = Offset(0.5f, 0.5f))
+        }
+        if (sunsetPoint != null) {
+            val state = rememberUpdatedMarkerState(position = sunsetPoint)
+            state.position = sunsetPoint
+            Marker(state = state, icon = sunsetDotIcon, anchor = Offset(0.5f, 0.5f))
+        }
+        if (moonrisePoint != null) {
+            val state = rememberUpdatedMarkerState(position = moonrisePoint)
+            state.position = moonrisePoint
+            Marker(state = state, icon = moonriseDotIcon, anchor = Offset(0.5f, 0.5f))
+        }
+        if (moonsetPoint != null) {
+            val state = rememberUpdatedMarkerState(position = moonsetPoint)
+            state.position = moonsetPoint
+            Marker(state = state, icon = moonsetDotIcon, anchor = Offset(0.5f, 0.5f))
+        }
+
+        val sunEdgeState = rememberUpdatedMarkerState(position = currentSunEdgePoint)
+        sunEdgeState.position = currentSunEdgePoint
+        Marker(state = sunEdgeState, icon = sunEdgeDotIcon, anchor = Offset(0.5f, 0.5f), zIndex = 1f)
+
+        val moonEdgeState = rememberUpdatedMarkerState(position = currentMoonEdgePoint)
+        moonEdgeState.position = currentMoonEdgePoint
+        Marker(state = moonEdgeState, icon = moonEdgeDotIcon, anchor = Offset(0.5f, 0.5f), zIndex = 1f)
 
         // 7a. The Sun Icon Marker
         val isSunAbove = currentSunElevation >= SolarEphemeris.ALT_SUNRISE_SUNSET
