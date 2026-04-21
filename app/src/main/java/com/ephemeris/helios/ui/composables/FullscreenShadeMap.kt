@@ -15,8 +15,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import com.ephemeris.helios.BuildConfig
-import androidx.compose.ui.res.stringResource
-import com.ephemeris.helios.R
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.location.Coordinates
 import com.google.android.gms.maps.model.LatLng
@@ -35,7 +33,6 @@ import com.mapbox.maps.extension.style.expressions.generated.Expression.Companio
 import com.mapbox.maps.extension.style.layers.addLayer
 import com.mapbox.maps.extension.style.layers.generated.fillExtrusionLayer
 import com.mapbox.maps.extension.style.layers.generated.hillshadeLayer
-import com.mapbox.maps.extension.style.layers.properties.generated.Anchor
 import com.mapbox.maps.extension.style.light.generated.ambientLight
 import com.mapbox.maps.extension.style.light.generated.directionalLight
 import com.mapbox.maps.extension.style.light.setLight
@@ -44,7 +41,6 @@ import com.mapbox.maps.extension.style.sources.generated.rasterDemSource
 import com.mapbox.maps.extension.style.terrain.generated.setTerrain
 import com.mapbox.maps.extension.style.terrain.generated.terrain
 import kotlinx.coroutines.delay
-import kotlin.math.pow
 import kotlin.math.sqrt
 
 @OptIn(MapboxExperimental::class)
