@@ -42,6 +42,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -68,4 +69,5 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.bundles.gpsmaps)
     implementation(libs.material.icons.extended)
+    implementation(libs.bundles.mapbox)
 }

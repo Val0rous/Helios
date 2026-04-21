@@ -20,7 +20,8 @@ maps-compose = "8.3.0"
 material-icons-extended = "1.7.8"
 secretsPlugin = "2.0.1"
 #geoidheight4j = "main-SNAPSHOT"
-maps-utils = "3.8.2"
+maps-utils = "4.1.1"
+mapbox = "11.22.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -54,6 +55,9 @@ maps-compose = { group = "com.google.maps.android", name = "maps-compose", versi
 # Google Material Symbols
 material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "material-icons-extended" }
 
+mapbox-compose = { group = "com.mapbox.extension", name = "maps-compose-ndk27", version.ref = "mapbox" }
+mapbox-core = { group = "com.mapbox.maps", name = "android-ndk27", version.ref = "mapbox" }
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
@@ -63,3 +67,4 @@ google-android-secrets = { id = "com.google.android.libraries.mapsplatform.secre
 [bundles]
 navigation = ["androidx-navigation-compose", "androidx-navigation-runtime-ktx"]
 gpsmaps = ["play-services-location", "play-services-maps", "places", "maps-compose", "maps-utils"]
+mapbox = ["mapbox-compose", "mapbox-core"]

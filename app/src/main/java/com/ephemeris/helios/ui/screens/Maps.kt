@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import com.ephemeris.helios.ui.composables.FullscreenAzimuthMap
+import com.ephemeris.helios.ui.composables.FullscreenShadeMap
 import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.utils.MapType
 import com.ephemeris.helios.utils.calc.LunarEphemeris
@@ -80,7 +81,11 @@ fun Maps(
                     )
                 }
                 MapType.SHADEMAP.ordinal -> {
-//                    PlaceholderScreen("Shademap (Mapbox Integration Coming Soon)")
+                    FullscreenShadeMap(
+                        location = coordinates,
+                        currentSolarPosition = currentSolarPosition,
+                        onMapCenterSettled = onMapCenterSettled
+                    )
                 }
                 MapType.AR_VIEW.ordinal -> {
 //                    PlaceholderScreen("Augmented Reality View Coming Soon")
