@@ -125,7 +125,6 @@ fun FullscreenAzimuthMap(
 
     // PROJECTED SUN POSITION: Maps altitude to the circle's radius!
     val currentSunElevation = currentSolarPosition.altitude
-    // Todo: make it pull from official sunrise/sunset boundary
     val currentSunDist = radiusMeters * cos(Math.toRadians(currentSunElevation))
     val currentSunPoint = SphericalUtil.computeOffset(drawCenter, currentSunDist, currentSolarPosition.azimuth)
 
@@ -242,11 +241,11 @@ fun FullscreenAzimuthMap(
                 val daySegments = mutableListOf<List<LatLng>>()
                 val nightSegments = mutableListOf<List<LatLng>>()
                 var currentSegment = mutableListOf<LatLng>()
-                var wasAbove = elevations[0] >= 0f
+                var wasAbove = elevations[0] >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()
 
                 for (i in elevations.indices) {
                     val el = elevations[i]
-                    val isAbove = el >= 0f
+                    val isAbove = el >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()
                     val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
                     val pt = SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble())
                     if (isAbove == wasAbove) {
@@ -302,11 +301,11 @@ fun FullscreenAzimuthMap(
                 val daySegments = mutableListOf<List<LatLng>>()
                 val nightSegments = mutableListOf<List<LatLng>>()
                 var currentSegment = mutableListOf<LatLng>()
-                var wasAbove = elevations[0] >= 0f
+                var wasAbove = elevations[0] >= LunarEphemeris.ALT_MOONRISE_MOONSET.toFloat()
 
                 for (i in elevations.indices) {
                     val el = elevations[i]
-                    val isAbove = el >= 0f
+                    val isAbove = el >= LunarEphemeris.ALT_MOONRISE_MOONSET.toFloat()
                     val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
                     val pt = SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble())
 
@@ -419,7 +418,7 @@ fun FullscreenAzimuthMap(
         Marker(state = centerState, icon = centerDotIcon, anchor = Offset(0.5f, 0.5f))
 
         // 7a. The Sun Icon Marker
-        val isSunAbove = currentSunElevation >= 0.0
+        val isSunAbove = currentSunElevation >= SolarEphemeris.ALT_SUNRISE_SUNSET
         val sunIcon = remember(colors.sun, isSunAbove, isLightMode) {
             bitmapDescriptorForCelestialBody(context, true, isSunAbove, isLightMode, colors.sun)
         }
@@ -435,7 +434,7 @@ fun FullscreenAzimuthMap(
         )
 
         // 7b. The Moon Icon Marker
-        val isMoonAbove = currentMoonElevation >= 0.0
+        val isMoonAbove = currentMoonElevation >= LunarEphemeris.ALT_MOONRISE_MOONSET
         val moonIcon = remember(colors.moon, isMoonAbove, isLightMode) {
             bitmapDescriptorForCelestialBody(context, false, isMoonAbove, isLightMode, colors.moon)
         }
