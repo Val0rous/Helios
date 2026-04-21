@@ -1,11 +1,17 @@
 package com.ephemeris.helios.ui.composables
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import com.ephemeris.helios.BuildConfig
@@ -28,10 +34,15 @@ import com.mapbox.maps.extension.style.expressions.generated.Expression.Companio
 import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.literal
 import com.mapbox.maps.extension.style.layers.addLayer
 import com.mapbox.maps.extension.style.layers.generated.fillExtrusionLayer
+import com.mapbox.maps.extension.style.layers.generated.hillshadeLayer
 import com.mapbox.maps.extension.style.layers.properties.generated.Anchor
 import com.mapbox.maps.extension.style.light.generated.ambientLight
 import com.mapbox.maps.extension.style.light.generated.directionalLight
 import com.mapbox.maps.extension.style.light.setLight
+import com.mapbox.maps.extension.style.sources.addSource
+import com.mapbox.maps.extension.style.sources.generated.rasterDemSource
+import com.mapbox.maps.extension.style.terrain.generated.setTerrain
+import com.mapbox.maps.extension.style.terrain.generated.terrain
 import kotlinx.coroutines.delay
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -96,98 +107,155 @@ fun FullscreenShadeMap(
         }
     }
 
-    MapboxMap(
-        modifier = modifier.fillMaxSize(),
-        mapViewportState = mapViewportState
-    ) {
+    var currentElevationTile by remember { mutableStateOf<ImageBitmap?>(null) }
 
-        // 1. Load the Map Style and Build the 3D Extrusions
-        MapEffect(isDarkTheme) { mapView ->
-            // Upgraded to OUTDOORS for rich terrain, parks, and water colors!
-            val styleUri = if (isDarkTheme) Style.DARK else Style.OUTDOORS
+    Box(modifier = modifier.fillMaxSize()) {
+        MapboxMap(
+            modifier = modifier.fillMaxSize(),
+            mapViewportState = mapViewportState
+        ) {
 
-            mapView.mapboxMap.loadStyle(styleUri) { style ->
-                // Safety check: Don't stack layers if MapEffect recomposes
-                if (style.styleLayerExists("3d-buildings")) {
-                    style.removeStyleLayer("3d-buildings")
-                }
+            // 1. Load the Map Style and Build the 3D Extrusions
+            MapEffect(isDarkTheme) { mapView ->
+                // Upgraded to OUTDOORS for rich terrain, parks, and water colors!
+                val styleUri = if (isDarkTheme) Style.DARK else Style.OUTDOORS
 
-                // Extrude the buildings natively on the GPU
-                val buildingLayer = fillExtrusionLayer("3d-buildings", "composite") {
-                    sourceLayer("building")
-                    // Only extrude features marked as buildings
-                    filter(eq(get("extrude"), literal("true")))
-                    // Set heights
-                    fillExtrusionHeight(get("height"))
-                    fillExtrusionBase(get("min_height"))
-                    // Shade the buildings nicely based on theme
-                    fillExtrusionColor(if (isDarkTheme) "#2A2A2A" else "#E8E8E8")
-                    fillExtrusionOpacity(0.9)
-                }
-
-                style.addLayer(buildingLayer)
-            }
-        }
-
-        // 2. The Real-Time Ephemeris Engine Link!
-        // This watches your Time Machine slider. Every time currentSolarPosition changes,
-        // it instantly recalculates the shadows without reloading the map.
-        MapEffect(currentSolarPosition) { mapView ->
-            mapView.mapboxMap.getStyle { style ->
-                val altitude = currentSolarPosition.altitude
-
-                // --- THE SHADOW CLIPPING CEILING ---
-                // 84.5 degrees is the absolute bleeding edge of the CSM bounding box.
-                // Tangent(84.5) = 10.4x shadow multiplier. Any higher and it shatters.
-                val polarAngle = (90.0 - altitude).coerceIn(0.0, 84.5)
-
-                // --- LAMBERT'S COSINE LAW & LOGARITHMIC PERCEPTION FIX ---
-                // We map altitude to a 0.0-1.0 ratio, then apply a fractional power curve (0.35).
-                // Example: At just 5 degrees (0.055 ratio), 0.055^0.35 = 0.36!
-                // This keeps the mathematical light energy drastically higher than linear fading.
-
-                // 1. Direct Sun Intensity:
-                // Uncapped at noon (1.5 max brightness!), and stays at a powerful 0.65
-                // all the way down at the absolute horizon line before snapping to 0.
-                val directIntensity = if (altitude > 0.0) {
-                    val normalizedAlt = (altitude / 90.0).coerceIn(0.0, 1.0)
-
-                    // At noon (1.0), boost is 0. Base is perfectly exposed at 0.65.
-                    // At sunrise (0.0), boost approaches 1.85. Total is 2.5 to cut through glancing angles!
-                    val boost = 1.85 * (1.0 - sqrt(normalizedAlt))
-                    (0.65 + boost)
-                } else 0.0
-
-                // 2. Ambient Sky Intensity (The Ground):
-                // Ambient stays completely flat and comfortable during the day to keep shadows visible
-                val ambientIntensity = when {
-                    altitude >= 0.0 -> 0.35
-                    else -> 0.02 + ((altitude + 18.0) / 18.0 * 0.33).coerceIn(0.0, 0.33)
-                }
-
-                style.setLight(
-                    ambientLight {
-                        intensity(ambientIntensity)
-                    },
-                    directionalLight {
-                        // Direction takes an array of exactly two values: [Azimuth, Polar Angle]
-                        direction(listOf(currentSolarPosition.azimuth, polarAngle))
-                        intensity(directIntensity)
-                        castShadows(true) // Turn on the GPU ray-tracing!
-                    }
-                )
-
-                // --- ELEGANT SUBTLE TINTING (LERP) ---
-                if (style.styleLayerExists("3d-buildings")) {
-                    val buildingColor = getSubtleBuildingTint(altitude, isDarkTheme)
-                    val hexColor = String.format("#%06X", 0xFFFFFF and buildingColor.toArgb())
-
-                    style.setStyleLayerProperty(
-                        "3d-buildings",
-                        "fill-extrusion-color",
-                        Value.valueOf(hexColor)
+                mapView.mapboxMap.loadStyle(styleUri) { style ->
+                    // --- ENABLE 3D MOUNTAINS ---
+                    // 1. Download the Digital Elevation Model (DEM)
+                    style.addSource(
+                        rasterDemSource("mapbox-dem") {
+                            url("mapbox://mapbox.mapbox-terrain-dem-v1")
+                            tileSize(512)
+                            maxzoom(14)
+                        }
                     )
+
+                    // 2. Apply the elevation data to the map's ground plane
+                    style.setTerrain(
+                        terrain("mapbox-dem") {
+                            // Optional: You can increase this to e.g., 1.5 to make mountains look taller!
+                            exaggeration(1.2) // Slight boost to make mountains look more realistic
+                        }
+                    )
+
+                    // --- ADD MOUNTAIN HILLSHADING ---
+                    if (style.styleLayerExists("mountain-shading")) {
+                        style.removeStyleLayer("mountain-shading")
+                    }
+
+                    val hillshade = hillshadeLayer("mountain-shading", "mapbox-dem") {
+                        hillshadeExaggeration(0.8) // High contrast for beautiful sunrise/sunset
+                        if (isDarkTheme) {
+                            hillshadeShadowColor("#0D0D0D")
+                            hillshadeHighlightColor("#333333")
+                        } else {
+                            hillshadeShadowColor("#333333")
+                            hillshadeHighlightColor("#FFFFFF")
+                        }
+                    }
+                    // Add the shading immediately so it sits under the buildings
+                    style.addLayer(hillshade)
+
+                    // Safety check: Don't stack layers if MapEffect recomposes
+                    if (style.styleLayerExists("3d-buildings")) {
+                        style.removeStyleLayer("3d-buildings")
+                    }
+
+                    // Extrude the buildings natively on the GPU
+                    val buildingLayer = fillExtrusionLayer("3d-buildings", "composite") {
+                        sourceLayer("building")
+                        // Only extrude features marked as buildings
+                        filter(eq(get("extrude"), literal("true")))
+                        // Set heights
+                        fillExtrusionHeight(get("height"))
+                        fillExtrusionBase(get("min_height"))
+                        // Shade the buildings nicely based on theme
+                        fillExtrusionColor(if (isDarkTheme) "#2A2A2A" else "#E8E8E8")
+                        fillExtrusionOpacity(0.9)
+                    }
+
+                    style.addLayer(buildingLayer)
                 }
+            }
+
+            // 2. The Real-Time Ephemeris Engine Link!
+            // This watches your Time Machine slider. Every time currentSolarPosition changes,
+            // it instantly recalculates the shadows without reloading the map.
+            MapEffect(currentSolarPosition) { mapView ->
+                mapView.mapboxMap.getStyle { style ->
+                    val altitude = currentSolarPosition.altitude
+
+                    // --- THE SHADOW CLIPPING CEILING ---
+                    // 84.5 degrees is the absolute bleeding edge of the CSM bounding box.
+                    // Tangent(84.5) = 10.4x shadow multiplier. Any higher and it shatters.
+                    val polarAngle = (90.0 - altitude).coerceIn(0.0, 84.5)
+
+                    // --- LAMBERT'S COSINE LAW & LOGARITHMIC PERCEPTION FIX ---
+                    // We map altitude to a 0.0-1.0 ratio, then apply a fractional power curve (0.35).
+                    // Example: At just 5 degrees (0.055 ratio), 0.055^0.35 = 0.36!
+                    // This keeps the mathematical light energy drastically higher than linear fading.
+
+                    // 1. Direct Sun Intensity:
+                    // Uncapped at noon (1.5 max brightness!), and stays at a powerful 0.65
+                    // all the way down at the absolute horizon line before snapping to 0.
+                    val directIntensity = if (altitude > 0.0) {
+                        val normalizedAlt = (altitude / 90.0).coerceIn(0.0, 1.0)
+
+                        // At noon (1.0), boost is 0. Base is perfectly exposed at 0.65.
+                        // At sunrise (0.0), boost approaches 1.85. Total is 2.5 to cut through glancing angles!
+                        val boost = 1.85 * (1.0 - sqrt(normalizedAlt))
+                        (0.65 + boost)
+                    } else 0.0
+
+                    // 2. Ambient Sky Intensity (The Ground):
+                    // Ambient stays completely flat and comfortable during the day to keep shadows visible
+                    val ambientIntensity = when {
+                        altitude >= 0.0 -> 0.35
+                        else -> 0.02 + ((altitude + 18.0) / 18.0 * 0.33).coerceIn(0.0, 0.33)
+                    }
+
+                    style.setLight(
+                        ambientLight {
+                            intensity(ambientIntensity)
+                        },
+                        directionalLight {
+                            // Direction takes an array of exactly two values: [Azimuth, Polar Angle]
+                            direction(listOf(currentSolarPosition.azimuth, polarAngle))
+                            intensity(directIntensity)
+                            castShadows(true) // Turn on the GPU ray-tracing!
+                        }
+                    )
+
+                    // --- ELEGANT SUBTLE TINTING (LERP) ---
+                    if (style.styleLayerExists("3d-buildings")) {
+                        val buildingColor = getSubtleBuildingTint(altitude, isDarkTheme)
+                        val hexColor = String.format("#%06X", 0xFFFFFF and buildingColor.toArgb())
+
+                        style.setStyleLayerProperty(
+                            "3d-buildings",
+                            "fill-extrusion-color",
+                            Value.valueOf(hexColor)
+                        )
+                    }
+
+                    // --- DYNAMIC MOUNTAIN SHADOWS ---
+                    if (style.styleLayerExists("mountain-shading")) {
+                        // Lock the illumination angle to the sun's azimuth so shadows rotate with the Time Machine!
+                        style.setStyleLayerProperty(
+                            "mountain-shading",
+                            "hillshade-illumination-direction",
+                            Value.valueOf(currentSolarPosition.azimuth)
+                        )
+
+                        // Optional polish: Fade out the intense mountain shading after sunset so it doesn't look weirdly lit
+                        val shadingIntensity = if (altitude > -2.0) 0.8 else 0.1
+                        style.setStyleLayerProperty(
+                            "mountain-shading",
+                            "hillshade-exaggeration",
+                            Value.valueOf(shadingIntensity)
+                        )
+                    }
 
 //                // --- DYNAMIC "FAKE PBR" TINTING ---
 //                // We calculate a beautiful environmental tint using basic altitude thresholds
@@ -210,8 +278,14 @@ fun FullscreenShadeMap(
 //                        Value.valueOf(hexColor)
 //                    )
 //                }
+                }
             }
         }
+
+        ShademapOverlay(
+            currentSolarPosition = currentSolarPosition,
+            elevationTile = currentElevationTile
+        )
     }
 }
 
