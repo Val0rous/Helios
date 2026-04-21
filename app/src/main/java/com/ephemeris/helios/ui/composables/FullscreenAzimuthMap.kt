@@ -185,8 +185,8 @@ fun FullscreenAzimuthMap(
         val sunsetDotIcon = remember { bitmapDescriptorForCenterDot(Color(0xFFFF5252)) }
         val moonriseDotIcon = remember { bitmapDescriptorForCenterDot(MaterialColors.Blue500) }
         val moonsetDotIcon = remember { bitmapDescriptorForCenterDot(MaterialColors.Blue700) }
-        val sunEdgeDotIcon = remember(colors.sun) { bitmapDescriptorForCenterDot(colors.sun) }
-        val moonEdgeDotIcon = remember(colors.moon) { bitmapDescriptorForCenterDot(colors.moon) }
+        val sunEdgeDotIcon = remember(colors.sunPath) { bitmapDescriptorForCenterDot(colors.sunPath) }
+        val moonEdgeDotIcon = remember(colors.moonPath) { bitmapDescriptorForCenterDot(colors.moonPath) }
 
         // 1a. The Outer Compass Ring
         Circle(
@@ -202,7 +202,7 @@ fun FullscreenAzimuthMap(
             center = drawCenter,
             radius = textRadiusMeters,
             fillColor = Color.Transparent,
-            strokeColor = Color.DarkGray.copy(alpha = 0.5f),
+            strokeColor = if (isLightMode) Color.DarkGray.copy(alpha = 0.5f) else Color.DarkGray.copy(alpha = 0.5f),
             strokeWidth = 55f
         )
 
@@ -311,7 +311,7 @@ fun FullscreenAzimuthMap(
                 daySegments.forEach { pathPoints ->
                     Polyline(
                         points = pathPoints,
-                        color = colors.sun.copy(alpha = 0.4f), // Slightly transparent to look like a track
+                        color = colors.sunPath.copy(alpha = 0.4f), // Slightly transparent to look like a track
                         width = 6f
                     )
                 }
@@ -377,7 +377,7 @@ fun FullscreenAzimuthMap(
                 daySegments.forEach { pathPoints ->
                     Polyline(
                         points = pathPoints,
-                        color = colors.moon.copy(alpha = 0.4f), // Slightly transparent to look like a track
+                        color = colors.moonPath.copy(alpha = 0.4f), // Slightly transparent to look like a track
                         width = 6f
                     )
                 }
@@ -395,14 +395,14 @@ fun FullscreenAzimuthMap(
         // 4a. Current Sun Line (Solid)
         Polyline(
             points = listOf(drawCenter, currentSunEdgePoint),
-            color = colors.sun,
+            color = colors.sunPath,
             width = 8f
         )
 
         // 4b. Current Moon Line (Solid)
         Polyline(
             points = listOf(drawCenter, currentMoonEdgePoint),
-            color = colors.moon,
+            color = colors.moonPath,
             width = 8f
         )
 
@@ -431,7 +431,11 @@ fun FullscreenAzimuthMap(
 
             // --- DIMMING SECONDARY DIRECTIONS ---
             // 3-letter strings (e.g. "WSW") get a 50% opacity fade
-            val textColor = if (label.length > 2) MaterialColors.White.copy(alpha = 0.85f) else MaterialColors.Red400.copy(alpha = 0.95f)
+            val textColor = when (label.length) {
+                1 -> MaterialColors.Red400.copy(alpha = 0.95f)
+                2 -> MaterialColors.LightBlueA100.copy(alpha = 0.95f)
+                else -> MaterialColors.Gray50.copy(alpha = 0.85f)
+            }
 
             // Cache the text bitmap so we don't redraw it every frame
             val textIcon = remember(label, textColor) {
