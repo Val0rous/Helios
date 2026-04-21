@@ -256,36 +256,9 @@ fun FullscreenShadeMap(
                             Value.valueOf(shadingIntensity)
                         )
                     }
-
-//                // --- DYNAMIC "FAKE PBR" TINTING ---
-//                // We calculate a beautiful environmental tint using basic altitude thresholds
-//                val buildingColor = when {
-//                    currentSolarPosition.altitude < -6.0 -> Color(0xFF1A237E) // Deep Night (Navy)
-//                    currentSolarPosition.altitude < 0.0 -> Color(0xFF3949AB) // Twilight (Blue)
-//                    currentSolarPosition.altitude < 10.0 -> Color(0xFFFFB300) // Golden Hour (Amber)
-//                    else -> if (isDarkTheme) Color.DarkGray else Color.LightGray // Daytime
-//                }
-//
-//                // Safety check to ensure the layer exists before we tint it
-//                if (style.styleLayerExists("3d-buildings")) {
-//                    // Convert Compose Color to Hex String (e.g. "#FFB300")
-//                    val hexColor = String.format("#%06X", 0xFFFFFF and buildingColor.toArgb())
-//                    // Update the hex color directly on the GPU!
-//                    // Wrap the string in Mapbox's C++ bindgen Value object!
-//                    style.setStyleLayerProperty(
-//                        "3d-buildings",
-//                        "fill-extrusion-color",
-//                        Value.valueOf(hexColor)
-//                    )
-//                }
                 }
             }
         }
-
-        ShademapOverlay(
-            currentSolarPosition = currentSolarPosition,
-            elevationTile = currentElevationTile
-        )
     }
 }
 
