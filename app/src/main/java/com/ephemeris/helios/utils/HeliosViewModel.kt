@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.ephemeris.helios.BuildConfig
 import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.composables.cards.X_SIZE
 import com.ephemeris.helios.ui.composables.cards.generateMoonData
@@ -17,6 +18,7 @@ import com.ephemeris.helios.utils.calc.getDailyEphemerisData
 import com.ephemeris.helios.utils.calc.getLiveUpdates
 import com.ephemeris.helios.utils.datastore.LocationDataStore
 import com.ephemeris.helios.utils.location.Coordinates
+import com.ephemeris.helios.utils.location.MapboxElevationEngine
 import com.ephemeris.helios.utils.location.NativeGeocodingEngine
 import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import com.ephemeris.helios.utils.network.TimeApiClient
@@ -93,11 +95,11 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun saveCoordinates(newCoordinates: Coordinates) {
+    fun saveCoordinates(newCoordinates: Coordinates, isFromGPS: Boolean = false) {
         // Run on IO Dispatcher so the geocoder doesn't block the UI
         viewModelScope.launch(Dispatchers.IO) {
             var finalCoords = newCoordinates
-            // Fetch Street Address if missing
+            // Fetch Street Address if missing (GeocodingEngine already catches offline errors safely)
             if (newCoordinates.locationName == null) {
                 // Convert to Android Location object for the Geocoder
                 val loc = Location("").apply {
@@ -109,12 +111,29 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
                 finalCoords = finalCoords.copy(locationName = fetchedName ?: "Unknown location")
             }
 
-            // Fetch Timezone API if missing
+            // Fetch Timezone API if missing (Prevents offline crashes)
             if (finalCoords.timezoneId == null) {
-                val tzResponse = TimeApiClient.getTimezoneForCoordinates(finalCoords.latitude, finalCoords.longitude)
-                if (tzResponse != null) {
-                    finalCoords = finalCoords.copy(timezoneId = tzResponse.timezone)
+                try {
+                    val tzResponse = TimeApiClient.getTimezoneForCoordinates(
+                        finalCoords.latitude,
+                        finalCoords.longitude
+                    )
+                    if (tzResponse != null) {
+                        finalCoords = finalCoords.copy(timezoneId = tzResponse.timezone)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace() // Offline? Ignore and keep previous timezone
                 }
+            }
+
+            // Fetch altitude ONLY if this didn't come directly from the phone's GPS sensor
+            if (!isFromGPS) {
+                val realAltitude = MapboxElevationEngine.getElevation(
+                    lat = newCoordinates.latitude,
+                    lon = newCoordinates.longitude,
+                    accessToken = BuildConfig.MAPBOX_ACCESS_TOKEN
+                ).round(1) ?: newCoordinates.altitude
+                finalCoords = finalCoords.copy(altitude = realAltitude)
             }
 
             // Save to disk
@@ -155,10 +174,10 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
     // Ticker 2: Live UI Updates
     fun startLiveUpdatesTicker(coordinates: Coordinates) {
         viewModelScope.launch(Dispatchers.Default) {
-            if (isAutoUpdateEnabled) {
-                liveData = getLiveUpdates(ZonedDateTime.now(currentZoneId), coordinates)
+            liveData = if (isAutoUpdateEnabled) {
+                getLiveUpdates(ZonedDateTime.now(currentZoneId), coordinates)
             } else {
-                liveData = getLiveUpdates(currentTime, coordinates)
+                getLiveUpdates(currentTime, coordinates)
             }
         }
     }

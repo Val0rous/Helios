@@ -66,7 +66,7 @@ import java.util.Locale
 fun LocationBottomSheet(
     currentTime: ZonedDateTime,
     coordinates: Coordinates,
-    onSaveCoordinates: (Coordinates) -> Unit,
+    onSaveCoordinates: (Coordinates, Boolean) -> Unit,
     onLocationStatusChange: (LocationStatus) -> Unit,
     showBottomSheet: Boolean,
     onShowBottomSheetChange: (Boolean) -> Unit,
@@ -168,7 +168,7 @@ fun LocationBottomSheet(
                                         // Trigger the save callback
                                         // We know these aren't null because the button is enabled
                                         onLocationStatusChange(LocationStatus.DISABLED)
-                                        onSaveCoordinates(Coordinates(latDouble!!, lonDouble!!, altDouble!!,))
+                                        onSaveCoordinates(Coordinates(latDouble!!, lonDouble!!, altDouble!!,), false)   // false because it's not from GPS
                                         // Return to view mode
                                         isEditing = false
                                     },

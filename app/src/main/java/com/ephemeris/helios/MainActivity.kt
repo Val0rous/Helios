@@ -103,7 +103,8 @@ class MainActivity : ComponentActivity() {
                                 TopBar(
                                     currentTime = vm.currentTime,
                                     coordinates = currentCoords,
-                                    onSaveCoordinates = { vm.saveCoordinates(it) },
+                                    onSaveCoordinates = { coords, isFromGPS ->
+                                        vm.saveCoordinates(coords, isFromGPS) },
                                     onLocationClick = { requestOneOffLocation() },
                                     isTracking = isContinuousGPSTrackingEnabled,
                                     onToggleTracking = { enableTracking ->

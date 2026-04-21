@@ -6,8 +6,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.widget.Toast
 import androidx.annotation.RequiresPermission
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +24,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 
 enum class MonitoringStatus { Monitoring, Paused, NotMonitoring }
 
@@ -42,20 +45,23 @@ class LocationService(private val context: Context) {
 
     private var isTracking = false
     private var currentIntervalMillis = 10000L
+
+    // --- HELPER TO PREVENT CODE DUPLICATION ---
+    private fun dispatchLocation(location: Location) {
+        val realAltitude = AltitudeCorrector.getRealAltitude(location)
+        val roundedAltitude = kotlin.math.round(realAltitude * 10.0) / 10.0
+
+        coordinates = Coordinates(
+            location.latitude,
+            location.longitude,
+            roundedAltitude,
+        )
+    }
+
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(p0: LocationResult) {
             super.onLocationResult(p0)
-            val location = p0.locations.last()
-            if (location != null) {
-                val realAltitude = AltitudeCorrector.getRealAltitude(location)
-//            with(location) {
-                coordinates = Coordinates(
-                    location.latitude,
-                    location.longitude,
-                    realAltitude.round(1),
-                )
-//            }
-            }
+            p0.locations.lastOrNull()?.let { dispatchLocation(it) }
         }
     }
 
@@ -84,40 +90,75 @@ class LocationService(private val context: Context) {
         return null // All good
     }
 
-
-    // One-Off Fast Request
+    // One-Off Fast Request (Hybrid Waterfall Approach)
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     fun requestCurrentLocation(): StartMonitoringResult {
         checkPrerequisites()?.let { return it }
-//        val permissionGranted = ContextCompat.checkSelfPermission(
-//            context,
-//            Manifest.permission.ACCESS_COARSE_LOCATION
-//        ) == PackageManager.PERMISSION_GRANTED
 
-        // Use getCurrentLocation for a fast, one-off ping instead of setting up a tracking loop
-//        fusedLocationProviderClient.requestLocationUpdates(
-//            locationRequest,
-//            locationCallback,
-//            Looper.getMainLooper()
-//        )
+        // Step 1: Try the blazing-fast Fused Location API first
+        val cancellationTokenSource = CancellationTokenSource()
 
-        val request = CurrentLocationRequest.Builder()
-            .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-            .setGranularity(Granularity.GRANULARITY_PERMISSION_LEVEL)
-            .build()
-        fusedLocationProviderClient.getCurrentLocation(request, null)
-            .addOnSuccessListener { location ->
+        fusedLocationProviderClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            cancellationTokenSource.token
+        ).addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                // Success! We got a fast, network-assisted location.
+                dispatchLocation(location)
+            } else {
+                // Fused Location failed or we are offline. Trigger the hardware fallback!
+                triggerHardwareGpsFallback()
+            }
+        }.addOnFailureListener {
+            // Something crashed internally with Play Services. Trigger fallback!
+            triggerHardwareGpsFallback()
+        }
+
+        return StartMonitoringResult.Started
+    }
+
+    // Step 2: The Offline/Hardware Fallback Helper
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
+    private fun triggerHardwareGpsFallback() {
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+
+        // Tell the user we are attempting a hard offline lock
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(context, "Offline: Searching for satellites...", Toast.LENGTH_LONG).show()
+        }
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            // Android 11+: Force the hardware antenna to scan the sky
+            locationManager.getCurrentLocation(
+                LocationManager.GPS_PROVIDER,
+                null,
+                ContextCompat.getMainExecutor(context)
+            ) { location ->
                 if (location != null) {
-                    val realAltitude = AltitudeCorrector.getRealAltitude(location)
-                    coordinates = Coordinates(
-                        location.latitude,
-                        location.longitude,
-                        realAltitude.round(1)
-                    )
+                    dispatchLocation(location)
+                } else {
+                    // Absolute worst-case scenario: Offline AND indoors.
+                    // The hardware physically cannot see the satellites.
+                    // You could trigger a UI toast here in the future!
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(context, "GPS Failed. Are you indoors?", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
-//        monitoringStatus = MonitoringStatus.Monitoring
-        return StartMonitoringResult.Started
+        } else {
+            // Legacy Android hardware request
+            @Suppress("DEPRECATION")
+            locationManager.requestSingleUpdate(
+                LocationManager.GPS_PROVIDER,
+                { location ->
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(context, "Satellite lock acquired!", Toast.LENGTH_SHORT).show()
+                    }
+                    dispatchLocation(location)
+                },
+                Looper.getMainLooper()
+            )
+        }
     }
 
     // Continuous Tracking

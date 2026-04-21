@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.utils.LocationService
@@ -44,6 +45,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
+import kotlin.math.max
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -51,7 +53,7 @@ import kotlin.math.roundToInt
 fun TopBar(
     currentTime: ZonedDateTime,
     coordinates: Coordinates?,
-    onSaveCoordinates: (Coordinates) -> Unit,
+    onSaveCoordinates: (Coordinates, Boolean) -> Unit,
     onLocationClick: () -> Unit,
     isTracking: Boolean,
     onToggleTracking: (Boolean) -> Unit,
@@ -70,7 +72,7 @@ fun TopBar(
             }
             if (location != null) {
                 locationStatus = LocationStatus.CURRENT
-                onSaveCoordinates(location)
+                onSaveCoordinates(location, true)   // True makes ViewModel skip Mapbox altitude fetch and trust the GPS altitude
             }
         }
     }
@@ -169,12 +171,16 @@ fun TopBar(
                         Text(
                             text = coordinates.locationName ?: "Locating...",
                             color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "$formattedLatitude, $formattedLongitude · $formattedTimeZone · $shortName · $formattedAlt",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelSmall
+                            style = MaterialTheme.typography.labelSmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }

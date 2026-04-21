@@ -103,14 +103,12 @@ fun FullscreenShadeMap(
         }
     }
 
-    var currentElevationTile by remember { mutableStateOf<ImageBitmap?>(null) }
 
     Box(modifier = modifier.fillMaxSize()) {
         MapboxMap(
             modifier = modifier.fillMaxSize(),
             mapViewportState = mapViewportState
         ) {
-
             // 1. Load the Map Style and Build the 3D Extrusions
             MapEffect(isDarkTheme) { mapView ->
                 // Upgraded to OUTDOORS for rich terrain, parks, and water colors!
