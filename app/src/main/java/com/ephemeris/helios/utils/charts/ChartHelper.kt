@@ -60,12 +60,12 @@ fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
     val className = chartType.javaClass.simpleName
     if (className.contains("Elevation")) return 90f
     if (className.contains("Trajectory")) return 90f
-    if (className.contains("Irradiance")) return max(500f, (yValues.max() / 100.0).roundToInt() * 100f)
-    if (className.contains("UvIntensity")) return max(5f, yValues.max().roundToInt().toFloat())
+    if (className.contains("Irradiance")) return max(300f, yValues.max())
+    if (className.contains("UvIntensity")) return max(3f, yValues.max())
     if (className.contains("Illuminance")) return max(100000f, yValues.max())
-    if (className.contains("Shadows")) return 10f
-    if (className.contains("ColorTemperature")) return max(5500f, yValues.max())
-    if (className.contains("AirMass")) return 10f // or 15f
+    if (className.contains("Shadows")) return max(10f, 5f * yValues.filter { it > 0 }.min())
+    if (className.contains("ColorTemperature")) return max(5500f, yValues.max())    // TODO: Edit
+    if (className.contains("AirMass")) return max(10f, 5f * yValues.filter { it > 0 }.min()) // or 15f
     return 90f // Todo: Change
 }
 
