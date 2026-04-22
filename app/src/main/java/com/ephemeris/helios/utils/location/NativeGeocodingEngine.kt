@@ -86,39 +86,57 @@ class NativeGeocodingEngine(context: Context) {
     // OS COMPATIBILITY WRAPPERS
     // ========================================================================
 
+    @Suppress("DEPRECATION")
     private suspend fun fetchFromLocationAPI(lat: Double, lon: Double): List<Address>? =
         suspendCancellableCoroutine { continuation ->
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    geocoder.getFromLocation(lat, lon, 1) { addresses ->
-                        continuation.resume(
-                            addresses
-                        )
-                    }
+                    // Android 13+ Explicit Listener
+                    geocoder.getFromLocation(lat, lon, 1, object : Geocoder.GeocodeListener {
+                        override fun onGeocode(addresses: MutableList<Address>) {
+                            if (continuation.isActive) continuation.resume(addresses)
+                        }
+
+                        // Catch the offline error and resume safely
+                        override fun onError(errorMessage: String?) {
+                            if (continuation.isActive) continuation.resume(null)
+                        }
+                    })
                 } else {
-                    continuation.resume(geocoder.getFromLocation(lat, lon, 1))
+                    // Android 12 and below (Must use the deprecated synchronous method)
+                    if (continuation.isActive) {
+                        continuation.resume(geocoder.getFromLocation(lat, lon, 1))
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                continuation.resume(null) // Prevent app crash if network fails
+                if (continuation.isActive) continuation.resume(null) // Prevent app crash if network fails
             }
         }
 
+    @Suppress("DEPRECATION")
     private suspend fun fetchFromLocationNameAPI(query: String): List<Address>? =
         suspendCancellableCoroutine { continuation ->
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    geocoder.getFromLocationName(query, 1) { addresses ->
-                        continuation.resume(
-                            addresses
-                        )
-                    }
+                    geocoder.getFromLocationName(query, 1, object : Geocoder.GeocodeListener {
+                        override fun onGeocode(addresses: MutableList<Address>) {
+                            if (continuation.isActive) continuation.resume(addresses)
+                        }
+
+                        override fun onError(errorMessage: String?) {
+                            if (continuation.isActive) continuation.resume(null)
+                        }
+                    })
                 } else {
-                    continuation.resume(geocoder.getFromLocationName(query, 1))
+                    // Android 12 and below (Must use the deprecated synchronous method)
+                    if (continuation.isActive) {
+                        continuation.resume(geocoder.getFromLocationName(query, 1))
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                continuation.resume(null)
+                if (continuation.isActive) continuation.resume(null)
             }
         }
 }
