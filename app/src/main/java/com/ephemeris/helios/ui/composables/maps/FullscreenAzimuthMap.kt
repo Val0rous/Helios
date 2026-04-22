@@ -49,6 +49,7 @@ import kotlin.math.cos
 import kotlin.math.pow
 import androidx.core.graphics.toColorInt
 import androidx.core.graphics.withRotation
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -252,46 +253,36 @@ fun FullscreenAzimuthMap(
 
             if (elevations != null && azimuths != null && elevations.isNotEmpty()) {
                 val daySegments = mutableListOf<List<LatLng>>()
-                val dayPerimeterSegments = mutableListOf<List<LatLng>>()
                 val nightSegments = mutableListOf<List<LatLng>>()
                 var currentSegment = mutableListOf<LatLng>()
-                var currentPerimeterSegment = mutableListOf<LatLng>()
                 var wasAbove = elevations[0] >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()
-
-                // Seed the perimeter if starting in the day
-                if (wasAbove) currentPerimeterSegment.add(SphericalUtil.computeOffset(drawCenter, radiusMeters, azimuths[0].toDouble()))
 
                 for (i in elevations.indices) {
                     val el = elevations[i]
                     val isAbove = el >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()
                     val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
                     val pt = SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble())
-                    val perimeterPt = SphericalUtil.computeOffset(drawCenter, radiusMeters, azimuths[i].toDouble())
 
                     if (isAbove == wasAbove) {
                         currentSegment.add(pt)
-                        if (isAbove) currentPerimeterSegment.add(perimeterPt)
                     } else {
                         // The moment we cross the horizon, add the exact crossover point to connect BOTH lists to they connect perfectly!
                         currentSegment.add(pt)
                         if (wasAbove) {
                             // Transition to Night
-                            currentPerimeterSegment.add(perimeterPt)
                             daySegments.add(currentSegment)
-                            dayPerimeterSegments.add(currentPerimeterSegment)
                         } else {
                             // Transition to Day
                             nightSegments.add(currentSegment)
                         }
                         currentSegment = mutableListOf(pt)
-                        currentPerimeterSegment = if (isAbove) mutableListOf(perimeterPt) else mutableListOf()
                         wasAbove = isAbove
                     }
 
                     // --- HOURLY MARKS ---
-                    // Since points are every 0.05 hours, an exact hour is every 20 indices
-                    if (i % 20 == 0 && isAbove) {
-                        val hourInt = (i / 20) % 24
+                    // Since points are every 1 minute, an exact hour is every 60 indices
+                    if (i % 60 == 0 && isAbove) {
+                        val hourInt = (i / 60) % 24
                         val iconData = sunHourlyIcons[hourInt]
                         if (iconData != null) {
                             val markState = rememberUpdatedMarkerState(position = pt)
@@ -304,7 +295,6 @@ fun FullscreenAzimuthMap(
                 if (currentSegment.isNotEmpty()) {
                     if (wasAbove) {
                         daySegments.add(currentSegment)
-                        dayPerimeterSegments.add(currentPerimeterSegment)
                     } else {
                         nightSegments.add(currentSegment)
                     }
@@ -324,9 +314,67 @@ fun FullscreenAzimuthMap(
                         pattern = listOf(Dot(), Gap(6f))
                     )
                 }
-                dayPerimeterSegments.forEach { pathPoints ->
+
+                // --- 2. THE FLAWLESS GEOMETRIC PERIMETER ---
+                // Completely bypasses the time-array to draw a pure mathematical arc!
+                val maxElevation = elevations.maxOrNull() ?: -90f
+                val minElevation = elevations.minOrNull() ?: 90f
+
+                val perimeterPoints = mutableListOf<LatLng>()
+
+                if (minElevation >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()) {
+                    // POLAR DAY: Draw a full 360-degree circle
+                    for (i in 0..360 step 2) {
+                        perimeterPoints.add(SphericalUtil.computeOffset(drawCenter, radiusMeters, i.toDouble()))
+                    }
+                } else if (maxElevation < SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()) {
+                    // POLAR NIGHT: Do nothing (the list remains empty)
+                } else {
+                    // STANDARD DAY: Draw an arc from Sunrise to Sunset
+                    val startAz = solarEvents.sunriseAzimuth
+                    val endAz = solarEvents.sunsetAzimuth
+                    val noonAz = solarEvents.solarNoonAzimuth
+
+                    if (startAz != null && endAz != null) {
+                        // Math helper: Normalizes angles to a clean 0..360 range
+                        fun normAngle(a: Double) = (a % 360.0 + 360.0) % 360.0
+
+                        val start = normAngle(startAz)
+                        val end = normAngle(endAz)
+                        val noon = normAngle(noonAz)
+
+                        // --- THE DECLINATION FIX ---
+                        // If Solar Noon is in the southern hemisphere of the sky (90° to 270°),
+                        // the sun travels Clockwise (East -> South -> West).
+                        // If it's in the northern sky (270° to 90°), it travels Counter-Clockwise (East -> North -> West).
+                        val isClockwise = noon in 90.0..270.0
+
+                        var currentAz = start
+                        val step = if (isClockwise) 1.0 else -1.0
+
+                        // Directional distance helpers
+                        fun cwDist(a: Double, b: Double) = normAngle(b - a)
+                        fun ccwDist(a: Double, b: Double) = normAngle(a - b)
+
+                        // Step along the horizon every 2 degrees until we hit sunset
+                        var safetyCounter = 0
+                        while (safetyCounter < 360) {
+                            perimeterPoints.add(SphericalUtil.computeOffset(drawCenter, radiusMeters, currentAz))
+
+                            val remainingDist = if (isClockwise) cwDist(end, currentAz) else ccwDist(currentAz, end)
+                            if (remainingDist <= abs(step)) break // We reached sunset!
+
+                            currentAz = normAngle(currentAz + step)
+                            safetyCounter++
+                        }
+                        // Snap the final point exactly to the sunset coordinate
+                        perimeterPoints.add(SphericalUtil.computeOffset(drawCenter, radiusMeters, end))
+                    }
+                }
+
+                if (perimeterPoints.isNotEmpty()) {
                     Polyline(
-                        points = pathPoints,
+                        points = perimeterPoints,
                         color = colors.sun,
                         width = 6f
                     )
@@ -361,8 +409,9 @@ fun FullscreenAzimuthMap(
                     }
 
                     // --- HOURLY MARKS ---
-                    if (i % 20 == 0 && isAbove) {
-                        val hourInt = (i / 20) % 24
+                    // Since points are every 1 minute, an exact hour is every 60 indices
+                    if (i % 60 == 0 && isAbove) {
+                        val hourInt = (i / 60) % 24
                         val iconData = moonHourlyIcons[hourInt]
                         if (iconData != null) {
                             val markState = rememberUpdatedMarkerState(position = pt)

@@ -147,7 +147,7 @@ class HeliosViewModel(application: Application) : AndroidViewModel(application) 
             dayData = getDailyEphemerisData(currentTime, coordinates)
 
             // Isolate the 480-iteration math loop
-            val hoursCalc = DoubleArray(X_SIZE) { round(it * 5.0) / 100.0 }
+            val hoursCalc = DoubleArray(X_SIZE) { it / 60.0 }
             val hours = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
 
 //            val xDataMap = mutableMapOf<Charts, FloatArray>()

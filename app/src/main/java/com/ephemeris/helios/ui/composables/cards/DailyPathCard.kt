@@ -56,7 +56,7 @@ import java.time.LocalDate
 import java.time.ZonedDateTime
 import kotlin.math.round
 
-const val X_SIZE = 481 // 480 items
+const val X_SIZE = 1441 // 1440 items (one sampling per minute)
 
 data class ChartArrays(
     val timeXValues: FloatArray,
