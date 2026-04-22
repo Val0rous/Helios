@@ -17,8 +17,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
-import com.ephemeris.helios.ui.composables.FullscreenAzimuthMap
-import com.ephemeris.helios.ui.composables.FullscreenShadeMap
+import com.ephemeris.helios.ui.composables.maps.FullscreenAzimuthMap
+import com.ephemeris.helios.ui.composables.maps.FullscreenShadeMap
 import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.utils.MapType
 import com.ephemeris.helios.utils.calc.LunarEphemeris

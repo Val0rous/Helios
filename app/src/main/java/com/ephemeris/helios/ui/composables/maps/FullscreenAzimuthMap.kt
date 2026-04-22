@@ -1,8 +1,9 @@
-package com.ephemeris.helios.ui.composables
+package com.ephemeris.helios.ui.composables.maps
 
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.PorterDuff
 import android.graphics.Typeface
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
@@ -563,7 +564,7 @@ fun bitmapDescriptorForCelestialBody(
 
     val bitmap = createBitmap(sizePx, sizePx)
     val canvas = Canvas(bitmap)
-    canvas.drawColor(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
+    canvas.drawColor(android.graphics.Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
 
     if (!isAboveHorizon) {
         // Dim Indicator for Nighttime
@@ -636,7 +637,7 @@ fun bitmapDescriptorFromText(
     val canvas = Canvas(bitmap)
 
     // Ensure the background is totally transparent
-    canvas.drawColor(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR)
+    canvas.drawColor(android.graphics.Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
     canvas.drawText(text, width / 2f, baseline, paint)
 
     return BitmapDescriptorFactory.fromBitmap(bitmap)
