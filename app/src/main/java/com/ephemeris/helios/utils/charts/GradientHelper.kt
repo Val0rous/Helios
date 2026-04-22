@@ -7,23 +7,24 @@ import kotlin.math.max
 
 // --- HELPER: Reusable Horizontal Gradient Generator ---
 // Extracts the complex stop-generation logic to keep code DRY
-fun createHorizontalBrush(getColor: (Float) -> Color, params: ChartData): Brush {
+fun createHorizontalBrush(getColor: (index: Int, value: Float) -> Color, params: ChartData): Brush {
     val stops = mutableListOf<Pair<Float, Color>>()
     val step = max(1, params.xValues.size / 40)
 
     for (i in params.xValues.indices step step) {
         val fraction = ((params.xValues[i] - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
-        stops.add(fraction to getColor(params.yValues[i]))
+        stops.add(fraction to getColor(i, params.yValues[i]))
     }
 
     // Always map the peak explicitly so gradients peak perfectly
     val peakIndex = params.yValues.indices.maxByOrNull { params.yValues[it] } ?: 0
     val peakFraction = ((params.xValues[peakIndex] - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
-    stops.add(peakFraction to getColor(params.yValues[peakIndex]))
+    stops.add(peakFraction to getColor(peakIndex, params.yValues[peakIndex]))
 
     // Always map the end explicitly
-    val lastFraction = ((params.xValues.last() - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
-    stops.add(lastFraction to getColor(params.yValues.last()))
+    val lastIndex = params.xValues.lastIndex
+    val lastFraction = ((params.xValues[lastIndex] - params.minX) / (params.maxX - params.minX)).coerceIn(0f, 1f)
+    stops.add(lastFraction to getColor(lastIndex, params.yValues.last()))
 
     val finalStops = stops
         .distinctBy { it.first }

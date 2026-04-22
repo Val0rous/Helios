@@ -265,11 +265,22 @@ fun DailyChart(
                         }
 
                         Charts.Sun.Daily.AirMass -> {
-                            val amBrush = createHorizontalBrush({ value ->
+                            val amBrush = createHorizontalBrush({ i, value ->
+                                // Detect if this 0f is Night (bounded by edges or other 0s)
+                                val isNight = value == 0f && (
+                                    i == 0 ||
+                                    i == params.xValues.lastIndex ||
+                                    params.yValues.getOrNull(i - 5) == 0f ||
+                                    params.yValues.getOrNull(i + 5) == 0f
+                                )
                                 // Air Mass goes from 1 (Zenith) to ~10+ (Horizon)
-                                // We lerp from Clear Blue to Hazy Gray
-                                val fraction = ((value.coerceIn(1f, 10f) - 1f) / 9f)
-                                lerp(colors.amZenith, colors.amHorizon, fraction)
+                                if (isNight) {
+                                    colors.amHorizon  // Lock to Gray to prevent blue bleed
+                                } else {
+                                    // We lerp from Clear Blue to Hazy Gray
+                                    val fraction = ((value.coerceIn(1f, 10f) - 1f) / 9f)
+                                    lerp(colors.amZenith, colors.amHorizon, fraction)
+                                }
                             }, params)
                             drawRect(
                                 brush = amBrush,
@@ -279,11 +290,22 @@ fun DailyChart(
                         }
 
                         Charts.Sun.Daily.Shadows -> {
-                            val shadowBrush = createHorizontalBrush({ value ->
+                            val shadowBrush = createHorizontalBrush({ i, value ->
+                                // Detect if this 0f is Night (bounded by edges or other 0s)
+                                val isNight = value == 0f && (
+                                    i == 0 ||
+                                    i == params.xValues.lastIndex ||
+                                    params.yValues.getOrNull(i - 5) == 0f ||
+                                    params.yValues.getOrNull(i + 5) == 0f
+                                )
                                 // Shadows go from 0 (Short) to ~10+ (Long)
-                                // We lerp from Light Silver to Deep Charcoal
-                                val fraction = (value.coerceIn(0f, 10f) / 10f)
-                                lerp(colors.shadowShort, colors.shadowLong, fraction)
+                                if (isNight) {
+                                    colors.shadowLong  // Lock to Dark to prevent light bleed
+                                } else {
+                                    // We lerp from Light Silver to Deep Charcoal
+                                    val fraction = (value.coerceIn(0f, 10f) / 10f)
+                                    lerp(colors.shadowShort, colors.shadowLong, fraction)
+                                }
                             }, params)
                             drawRect(
                                 brush = shadowBrush,
@@ -307,7 +329,8 @@ fun DailyChart(
                         }
 
                         Charts.Sun.Daily.Irradiance -> {
-                            val irrBrush = createHorizontalBrush({ value ->
+                            val irrBrush = createHorizontalBrush({ i, value ->
+                                // Irradiance doesn't need the isNight check because 0 is already the lowest color
                                 // Heat Map: Soft Gold -> Orange -> Intense Red
                                 val maxIrr = params.maxY.coerceAtLeast(1f)
                                 val fraction = (value / maxIrr).coerceIn(0f, 1f)
