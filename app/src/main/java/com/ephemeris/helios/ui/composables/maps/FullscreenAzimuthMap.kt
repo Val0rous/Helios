@@ -171,13 +171,13 @@ fun FullscreenAzimuthMap(
     ) {
         // --- PRE-COMPUTE HOURLY ICON BITMAPS FOR PERFORMANCE ---
         val sunHourlyIcons = remember(colors.sun) {
-            (0..23).associateWith { hour ->
+            (0..24).associateWith { hour ->
                 bitmapDescriptorForHourlyMark(formatHour(hour, true, context), colors.sun)
             }
         }
 
         val moonHourlyIcons = remember(colors.moon) {
-            (0..23).associateWith { hour ->
+            (0..24).associateWith { hour ->
                 bitmapDescriptorForHourlyMark(formatHour(hour, true, context), colors.moon)
             }
         }
@@ -282,7 +282,7 @@ fun FullscreenAzimuthMap(
                     // --- HOURLY MARKS ---
                     // Since points are every 1 minute, an exact hour is every 60 indices
                     if (i % 60 == 0 && isAbove) {
-                        val hourInt = (i / 60) % 24
+                        val hourInt = (i / 60)
                         val iconData = sunHourlyIcons[hourInt]
                         if (iconData != null) {
                             val markState = rememberUpdatedMarkerState(position = pt)
@@ -411,7 +411,7 @@ fun FullscreenAzimuthMap(
                     // --- HOURLY MARKS ---
                     // Since points are every 1 minute, an exact hour is every 60 indices
                     if (i % 60 == 0 && isAbove) {
-                        val hourInt = (i / 60) % 24
+                        val hourInt = (i / 60)
                         val iconData = moonHourlyIcons[hourInt]
                         if (iconData != null) {
                             val markState = rememberUpdatedMarkerState(position = pt)
@@ -443,18 +443,22 @@ fun FullscreenAzimuthMap(
         }
 
         // 4a. Current Sun Line (Solid)
-        Polyline(
-            points = listOf(drawCenter, currentSunEdgePoint),
-            color = colors.sunPath,
-            width = 8f
-        )
+        if (currentSunElevation >= SolarEphemeris.ALT_SUNRISE_SUNSET) {
+            Polyline(
+                points = listOf(drawCenter, currentSunEdgePoint),
+                color = colors.sunPath,
+                width = 8f
+            )
+        }
 
         // 4b. Current Moon Line (Solid)
-        Polyline(
-            points = listOf(drawCenter, currentMoonEdgePoint),
-            color = colors.moonPath,
-            width = 8f
-        )
+        if (currentMoonElevation >= LunarEphemeris.ALT_MOONRISE_MOONSET) {
+            Polyline(
+                points = listOf(drawCenter, currentMoonEdgePoint),
+                color = colors.moonPath,
+                width = 8f
+            )
+        }
 
         // 5. Compass Direction Text Band (Full 16-Point Compass)
         val directions = listOf(
@@ -555,7 +559,8 @@ fun FullscreenAzimuthMap(
             icon = sunIcon,
             anchor = Offset(0.5f, 0.5f), // Centers the icon perfectly on the line end
             title = "Sun",
-            snippet = "Azimuth: ${currentSolarPosition.azimuth.toInt()}°"
+            snippet = "Azimuth: ${currentSolarPosition.azimuth.toInt()}°",
+            zIndex = 2f
         )
 
         // 7b. The Moon Icon Marker
@@ -571,9 +576,9 @@ fun FullscreenAzimuthMap(
             icon = moonIcon,
             anchor = Offset(0.5f, 0.5f),
             title = "Moon",
-            snippet = "Azimuth: ${currentLunarPosition.azimuth.toInt()}°"
+            snippet = "Azimuth: ${currentLunarPosition.azimuth.toInt()}°",
+            zIndex = 2f
         )
-
     }
 }
 

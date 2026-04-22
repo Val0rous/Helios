@@ -22,12 +22,14 @@ fun formatHour(hour: Int, isShortFormat: Boolean = false, context: Context): Str
     val is24Hour = DateFormat.is24HourFormat(context)
     val amPmStrings = DateFormatSymbols.getInstance(Locale.getDefault()).amPmStrings
 
-    if (is24Hour) return hour.toString()
+    if (is24Hour) return if (hour == 24) "24+" else (hour % 24).toString()
     val adjustedHour = if (hour % 12 == 0) 12 else hour % 12
-    val amPm = if (hour >= 12) amPmStrings[1] else amPmStrings[0]
+    val isPm = (hour % 24) in 12..23
+    val amPm = if (isPm) amPmStrings[1] else amPmStrings[0]
     // Regex removes 'm', 'M', spaces, and periods (e.g., "a.m." -> "a", " AM" -> "A")
     val suffix = if (isShortFormat) amPm.replace(Regex("[mM\\s.]"), "") else " $amPm"
-    return "$adjustedHour$suffix"
+    val plusIndicator = if (hour == 24) "+" else ""
+    return "$adjustedHour$suffix$plusIndicator"
 }
 
 fun formatNumber(number: Double): String {
