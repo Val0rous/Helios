@@ -35,9 +35,12 @@ fun DailyComboChart(
     currentMoonAltitude: Float,
     modifier: Modifier = Modifier
 ) {
+    val sunChartType = Charts.Sun.Daily.Elevation
+    val moonChartType = Charts.Moon.Daily.Elevation
+
     // 1. Independent Icon Drawers
-    val drawSunIcon = rememberChartIconDrawer(Charts.Sun.Daily.Elevation)
-    val drawMoonIcon = rememberChartIconDrawer(Charts.Moon.Daily.Elevation) // Assuming Moon chart type
+    val drawSunIcon = rememberChartIconDrawer(sunChartType)
+    val drawMoonIcon = rememberChartIconDrawer(moonChartType) // Assuming Moon chart type
 
     val colors = LocalCustomColors.current
     val colorScheme = MaterialTheme.colorScheme
@@ -206,10 +209,10 @@ fun DailyComboChart(
         // --- 5. ICONS & DROP LINES ---
         // Draw Moon Icon First (Bottom layer)
         drawVerticalDropLine(localCustomColors, currentMoonXPx, currentMoonYPx, zeroYPixel)
-        paintIcon(currentMoonXPx, currentMoonAltitude, currentMoonYPx, zeroYPixel, chartType, drawMoonIcon)
+        paintIcon(currentMoonXPx, currentMoonAltitude, currentMoonYPx, zeroYPixel, moonChartType, drawMoonIcon)
 
         // Draw Sun Icon Last (Top layer)
         drawVerticalDropLine(localCustomColors, currentSunXPx, currentSunYPx, zeroYPixel)
-        paintIcon(currentSunXPx, currentSunAltitude, currentSunYPx, zeroYPixel, chartType, drawSunIcon)
+        paintIcon(currentSunXPx, currentSunAltitude, currentSunYPx, zeroYPixel, sunChartType, drawSunIcon)
     }
 }

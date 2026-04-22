@@ -17,6 +17,8 @@ import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.calc.LunarEphemeris
+import com.ephemeris.helios.utils.calc.SolarEphemeris
 
 @Composable
 fun rememberChartIconDrawer(chartType: Charts): DrawScope.(iconSize: Float, isIndicator: Boolean) -> Unit {
@@ -93,11 +95,17 @@ fun DrawScope.paintIcon(
     chartType: Charts,
     drawChartIcon: DrawScope.(Float, Boolean) -> Unit
 ) {
-    val isUp = when (chartType) {
-        Charts.Sun.Daily.Elevation, Charts.Sun.Daily.Trajectory,
-             Charts.Moon.Daily.Elevation, Charts.Moon.Daily.Trajectory -> currentY >= 0f
-        Charts.Sun.Daily.ColorTemperature -> currentY > 2000f
-        Charts.Sun.Daily.AirMass -> currentY > 1f
+    val className = chartType.javaClass.simpleName
+    val isUp = when {
+        className.contains("Elevation") || className.contains("Trajectory") -> {
+            when (chartType) {
+                is Charts.Sun -> currentY >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()
+                is Charts.Moon -> currentY >= LunarEphemeris.ALT_MOONRISE_MOONSET.toFloat()
+                else -> currentY >= 0f
+            }
+        }
+        className.contains("ColorTemperature") -> currentY > 2000f
+        className.contains("AirMass") -> currentY > 1f
         else -> currentY > 0f
     }
 
