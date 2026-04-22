@@ -49,6 +49,8 @@ import kotlin.math.cos
 import kotlin.math.pow
 import androidx.core.graphics.toColorInt
 import androidx.core.graphics.withRotation
+import com.ephemeris.helios.ui.composables.charts.rememberChartIconDrawer
+import com.ephemeris.helios.ui.composables.charts.rememberIconBitmapDescriptor
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -548,9 +550,8 @@ fun FullscreenAzimuthMap(
 
         // 7a. The Sun Icon Marker
         val isSunAbove = currentSunElevation >= SolarEphemeris.ALT_SUNRISE_SUNSET
-        val sunIcon = remember(colors.sun, isSunAbove, isLightMode) {
-            bitmapDescriptorForCelestialBody(context, true, isSunAbove, isLightMode, colors.sun)
-        }
+        val sunDrawer = rememberChartIconDrawer(chartType = Charts.Sun.Daily.Elevation)
+        val sunIcon = rememberIconBitmapDescriptor(isAbove = isSunAbove, drawer = sunDrawer)
         val sunMarkerState = rememberUpdatedMarkerState(position = currentSunPoint)
         sunMarkerState.position = currentSunPoint
 
@@ -565,9 +566,8 @@ fun FullscreenAzimuthMap(
 
         // 7b. The Moon Icon Marker
         val isMoonAbove = currentMoonElevation >= LunarEphemeris.ALT_MOONRISE_MOONSET
-        val moonIcon = remember(colors.moon, isMoonAbove, isLightMode) {
-            bitmapDescriptorForCelestialBody(context, false, isMoonAbove, isLightMode, colors.moon)
-        }
+        val moonDrawer = rememberChartIconDrawer(chartType = Charts.Moon.Daily.Elevation)
+        val moonIcon = rememberIconBitmapDescriptor(isAbove = isMoonAbove, drawer = moonDrawer)
         val moonMarkerState = rememberUpdatedMarkerState(position = currentMoonPoint)
         moonMarkerState.position = currentMoonPoint
 

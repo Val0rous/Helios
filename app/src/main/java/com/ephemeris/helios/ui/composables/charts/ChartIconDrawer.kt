@@ -7,11 +7,16 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.LocalCustomColors
@@ -19,9 +24,11 @@ import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.SolarEphemeris
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
 
 @Composable
-fun rememberChartIconDrawer(chartType: Charts): DrawScope.(iconSize: Float, isIndicator: Boolean) -> Unit {
+fun rememberChartIconDrawer(chartType: Charts): DrawScope.(iconSize: Float, isBelow: Boolean) -> Unit {
     // 1. Resolve all painters once
     val sunFilled = painterResource(id = R.drawable.ic_brightness_empty_filled)
     val sunOutline = painterResource(id = R.drawable.ic_brightness_empty_200_high_emphasis)
@@ -35,50 +42,37 @@ fun rememberChartIconDrawer(chartType: Charts): DrawScope.(iconSize: Float, isIn
 
     // 3. Return a reusable DrawScope extension lambda
     return remember(chartType, isLightMode, colors) {
-        { iconSize, isIndicator ->
+        { iconSize, isBelow ->
             val sizeObj = Size(iconSize, iconSize)
-
-            if (isIndicator) {
-                // Draw the dim night indicator (below horizon)
-                val color = when (chartType) {
-                    is Charts.Sun -> colors.sun.copy(alpha = 0.5f)
-                    is Charts.Moon -> colors.moon.copy(alpha = 0.5f)
-                    else -> Color.Red // TODO
-                }
-                with(indicatorPainter) {
-                    draw(
-                        size = sizeObj,
-                        colorFilter = ColorFilter.tint(color)
-                    )
-                }
-            } else {
-                // Draw the main chart icon
-                when (chartType) {
-                    is Charts.Sun -> {
-                        // Base filled sun
-                        with(sunFilled) {
-                            draw(size = sizeObj, colorFilter = ColorFilter.tint(colors.sun))
-                        }
-                        // Bonus: Outline overlay for light mode!
-                        if (isLightMode) {
-                            with(sunOutline) {
-                                draw(size = sizeObj, colorFilter = ColorFilter.tint(overlayColor))
-                            }
+            // Draw the main chart icon
+            when (chartType) {
+                is Charts.Sun -> {
+                    val color = if (isBelow) colors.sun.copy(alpha = 0.5f) else colors.sun
+                    // Base filled sun
+                    with(sunFilled) {
+                        draw(size = sizeObj, colorFilter = ColorFilter.tint(color))
+                    }
+                    // Bonus: Outline overlay for light mode!
+                    if (isLightMode && !isBelow) {
+                        with(sunOutline) {
+                            draw(size = sizeObj, colorFilter = ColorFilter.tint(overlayColor))
                         }
                     }
+                }
 
-                    is Charts.Moon -> {
-                        rotate(degrees = -35f, pivot = Offset(iconSize / 2f, iconSize / 2f)) {
-                            with(moonPainter) {
-                                draw(size = sizeObj, colorFilter = ColorFilter.tint(colors.moon))
-                            }
+                is Charts.Moon -> {
+                    val color = if (isBelow) colors.moon.copy(alpha = 0.5f) else colors.moon
+                    rotate(degrees = -35f, pivot = Offset(iconSize / 2f, iconSize / 2f)) {
+                        with(moonPainter) {
+                            draw(size = sizeObj, colorFilter = ColorFilter.tint(color))
                         }
                     }
+                }
 
-                    else -> {
-                        with(indicatorPainter) {
-                            draw(size = sizeObj, colorFilter = ColorFilter.tint(colors.sun))
-                        }
+                else -> {
+                    val color = if (isBelow) Color.Red else colors.sun// TODO
+                    with(indicatorPainter) {
+                        draw(size = sizeObj, colorFilter = ColorFilter.tint(color))
                     }
                 }
             }
@@ -128,5 +122,37 @@ fun DrawScope.paintIcon(
         ) {
             drawChartIcon(iconSize, true)
         }
+    }
+}
+
+@Composable
+fun rememberIconBitmapDescriptor(
+    isAbove: Boolean,
+    drawer: DrawScope.(Float, Boolean) -> Unit
+): BitmapDescriptor {
+    val density = LocalDensity.current
+
+    // Only re-draw the bitmap if the elevation state, screen density, or theme colors (drawer) change
+    return remember(isAbove, density, drawer) {
+        val sizeDp = if (isAbove) 24f else 12f
+        val sizePx = with(density) { sizeDp.dp.toPx() }
+        val intSize = sizePx.toInt().coerceAtLeast(1)
+
+        // 1. Create a blank Compose ImageBitmap
+        val imageBitmap = ImageBitmap(intSize, intSize)
+        val canvas = androidx.compose.ui.graphics.Canvas(imageBitmap)
+
+        // 2. Open a Compose DrawScope and execute the lambda from ChartIconDrawer!
+        CanvasDrawScope().draw(
+            density = density,
+            layoutDirection = LayoutDirection.Ltr,
+            canvas = canvas,
+            size = androidx.compose.ui.geometry.Size(sizePx, sizePx)
+        ) {
+            drawer(sizePx, !isAbove) // Pass the size and the 'isBelow' boolean
+        }
+
+        // 3. Convert to an Android Bitmap for Google Maps
+        BitmapDescriptorFactory.fromBitmap(imageBitmap.asAndroidBitmap())
     }
 }
