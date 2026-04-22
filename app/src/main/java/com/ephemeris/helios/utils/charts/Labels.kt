@@ -28,23 +28,18 @@ fun DrawScope.drawYLabels(
 ) {
     val horizontalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx()), 0f)
     val horizontalGridlineColor = materialTheme.outline.copy(alpha = 0.3f) // Light and subtle
+    val className = chartType.javaClass.simpleName
 
-    val yLabels = when (chartType) {
-        Charts.Sun.Daily.Elevation, Charts.Sun.Daily.Trajectory,
-        Charts.Moon.Daily.Elevation, Charts.Moon.Daily.Trajectory,
-        Charts.SunMoonCombo.Daily.Elevation, Charts.SunMoonCombo.Daily.Trajectory
-            -> (-90 until 91 step 15).map { it.toFloat() }
-        Charts.Sun.Daily.Irradiance -> (0 until ((params.maxY / 100.0).roundToInt() * 100 + 1) step 100).map { it.toFloat() }
-        Charts.Sun.Daily.UvIntensity -> (0 until (params.maxY.roundToInt() + 1) step floor(params.maxY / 10f).toInt().coerceAtLeast(1)).map { it.toFloat() }
-        Charts.Sun.Daily.Illuminance,
-        Charts.Moon.Daily.Illuminance
-             -> listOf(0f) + (0..5).flatMap {
+    val yLabels = when {
+        className.contains("Elevation") || className.contains("Trajectory") -> (-90 until 91 step 15).map { it.toFloat() }
+        className.contains("Irradiance") -> (0 until ((params.maxY / 100.0).roundToInt() * 100 + 1) step 100).map { it.toFloat() }
+        className.contains("UvIntensity") -> (0 until (params.maxY.roundToInt() + 1) step floor(params.maxY / 10f).toInt().coerceAtLeast(1)).map { it.toFloat() }
+        className.contains("Illuminance") -> listOf(0f) + (0..5).flatMap {
             val base = 10.0.pow(it.toDouble()).toFloat()
             listOf(base, base * 3f)
         }.filter { it <= params.maxY }
-        Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass,
-        Charts.Moon.Daily.Shadows, Charts.Moon.Daily.AirMass -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
-        Charts.Sun.Daily.ColorTemperature -> (2000 until (params.maxY.roundToInt() + 1) step 500).map { it.toFloat() }
+        className.contains("Shadows") || className.contains("AirMass") -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+        className.contains("ColorTemperature") -> (2000 until (params.maxY.roundToInt() + 1) step 500).map { it.toFloat() }
         else -> emptyList()
     }
     yLabels.forEach { yVal ->
@@ -62,13 +57,12 @@ fun DrawScope.drawYLabels(
             )
         }
 
-        val text = when (chartType) {
-            Charts.Sun.Daily.Elevation, Charts.Sun.Daily.Trajectory,
-                 Charts.Moon.Daily.Elevation, Charts.Moon.Daily.Trajectory -> "${yVal.toInt()}°"
-            Charts.Sun.Daily.Irradiance -> "${formatNumber(yVal.toDouble())} W/m²"
-            Charts.Sun.Daily.ColorTemperature -> "${formatNumber(yVal.toDouble())}K"
-            Charts.Sun.Daily.Illuminance -> "${formatNumber(yVal.toDouble())} lx"
-            Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> yVal.toDouble().printRounded(2)
+        val text = when {
+            className.contains("Elevation") || className.contains("Trajectory") -> "${yVal.toInt()}°"
+            className.contains("Irradiance") -> "${formatNumber(yVal.toDouble())} W/m²"
+            className.contains("ColorTemperature") -> "${formatNumber(yVal.toDouble())}K"
+            className.contains("Illuminance") -> "${formatNumber(yVal.toDouble())} lx"
+            className.contains("Shadows") || className.contains("AirMass") -> yVal.toDouble().printRounded(2)
             else -> "${yVal.toInt()}"
         }
         val textLayout = textMeasurer.measure(text, labelStyle)
@@ -96,9 +90,10 @@ fun DrawScope.drawXLabels(
 ) {
     val verticalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 0.dp.toPx()), 0f)
     val verticalGridlineColor = materialTheme.outlineVariant.copy(alpha = 0.15f) // Light and subtle
+    val className = chartType.javaClass.simpleName
 
-    val xLabels = when (chartType) {
-        Charts.Sun.Daily.Trajectory, Charts.Moon.Daily.Trajectory, Charts.SunMoonCombo.Daily.Trajectory -> (30..330 step 30).toList()
+    val xLabels = when {
+        className.contains("Trajectory") -> (30..330 step 30).toList()
         else -> (3..21 step 3).toList()
     }
     xLabels.forEach {
@@ -113,8 +108,8 @@ fun DrawScope.drawXLabels(
             pathEffect = verticalGridDashEffect
         )
 
-        val text = when (chartType) {
-            Charts.Sun.Daily.Trajectory, Charts.Moon.Daily.Trajectory -> {
+        val text = when {
+            className.contains("Trajectory") -> {
                 // Mathematically reverse the shift for the label
                 val realAzimuth = if (isShiftTrajectory) (it.toFloat() + 180f) % 360 else it.toFloat()
                 val formatted = realAzimuth.toInt()
@@ -124,8 +119,8 @@ fun DrawScope.drawXLabels(
         }
         val textLayout = textMeasurer.measure(text, labelStyle)
 
-        val offset = when (chartType) {
-            Charts.Sun.Daily.Trajectory, Charts.Moon.Daily.Trajectory -> 2.5f
+        val offset = when {
+            className.contains("Trajectory") -> 2.5f
             else -> 2f
         }
         drawText(
