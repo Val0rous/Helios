@@ -4,23 +4,17 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import com.ephemeris.helios.ui.theme.CustomColorScheme
+import com.ephemeris.helios.ui.theme.LocalCustomColors
 import kotlin.math.round
 
 fun DrawScope.drawUVSlices(
     params: ChartData,
     uniqueXPoints: List<Float>,
     mapX: (Float) -> Float,
-    zeroYPixel: Float
+    zeroYPixel: Float,
+    colors: CustomColorScheme
 ) {
-    val uvDarkGreen = Color(0xFF2E7D32).copy(alpha = 0.5f)
-    val uvGreen = Color(0xFF4CAF50).copy(alpha = 0.5f)
-    val uvYellow = Color(0xFFFFEB3B).copy(alpha = 0.5f)
-    val uvAmber = Color(0xFFFFC107).copy(alpha = 0.5f)
-    val uvOrange = Color(0xFFFF9800).copy(alpha = 0.5f)
-    val uvRed = Color(0xFFF44336).copy(alpha = 0.5f)
-    val uvDarkRed = Color(0xFFB71C1C).copy(alpha = 0.5f)
-    val uvPurple = Color(0xFF673AB7).copy(alpha = 0.5f)
-
     // --- UV Slicing Logic ---
     var currentBlockColor = Color.Transparent
     var blockStartX = uniqueXPoints.firstOrNull() ?: 0f
@@ -44,14 +38,14 @@ fun DrawScope.drawUVSlices(
 
         val sliceColor = when {
             midY < 0.01f -> Color.Transparent // Nighttime/Zero UV
-            midY < 2f -> uvDarkGreen
-            midY < 3f -> uvGreen
-            midY < 5f -> uvYellow
-            midY < 6f -> uvAmber
-            midY < 8f -> uvOrange
-            midY < 10f -> uvRed
-            midY < 11f -> uvDarkRed
-            else -> uvPurple
+            midY < 2f -> colors.uvDarkGreen
+            midY < 3f -> colors.uvGreen
+            midY < 5f -> colors.uvYellow
+            midY < 6f -> colors.uvAmber
+            midY < 8f -> colors.uvOrange
+            midY < 10f -> colors.uvRed
+            midY < 11f -> colors.uvDarkRed
+            else -> colors.uvPurple
         }
 
         // Draw the block if the color changes

@@ -3,6 +3,7 @@ package com.ephemeris.helios.utils.charts
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import com.ephemeris.helios.ui.theme.CustomColorScheme
 import kotlin.math.max
 
 // --- HELPER: Reusable Horizontal Gradient Generator ---
@@ -37,19 +38,15 @@ fun createHorizontalBrush(getColor: (index: Int, value: Float) -> Color, params:
 fun getColorTemperatureBrushGradient(
     isGradientHorizontal: Boolean = false,
     mapY: (Float) -> Float,
-    params: ChartData
+    params: ChartData,
+    colors: CustomColorScheme
 ): Brush {
-    val ct5500 = Color(0xFF81D4FA).copy(alpha = 0.5f) // Daylight Cool Blue
-    val ct4000 = Color(0xFFFFF59D).copy(alpha = 0.5f) // Warm Pale Yellow
-    val ct3000 = Color(0xFFFFB300).copy(alpha = 0.5f) // Golden Amber
-    val ct2000 = Color(0xFFD84315).copy(alpha = 0.5f) // Deep Sunset Red
-
     return if (!isGradientHorizontal) {
         Brush.verticalGradient(
-            0.0f to ct5500,
-            ((5500f - 4000f) / 3500f) to ct4000, // ~0.42f
-            ((5500f - 3000f) / 3500f) to ct3000, // ~0.71f
-            1.0f to ct2000,
+            0.0f to colors.ct5500,
+            ((5500f - 4000f) / 3500f) to colors.ct4000, // ~0.42f
+            ((5500f - 3000f) / 3500f) to colors.ct3000, // ~0.71f
+            1.0f to colors.ct2000,
             startY = mapY(5500f),
             endY = mapY(2000f)
         )
@@ -57,11 +54,11 @@ fun getColorTemperatureBrushGradient(
         // Helper to interpolate exact Kelvin to our defined colors
         fun getCtColor(temp: Float): Color {
             return when {
-                temp <= 2000f -> ct2000
-                temp <= 3000f -> lerp(ct2000, ct3000, (temp - 2000f) / 1000f)
-                temp <= 4000f -> lerp(ct3000, ct4000, (temp - 3000f) / 1000f)
-                temp < 5500f -> lerp(ct4000, ct5500, (temp - 4000f) / 1500f)
-                else -> ct5500
+                temp <= 2000f -> colors.ct2000
+                temp <= 3000f -> lerp(colors.ct2000, colors.ct3000, (temp - 2000f) / 1000f)
+                temp <= 4000f -> lerp(colors.ct3000, colors.ct4000, (temp - 3000f) / 1000f)
+                temp < 5500f -> lerp(colors.ct4000, colors.ct5500, (temp - 4000f) / 1500f)
+                else -> colors.ct5500
             }
         }
 

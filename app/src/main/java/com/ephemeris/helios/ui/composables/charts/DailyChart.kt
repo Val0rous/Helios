@@ -249,13 +249,14 @@ fun DailyChart(
                             params,
                             uniqueXPoints,
                             ::mapX,
-                            zeroYPixel
+                            zeroYPixel,
+                            colors
                         )
 
                         Charts.Sun.Daily.ColorTemperature -> {
                             // --- Vertical Color Temperature Gradient ---
                             // Maps fractional stops exactly to their Kelvin altitude
-                            val ctBrush = getColorTemperatureBrushGradient(false, ::mapY, params)
+                            val ctBrush = getColorTemperatureBrushGradient(false, ::mapY, params, colors)
 
                             drawRect(
                                 brush = ctBrush,
