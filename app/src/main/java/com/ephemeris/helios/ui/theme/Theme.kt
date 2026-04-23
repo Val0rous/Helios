@@ -44,6 +44,7 @@ data class CustomColorScheme(
     val elapsedDay: Color,
     val elapsedNight: Color,
     val elapsedMoon: Color,
+    val moonBackground: Color,
 //    val dayBackground: Color,
 //    val nightBackground: Color,
     val sun: Color,
@@ -86,54 +87,56 @@ data class CustomColorScheme(
     val ct2000: Color = Color(0xFFD84315).copy(alpha = 0.5f), // Deep Sunset Red
 )
 
+// Add 25% alpha to Light colors to get the Dark ones
 private val DarkCustomColors = CustomColorScheme(
-    dayBackground = MaterialColors.LightBlue50.copy(alpha = 0.5f),
-    nightBackground = MaterialColors.Gray900.copy(alpha = 0.5f),
-    civilTwilight = MaterialColors.BlueGray200.copy(alpha = 0.7f),
-    nauticalTwilight = MaterialColors.BlueGray500.copy(alpha = 0.7f),
-    astronomicalTwilight = MaterialColors.Gray700.copy(alpha = 0.7f),
-    elapsedDay = MaterialColors.Amber400.copy(alpha = 0.35f),
-    elapsedMoon = MaterialColors.BlueA100.copy(alpha = 0.35f),
-    elapsedNight = MaterialColors.Gray400.copy(alpha = 0.35f),
+    dayBackground = MaterialColors.LightBlue50.copy(alpha = 0.75f),
+    nightBackground = MaterialColors.Gray900.copy(alpha = 0.75f),
+    civilTwilight = MaterialColors.BlueGray200.copy(alpha = 0.75f),
+    nauticalTwilight = MaterialColors.BlueGray500.copy(alpha = 0.75f),
+    astronomicalTwilight = MaterialColors.Gray700.copy(alpha = 0.75f),
+    elapsedDay = MaterialColors.Yellow500.copy(alpha = 0.4375f),
+    elapsedMoon = MaterialColors.BlueA100.copy(alpha = 0.4375f),
+    elapsedNight = MaterialColors.Gray400.copy(alpha = 0.4375f),
+    moonBackground = MaterialColors.Purple200.copy(alpha = 0.75f),
 //    dayBackground = MaterialColors.Yellow50.copy(alpha = 0.15f),
 //    nightBackground = MaterialColors.Indigo50.copy(alpha = 0.15f),
     sun = MaterialColors.Yellow700,
-    sunPath = MaterialColors.Amber700,
-    dropLine = MaterialColors.Gray300,
+    sunPath = MaterialColors.Yellow800,
+    dropLine = MaterialColors.Gray500,
     moon = MaterialColors.BlueA100,
-    moonPath = MaterialColors.BlueA400,
+    moonPath = MaterialColors.BlueA200,
 
     nightPrimary = Colors.DeepPurple900.primaryDark,
     nightOnPrimary = Colors.DeepPurple900.onPrimaryDark,
     nightPrimaryContainer = Colors.DeepPurple900.primaryContainerDark,
     nightOnPrimaryContainer = Colors.DeepPurple900.onPrimaryContainerDark,
 
-    amZenith = Color(0xFF29B6F6).copy(alpha = 0.67f), // Clear Light Blue
-    amHorizon = Color(0xFFCFD8DC).copy(alpha = 0.67f), // Hazy Grey/White
+    amZenith = Color(0xFF29B6F6).copy(alpha = 0.625f), // Clear Light Blue
+    amHorizon = Color(0xFFCFD8DC).copy(alpha = 0.625f), // Hazy Grey/White
 
-    shadowShort = Color(0xFFE0E0E0).copy(alpha = 0.67f),
-    shadowLong = Color(0xFF424242).copy(alpha = 0.67f),
+    shadowShort = Color(0xFFE0E0E0).copy(alpha = 0.625f),
+    shadowLong = Color(0xFF424242).copy(alpha = 0.625f),
 
-    luxBright = Color(0xFFFFF59D).copy(alpha = 0.8f),
-    luxDim = Color(0xFF5C6BC0).copy(alpha = 0.4f),
+    luxBright = Color(0xFFFFF59D).copy(alpha = 0.75f),
+    luxDim = Color(0xFF5C6BC0).copy(alpha = 0.375f),
 
-    irrLow = Color(0xFFFFCC80).copy(alpha = 0.53f),   // Soft Dawn Gold
-    irrMid = Color(0xFFFF9800).copy(alpha = 0.67f),   // Orange Energy
-    irrHigh = Color(0xFFE65100).copy(alpha = 0.8f),
+    irrLow = Color(0xFFFFCC80).copy(alpha = 0.5f),   // Soft Dawn Gold
+    irrMid = Color(0xFFFF9800).copy(alpha = 0.625f),   // Orange Energy
+    irrHigh = Color(0xFFE65100).copy(alpha = 0.75f),
 
-    uvDarkGreen = Color(0xFF2E7D32).copy(alpha = 0.67f),
-    uvGreen = Color(0xFF4CAF50).copy(alpha = 0.67f),
-    uvYellow = Color(0xFFFFEB3B).copy(alpha = 0.67f),
-    uvAmber = Color(0xFFFFC107).copy(alpha = 0.67f),
-    uvOrange = Color(0xFFFF9800).copy(alpha = 0.67f),
-    uvRed = Color(0xFFF44336).copy(alpha = 0.67f),
-    uvDarkRed = Color(0xFFB71C1C).copy(alpha = 0.67f),
-    uvPurple = Color(0xFF673AB7).copy(alpha = 0.67f),
+    uvDarkGreen = Color(0xFF2E7D32).copy(alpha = 0.625f),
+    uvGreen = Color(0xFF4CAF50).copy(alpha = 0.625f),
+    uvYellow = Color(0xFFFFEB3B).copy(alpha = 0.625f),
+    uvAmber = Color(0xFFFFC107).copy(alpha = 0.625f),
+    uvOrange = Color(0xFFFF9800).copy(alpha = 0.625f),
+    uvRed = Color(0xFFF44336).copy(alpha = 0.625f),
+    uvDarkRed = Color(0xFFB71C1C).copy(alpha = 0.625f),
+    uvPurple = Color(0xFF673AB7).copy(alpha = 0.625f),
 
-    ct5500 = Color(0xFF81D4FA).copy(alpha = 0.67f), // Daylight Cool Blue
-    ct4000 = Color(0xFFFFF59D).copy(alpha = 0.67f), // Warm Pale Yellow
-    ct3000 = Color(0xFFFFB300).copy(alpha = 0.67f), // Golden Amber
-    ct2000 = Color(0xFFD84315).copy(alpha = 0.67f), // Deep Sunset Red
+    ct5500 = Color(0xFF81D4FA).copy(alpha = 0.625f), // Daylight Cool Blue
+    ct4000 = Color(0xFFFFF59D).copy(alpha = 0.625f), // Warm Pale Yellow
+    ct3000 = Color(0xFFFFB300).copy(alpha = 0.625f), // Golden Amber
+    ct2000 = Color(0xFFD84315).copy(alpha = 0.625f), // Deep Sunset Red
 )
 
 private val LightCustomColors = CustomColorScheme(
@@ -145,13 +148,14 @@ private val LightCustomColors = CustomColorScheme(
     elapsedDay = MaterialColors.Yellow500.copy(alpha = 0.35f),
     elapsedMoon = MaterialColors.LightBlueA100.copy(alpha = 0.35f),
     elapsedNight = MaterialColors.Gray400.copy(alpha = 0.35f),
+    moonBackground = MaterialColors.Purple200.copy(alpha = 0.6f),
 //    dayBackground = MaterialColors.Yellow50.copy(alpha = 0.2f),
 //    nightBackground = MaterialColors.Indigo50.copy(alpha = 0.2f),
     sun = MaterialColors.Amber600,
     sunPath = MaterialColors.Orange800,
     dropLine = MaterialColors.Gray600,
     moon = MaterialColors.BlueA700,
-    moonPath = MaterialColors.LightBlueA400,
+    moonPath = MaterialColors.Blue400,
 
     nightPrimary = Colors.DeepPurple900.primaryLight,
     nightOnPrimary = Colors.DeepPurple900.onPrimaryLight,
