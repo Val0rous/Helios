@@ -2,6 +2,7 @@ package com.ephemeris.helios.utils.calc
 
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.LightPhasePreferences
+import com.ephemeris.helios.utils.round
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import kotlin.math.*
@@ -469,8 +470,8 @@ object SolarEphemeris {
 
         // Return rounded to 2 decimal places
         return SolarPosition(
-            altitude = round(Math.toDegrees(altitudeRad) * 100) / 100.0,
-            azimuth = round(azimuthDeg * 100) / 100.0
+            altitude = Math.toDegrees(altitudeRad).round(2),
+            azimuth = azimuthDeg.round(2)
         )
     }
 

@@ -1,6 +1,7 @@
 package com.ephemeris.helios.utils.calc
 
 import com.ephemeris.helios.utils.location.Coordinates
+import com.ephemeris.helios.utils.round
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import kotlin.math.*
@@ -288,8 +289,8 @@ object LunarEphemeris {
         if (topoHDeg < -180.0) topoHDeg += 360.0
 
         return LunarPosition(
-            altitude = Math.toDegrees(topoAltRad),
-            azimuth = topoAzDeg,
+            altitude = Math.toDegrees(topoAltRad).round(2),
+            azimuth = topoAzDeg.round(2),
             rightAscension = Math.toDegrees(raRad),
             declination = Math.toDegrees(decRad),
             distanceKm = distanceKm,
