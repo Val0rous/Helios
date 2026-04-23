@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import com.ephemeris.helios.ui.composables.InfoPager
 import com.ephemeris.helios.ui.composables.maps.FullscreenAzimuthMap
 import com.ephemeris.helios.ui.composables.maps.FullscreenShadeMap
 import com.ephemeris.helios.ui.composables.cards.ChartArrays
@@ -64,8 +65,9 @@ fun Maps(
                 )
             }
         }
-        Box(
-            modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier.weight(1f)
+//            modifier = Modifier.fillMaxSize()
         ) {
             when (selectedMapType) {
                 MapType.AZIMUTH.ordinal -> {
@@ -80,6 +82,7 @@ fun Maps(
                         onMapCenterSettled = onMapCenterSettled
                     )
                 }
+
                 MapType.SHADEMAP.ordinal -> {
                     FullscreenShadeMap(
                         location = coordinates,
@@ -87,13 +90,21 @@ fun Maps(
                         onMapCenterSettled = onMapCenterSettled
                     )
                 }
+
                 MapType.AR_VIEW.ordinal -> {
 //                    PlaceholderScreen("Augmented Reality View Coming Soon")
                 }
+
                 MapType.COMPASS.ordinal -> {
 //                    PlaceholderScreen("Native Hardware Compass Coming Soon")
                 }
             }
         }
+        InfoPager(
+            currentSunPosition = currentSolarPosition,
+            sunEvents = solarEvents,
+            currentMoonPosition = currentLunarPosition,
+            moonEvents = lunarEvents,
+        )
     }
 }

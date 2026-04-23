@@ -30,7 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.ephemeris.helios.ui.composables.InfoPager
 import com.ephemeris.helios.ui.composables.Navbar
 import com.ephemeris.helios.ui.composables.TimeMachine
 import com.ephemeris.helios.ui.composables.TopBar
@@ -67,6 +69,9 @@ class MainActivity : ComponentActivity() {
             var isContinuousGPSTrackingEnabled by remember { mutableStateOf(false) }
 
             val snackbarHostState = remember { SnackbarHostState() }
+
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
 
             // Boot up the Geoid engine exactly once
             AltitudeCorrector.initialize(this)
