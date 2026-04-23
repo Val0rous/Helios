@@ -1,10 +1,14 @@
 package com.ephemeris.helios.ui.composables
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -16,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.res.stringResource
@@ -40,10 +45,11 @@ fun InfoPager(
         modifier = Modifier.fillMaxWidth()
     ) {
         val pagerState = rememberPagerState(pageCount = { 2 })
+        val textStyle = MaterialTheme.typography.bodyMedium
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 16.dp, start = 16.dp, end = 16.dp)
+                .padding(top = 8.dp, start = 16.dp, end = 16.dp)
         ) {
             HorizontalPager(
                 state = pagerState,
@@ -53,11 +59,12 @@ fun InfoPager(
                         // Sun
                         Row(
                             horizontalArrangement = Arrangement.SpaceAround,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)
                         ) {
                             val sunIconDrawer = rememberChartIconDrawer(Charts.Sun.Daily.Elevation)
                             Column(
-                                modifier = Modifier.width(64.dp)
+                                modifier = Modifier.width(64.dp).fillMaxHeight(),
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Spacer(
                                     modifier = Modifier
@@ -72,30 +79,53 @@ fun InfoPager(
                             ) {
                                 Text(
                                     text = stringResource(R.string.sun),
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = textStyle,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                Text("${currentSunPosition.altitude}°")
-                                Text("@${currentSunPosition.azimuth}°")
+                                Text(
+                                    text = "${currentSunPosition.altitude}°",
+                                    style = textStyle)
+                                Text(
+                                    text = "@ ${currentSunPosition.azimuth}°",
+                                    style = textStyle
+                                )
                             }
                             Column(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(
                                     text = stringResource(R.string.sunrise),
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = textStyle,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                Text(sunEvents.sunrise.formatDecimalHours())
-                                Text("@${sunEvents.sunriseAzimuth}°")
+                                Text(
+                                    text = sunEvents.sunrise.formatDecimalHours(),
+                                    style = textStyle
+                                )
+                                Text(
+                                    text = "@ ${sunEvents.sunriseAzimuth}°",
+                                    style = textStyle
+                                )
                             }
                             Column(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(
                                     text = stringResource(R.string.sunset),
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = textStyle,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                Text(sunEvents.sunset.formatDecimalHours())
-                                Text("@${sunEvents.sunsetAzimuth}°")
+                                Text(
+                                    text = sunEvents.sunset.formatDecimalHours(),
+                                    style = textStyle
+                                )
+                                Text(
+                                    text = "@ ${sunEvents.sunsetAzimuth}°",
+                                    style = textStyle
+                                )
                             }
                         }
                     }
@@ -103,11 +133,12 @@ fun InfoPager(
                         // Moon
                         Row(
                             horizontalArrangement = Arrangement.SpaceAround,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)
                         ) {
                             val sunIconDrawer = rememberChartIconDrawer(Charts.Moon.Daily.Elevation)
                             Column(
-                                modifier = Modifier.width(64.dp)
+                                modifier = Modifier.width(64.dp).fillMaxHeight(),
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Spacer(
                                     modifier = Modifier
@@ -122,30 +153,54 @@ fun InfoPager(
                             ) {
                                 Text(
                                     text = stringResource(R.string.moon),
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = textStyle,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                Text("${currentMoonPosition.altitude}°")
-                                Text("@${currentMoonPosition.azimuth}°")
+                                Text(
+                                    text = "${currentMoonPosition.altitude}°",
+                                    style = textStyle
+                                )
+                                Text(
+                                    text = "@ ${currentMoonPosition.azimuth}°",
+                                    style = textStyle
+                                )
                             }
                             Column(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(
                                     text = stringResource(R.string.moonrise),
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = textStyle,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                Text(moonEvents.moonrise.formatDecimalHours())
-                                Text("@${moonEvents.moonriseAzimuth}°")
+                                Text(
+                                    text = moonEvents.moonrise.formatDecimalHours(),
+                                    style = textStyle
+                                )
+                                Text(
+                                    text = "@ ${moonEvents.moonriseAzimuth}°",
+                                    style = textStyle
+                                )
                             }
                             Column(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(
                                     text = stringResource(R.string.moonset),
-                                    fontWeight = FontWeight.SemiBold
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = textStyle,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                Text(moonEvents.moonset.formatDecimalHours())
-                                Text("@${moonEvents.moonsetAzimuth}°")
+                                Text(
+                                    text = moonEvents.moonset.formatDecimalHours(),
+                                    style = textStyle
+                                )
+                                Text(
+                                    text = "@ ${moonEvents.moonsetAzimuth}°",
+                                    style = textStyle
+                                )
                             }
                         }
                     }

@@ -46,6 +46,8 @@ fun Double.formatLatitude(): String {
     return String.format(Locale.getDefault(), "%d°%02d′%02d″ %s", degrees, minutes, seconds, direction)
 }
 
+// TODO: add formatTime, formatAzimuth and formatElevation so rounding and symbols are encapsulated
+
 fun Double.formatShortLatitude(isDecimal: Boolean = true): String {
     val direction = if (this >= 0) "N" else "S"
     val absValue = abs(this)

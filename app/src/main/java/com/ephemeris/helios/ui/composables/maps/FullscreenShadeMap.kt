@@ -107,7 +107,7 @@ fun FullscreenShadeMap(
             // 1. Load the Map Style and Build the 3D Extrusions
             MapEffect(isDarkTheme) { mapView ->
                 // Upgraded to OUTDOORS for rich terrain, parks, and water colors!
-                val styleUri = if (isDarkTheme) Style.DARK else Style.OUTDOORS
+                val styleUri = if (isDarkTheme) Style.OUTDOORS else Style.OUTDOORS
 
                 mapView.mapboxMap.loadStyle(styleUri) { style ->
                     // --- ENABLE 3D MOUNTAINS ---
@@ -255,7 +255,7 @@ fun FullscreenShadeMap(
 // Beautifully mixes 15-25% of vibrant sunset colors into the base building gray,
 // then smoothly interpolates between phases so the colors never snap.
 fun getSubtleBuildingTint(altitude: Double, isDarkTheme: Boolean): Color {
-    val base = if (isDarkTheme) Color(0xFF2A2A2A) else Color(0xFFE8E8E8)
+    val base = /*if (isDarkTheme) Color(0xFF2A2A2A) else*/ Color(0xFFE8E8E8)
 
     // Mix subtle hints of color into the base
     val warmBase = lerp(base, Color(0xFFFFE0B2), if (isDarkTheme) 0.10f else 0.15f)
