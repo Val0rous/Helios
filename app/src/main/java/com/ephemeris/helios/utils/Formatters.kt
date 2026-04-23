@@ -43,7 +43,7 @@ fun Double.formatLatitude(): String {
     val degrees = absValue.toInt()
     val minutes = ((absValue - degrees) * 60).toInt()
     val seconds = ((absValue - degrees - minutes / 60.0) * 3600.0).roundToInt()
-    return "$degrees°$minutes′$seconds″ $direction"
+    return String.format(Locale.getDefault(), "%d°%02d′%02d″ %s", degrees, minutes, seconds, direction)
 }
 
 fun Double.formatShortLatitude(isDecimal: Boolean = true): String {
@@ -69,7 +69,7 @@ fun Double.formatLongitude(): String {
     val degrees = absValue.toInt()
     val minutes = ((absValue - degrees) * 60).toInt()
     val seconds = ((absValue - degrees - minutes / 60.0) * 3600.0).roundToInt()
-    return "$degrees°$minutes′$seconds″ $direction"
+    return String.format(Locale.getDefault(), "%d°%02d′%02d″ %s", degrees, minutes, seconds, direction)
 }
 
 fun Double.formatShortLongitude(isDecimal: Boolean = true): String {
