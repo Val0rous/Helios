@@ -180,3 +180,16 @@ fun Double?.formatDecimalHours(): String {
         .replace("\u202F", " ")
 //        return String.format("%02d:%02d", finalHours, finalMinutes)
 }
+
+fun Double.formatDirection(): String {
+    if (this.isNaN()) return ""
+
+    val normalized = (this % 360 + 360) % 360
+    val directions = arrayOf(
+        "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+        "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"
+    )
+
+    val index = (((normalized + 11.25) % 360) / 22.5).toInt()
+    return directions[index]
+}

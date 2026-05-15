@@ -56,6 +56,8 @@
     <string name="altitude">Altitude</string>
     <string name="azimuth">Azimuth</string>
     <string name="phase">Phase</string>
+    <string name="direction">Direction</string>
+
 
     <string name="all_day">All day</string>
     <string name="not_for_this_day">Not for this day</string>

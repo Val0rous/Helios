@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
+import com.ephemeris.helios.ui.composables.cards.SmallCard
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.entries.DailyPeaksEntry
 import com.ephemeris.helios.ui.composables.entries.DurationEntry

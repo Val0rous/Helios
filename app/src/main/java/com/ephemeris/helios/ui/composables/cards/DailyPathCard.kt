@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +18,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DividerDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
@@ -47,6 +49,7 @@ import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.MoonMetrics
 import com.ephemeris.helios.utils.calc.SunMetrics
+import com.ephemeris.helios.utils.formatDirection
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import com.ephemeris.helios.utils.round
@@ -198,7 +201,7 @@ fun DailyPathCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(IntrinsicSize.Min)
-                    .padding(top = 8.dp, bottom = 9.dp, start = 2.dp, end = 5.dp),
+                    .padding(top = 8.dp, bottom = 9.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -212,11 +215,20 @@ fun DailyPathCard(
                 CustomColumn(stringResource(R.string.altitude), "${currentAltitude.round()}°")
                 CustomVerticalDivider()
                 CustomColumn(stringResource(R.string.azimuth), "${currentAzimuth.round()}°")
-                val phaseText = R.string.phase
-                if (phase != "") {
-                    CustomVerticalDivider()
-                    CustomColumn(stringResource(phaseText), phase)
-                }
+            }
+            CustomHorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
+                    .padding(top = 8.dp, bottom = 9.dp, start = 40.dp),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+//                if (phase != "") {
+//                    CustomVerticalDivider()
+                    CustomRow(stringResource(R.string.phase), phase)
+//                }
             }
         }
     }
@@ -234,12 +246,42 @@ internal fun CustomVerticalDivider() {
 }
 
 @Composable
+internal fun CustomHorizontalDivider() {
+    HorizontalDivider(
+        modifier = Modifier
+            .fillMaxWidth(),
+        thickness = Dp.Hairline,
+        color = DividerDefaults.color
+    )
+}
+
+@Composable
 internal fun CustomColumn(header: String, value: String) {
     val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default)
     val verticalSpacing = 4.dp
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(verticalSpacing)
+    ) {
+        Text(
+            text = header,
+            style = textStyle.copy(
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = (0).sp,
+                color = MaterialTheme.colorScheme.primary
+            )
+        )
+        Text(text = value, style = textStyle.copy(color = MaterialTheme.colorScheme.onSurface))
+    }
+}
+
+@Composable
+internal fun CustomRow(header: String, value: String) {
+    val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default)
+    val horizontalSpacing = 8.dp
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(horizontalSpacing),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = header,
