@@ -316,10 +316,16 @@ fun DailyChart(
                         }
 
                         Charts.Sun.Daily.Illuminance -> {
+                            // --- FIXED: Absolute Colorimetry ---
+                            // Our engine maxes out at ~953 W/m² * 105 (efficacy) = ~100,000 lux.
+                            // By anchoring startY to an absolute 100,000f instead of params.maxY,
+                            // winter days will stay appropriately dim and blue at their peak!
+                            val absoluteMaxLux = 100000f
+
                             val luxBrush = Brush.verticalGradient(
                                 0.0f to colors.luxBright, // Top = Max brightness
                                 1.0f to colors.luxDim,    // Bottom = Dim 0 lux
-                                startY = mapY(params.maxY),
+                                startY = mapY(absoluteMaxLux),
                                 endY = zeroYPixel
                             )
                             drawRect(
@@ -331,10 +337,13 @@ fun DailyChart(
 
                         Charts.Sun.Daily.Irradiance -> {
                             val irrBrush = createHorizontalBrush({ i, value ->
+                                // --- FIXED: Absolute Colorimetry ---
+                                // Our sea-level engine absolute maximum is ~953 W/m².
+                                // We use 950f as a clean, universal ceiling (also allows room for high-altitude spikes).
                                 // Irradiance doesn't need the isNight check because 0 is already the lowest color
                                 // Heat Map: Soft Gold -> Orange -> Intense Red
-                                val maxIrr = params.maxY.coerceAtLeast(1f)
-                                val fraction = (value / maxIrr).coerceIn(0f, 1f)
+                                val absoluteMaxIrr = 950f
+                                val fraction = (value / absoluteMaxIrr).coerceIn(0f, 1f)
                                 when {
                                     fraction <= 0.5f -> lerp(
                                         colors.irrLow,

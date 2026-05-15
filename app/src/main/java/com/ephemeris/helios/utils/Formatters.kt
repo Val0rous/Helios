@@ -13,8 +13,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.ceil
-import kotlin.math.log10
 import kotlin.math.roundToInt
 
 // Format hours according to brevity rules
@@ -101,11 +99,32 @@ fun Double?.round(decimals: Int = 1): Double? {
     return BigDecimal(this).setScale(decimals, RoundingMode.HALF_UP).toDouble()
 }
 
-fun Double.roundToSignificant(figures: Int = 3): Double {
+fun Double.roundToSignificant(): Double {
+    if (this.isNaN()) return Double.NaN
     if (this == 0.0) return 0.0
-    val magnitude = ceil(log10(abs(this)))
-    val decimals = (figures - magnitude.toInt()).coerceIn(0, 4)
+    val absValue = abs(this)
+    val decimals = when {
+        absValue < 1.0 -> 3
+        absValue < 10.0 -> 2
+        absValue < 100.0 -> 1
+        else -> 0
+    }
     return BigDecimal(this).setScale(decimals, RoundingMode.HALF_UP).toDouble()
+}
+
+fun Double.printSignificant(): String {
+    if (this == 0.0) return "0"
+    val rounded = this.roundToSignificant()
+    if (rounded.isNaN()) return ""
+    if (rounded == 0.0) return "0"
+    val absValue = abs(rounded)
+    val decimals = when {
+        absValue < 1.0 -> 3
+        absValue < 10.0 -> 2
+        absValue < 100.0 -> 1
+        else -> 0
+    }
+    return String.format(Locale.getDefault(), "%.${decimals}f", rounded)
 }
 
 fun Double.printRounded(decimals: Int = 2): String {

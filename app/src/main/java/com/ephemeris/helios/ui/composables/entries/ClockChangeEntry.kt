@@ -2,7 +2,6 @@ package com.ephemeris.helios.ui.composables.entries
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
 import com.ephemeris.helios.utils.formatDuration
 import java.time.ZonedDateTime
 
@@ -18,7 +17,7 @@ fun ClockChangeEntry(
 ) {
     // TODO: make it do stuff
     val year = dateTimeTop.year
-    HeaderEntry(text = "Clock Changes (${year})", color = color)
+    HeaderEntry(text = "Clock Changes (${year})", textColor = color)
     TextEntrySeasons(dateTime = dateTimeTop, daylight = daylightTop.formatDuration(), sunAngle = sunAngleTop, color = color)
     TextEntrySeasons(dateTime = dateTimeBottom, daylight = daylightBottom.formatDuration(), sunAngle = sunAngleBottom, color = color)
 }

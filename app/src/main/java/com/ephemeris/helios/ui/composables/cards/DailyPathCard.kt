@@ -250,8 +250,8 @@ internal fun CustomHorizontalDivider() {
     HorizontalDivider(
         modifier = Modifier
             .fillMaxWidth(),
-        thickness = Dp.Hairline,
-        color = DividerDefaults.color
+        thickness = 2.dp,
+        color = MaterialTheme.colorScheme.surfaceContainer
     )
 }
 

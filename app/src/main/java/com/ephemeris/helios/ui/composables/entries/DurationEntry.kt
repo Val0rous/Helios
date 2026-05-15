@@ -3,7 +3,6 @@ package com.ephemeris.helios.ui.composables.entries
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import com.ephemeris.helios.R
 
 @Composable
 fun DurationEntry(
@@ -16,7 +15,7 @@ fun DurationEntry(
     eveningEndTime: String = "",
     eveningDuration: String = ""
 ) {
-    HeaderEntry(text = stringResource(title), color = color)
+    HeaderEntry(text = stringResource(title), textColor = color)
     TextEntryHours(label = morningStartTime, time = morningEndTime, duration = morningDuration, color = color)
     TextEntryHours(label = eveningStartTime, time = eveningEndTime, duration = eveningDuration, color = color)
 }

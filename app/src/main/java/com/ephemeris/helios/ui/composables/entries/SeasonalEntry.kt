@@ -18,7 +18,7 @@ fun SeasonalEntry(
     sunAngleBottom: Double
 ) {
     val year = dateTimeTop.year
-    HeaderEntry(text = "${stringResource(title)} (${year})", color = color)
+    HeaderEntry(text = "${stringResource(title)} (${year})", textColor = color)
     TextEntrySeasons(dateTime = dateTimeTop, daylight = daylightTop.formatDuration(), sunAngle = sunAngleTop, color = color)
     TextEntrySeasons(dateTime = dateTimeBottom, daylight = daylightBottom.formatDuration(), sunAngle = sunAngleBottom, color = color)
 }

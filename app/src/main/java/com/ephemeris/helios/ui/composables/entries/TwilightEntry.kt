@@ -23,7 +23,7 @@ fun TwilightEntry(
     val astroColor = MaterialColors.DeepPurple500
     val twilightColor = MaterialColors.DeepPurple500
     val nightColor = MaterialColors.DeepPurple900
-    HeaderEntry(text = stringResource(title), textVariant = "(${stringResource(subtitle)})", color = twilightColor)
+    HeaderEntry(text = stringResource(title), textVariant = "(${stringResource(subtitle)})", textColor = twilightColor)
     TextEntryHours(label = stringResource(R.string.civil), time = civilTime, duration = civilDuration, color = civilColor)
     TextEntryHours(label = stringResource(R.string.nautical), time = nauticalTime, duration = nauticalDuration, color = nauticalColor)
     TextEntryHours(label = stringResource(R.string.astro), time = astroTime, duration = astroDuration, color = astroColor)

@@ -21,7 +21,7 @@ import com.ephemeris.helios.ui.theme.MaterialColors
 @Composable
 fun PlutoTimeEntry(morningTime: String = "", eveningTime: String = "") {
     val plutoColor = MaterialColors.Red800
-    HeaderEntry(text = stringResource(R.string.pluto_times), color = plutoColor)
+    HeaderEntry(text = stringResource(R.string.pluto_times), textColor = plutoColor)
     Row(
         horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
