@@ -32,6 +32,7 @@ fun UvDial(
     trackColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
 ) {
     val colors = LocalCustomColors.current
+    val colorScheme = MaterialTheme.colorScheme
     val isLightMode = !isSystemInDarkTheme()
 
     // 1. Calculate height fraction (capped at 11+ for the visual scale)
@@ -151,7 +152,7 @@ fun UvDial(
             close()
         }
 
-        val markerColor = Color.White.copy(alpha = 0.85f)
+        val markerColor = colorScheme.onSurface.copy(alpha = 0.9f)
         val androidTriangle = trianglePath.asAndroidPath()
 
         val trianglePaint = Paint().apply {

@@ -76,8 +76,8 @@ fun UvIntensity(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
-                .padding(horizontal = 0.dp, vertical = 16.dp),
+//                .height(120.dp)
+                .padding(horizontal = 0.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -86,27 +86,27 @@ fun UvIntensity(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = currentUvIntensity.printRounded(decimals = 1, stripTrailingZeros = false), // Uses your exact Formatter for 1 decimal
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Text(
                     text = description,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontSize = 15.sp,
-                    color = fillColor
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "${(25 * currentUvIntensity).roundToInt()}",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = "mW/m²",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.offset(y = (-2).dp)
+//                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+                Text(
+                    text = currentUvIntensity.printRounded(decimals = 1, stripTrailingZeros = false), // Uses your exact Formatter for 1 decimal
+                    style = MaterialTheme.typography.headlineMedium,
+                )
+//                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${(25 * currentUvIntensity).roundToInt()} mW/m²",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelLarge
+                )
+//                Text(
+//                    text = "",
+//                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+//                    style = MaterialTheme.typography.titleSmall,
+//                    modifier = Modifier.offset(y = (-2).dp)
+//                )
             }
 
             // RIGHT SIDE: The 11+, the Dial, and the 0
@@ -115,26 +115,26 @@ fun UvIntensity(
                     .offset(x = (5).dp)
                     .weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+//                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = "11+",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+//                Text(
+//                    text = "11+",
+//                    style = MaterialTheme.typography.labelMedium,
+//                    color = MaterialTheme.colorScheme.onSurfaceVariant
+//                )
 
                 UvDial(
                     currentUv = uvFloat,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(80.dp)
+                        .height(68.dp)
                 )
 
-                Text(
-                    text = "0",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+//                Text(
+//                    text = "0",
+//                    style = MaterialTheme.typography.labelMedium,
+//                    color = MaterialTheme.colorScheme.onSurfaceVariant
+//                )
             }
         }
         TextEntry(
