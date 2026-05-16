@@ -127,12 +127,15 @@ fun Double.printSignificant(): String {
     return String.format(Locale.getDefault(), "%.${decimals}f", rounded)
 }
 
-fun Double.printRounded(decimals: Int = 2): String {
+fun Double.printRounded(decimals: Int = 2, stripTrailingZeros: Boolean = true): String {
     if (this == 0.0) return "0"
-    return BigDecimal(this)
-        .setScale(decimals, RoundingMode.HALF_UP)
-        .stripTrailingZeros()
-        .toPlainString()
+    val result = BigDecimal(this.toString()).setScale(decimals, RoundingMode.HALF_UP)
+    if (result.signum() == 0) return "0"
+    return if (stripTrailingZeros) {
+        result.stripTrailingZeros().toPlainString()
+    } else {
+        result.toPlainString()
+    }
 }
 
 fun timeFormat(time: LocalDateTime): String {

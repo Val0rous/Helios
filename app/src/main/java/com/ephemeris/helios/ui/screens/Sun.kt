@@ -14,6 +14,7 @@ import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.Irradiance
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
+import com.ephemeris.helios.ui.composables.cards.UvIntensity
 import com.ephemeris.helios.ui.composables.entries.DailyPeaksEntry
 import com.ephemeris.helios.ui.composables.entries.DurationEntry
 import com.ephemeris.helios.ui.composables.entries.LiveMetricsEntry
@@ -93,7 +94,10 @@ fun Sun(
                     )
                 },
                 rightCard = {
-                    // Nothing
+                    UvIntensity(
+                        currentUvIntensity = liveMetrics.uvIntensity,
+                        peakUvIntensity = dailyPeakMetrics.uvIntensity
+                    )
                 }
             )
         }
