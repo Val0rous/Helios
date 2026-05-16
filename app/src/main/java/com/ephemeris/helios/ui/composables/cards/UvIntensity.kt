@@ -2,6 +2,7 @@ package com.ephemeris.helios.ui.composables.cards
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -10,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
@@ -93,21 +95,27 @@ fun UvIntensity(
                     fontSize = 15.sp,
                     color = fillColor
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "${(25 * currentUvIntensity).roundToInt()} mW/m²",
+                    text = "${(25 * currentUvIntensity).roundToInt()}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "mW/m²",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.offset(y = (-2).dp)
                 )
             }
 
             // RIGHT SIDE: The 11+, the Dial, and the 0
             Column(
                 modifier = Modifier
-                    .offset(x = (8).dp)
+                    .offset(x = (5).dp)
                     .weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
                     text = "11+",

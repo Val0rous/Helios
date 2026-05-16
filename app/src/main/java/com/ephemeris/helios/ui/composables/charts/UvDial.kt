@@ -75,7 +75,7 @@ fun UvDial(
         val cy = size.height / 2f
 
         // Scale the badge to 80% so the left-side indicator has room to draw
-        val diameter = min(size.width, size.height) * 0.8f
+        val diameter = min(size.width, size.height) * 1f
 
         // --- SUNBURST GEOMETRY MATH ---
         val points = 24 // A 12-pointed scalloped sun badge
