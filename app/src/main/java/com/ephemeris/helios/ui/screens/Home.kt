@@ -11,6 +11,7 @@ import com.ephemeris.helios.ui.composables.cards.DailyComboPathCard
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.SolarEphemeris
+import com.ephemeris.helios.utils.getSunPhase
 import com.ephemeris.helios.utils.location.Coordinates
 import java.time.ZonedDateTime
 
@@ -23,7 +24,8 @@ fun Home(
     currentMoonPosition: LunarEphemeris.LunarPosition,
     moonEvents: LunarEphemeris.LunarDailyEvents,
     sunChartArrays: ChartArrays?,
-    moonChartArrays: ChartArrays?
+    moonChartArrays: ChartArrays?,
+    currentMoonPhase: String
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -36,8 +38,10 @@ fun Home(
                 dayLength = sunEvents.dayLength,
                 currentSunAltitude = currentSunPosition.altitude,
                 currentSunAzimuth = currentSunPosition.azimuth,
+                sunPhase = getSunPhase(currentSunPosition.altitude).desc,
                 currentMoonAltitude = currentMoonPosition.altitude,
                 currentMoonAzimuth = currentMoonPosition.azimuth,
+                moonPhase = currentMoonPhase,
                 type = Charts.SunMoonCombo.Daily.Elevation,
                 sunChartArrays = sunChartArrays,
                 moonChartArrays = moonChartArrays

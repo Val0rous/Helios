@@ -32,7 +32,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.ephemeris.helios.ui.composables.InfoPager
 import com.ephemeris.helios.ui.composables.Navbar
 import com.ephemeris.helios.ui.composables.TimeMachine
 import com.ephemeris.helios.ui.composables.TopBar
@@ -206,7 +205,8 @@ class MainActivity : ComponentActivity() {
                                     currentMoonPosition = vm.liveData!!.currentMoonPosition,
                                     moonEvents = vm.dayData!!.lunarEvents,
                                     sunChartArrays = vm.sunChartArrays,
-                                    moonChartArrays = vm.moonChartArrays
+                                    moonChartArrays = vm.moonChartArrays,
+                                    currentMoonPhase = vm.liveData!!.liveMoonMetrics.phase.displayName
                                 )
                             }
                             composable(Routes.Exposure.route) {

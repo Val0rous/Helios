@@ -50,9 +50,10 @@ fun DailyComboPathCard(
     dayLength: Double,
     currentSunAltitude: Double,
     currentSunAzimuth: Double,
+    sunPhase: String,
     currentMoonAltitude: Double,
     currentMoonAzimuth: Double,
-    phase: String = "",
+    moonPhase: String,
     type: Charts,
     sunChartArrays: ChartArrays?,
     moonChartArrays: ChartArrays?
@@ -155,25 +156,76 @@ fun DailyComboPathCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(IntrinsicSize.Min)
-                    .padding(top = 8.dp, bottom = 9.dp, start = 2.dp, end = 5.dp),
+                    .padding(top = 8.dp, bottom = 9.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val daylengthText = when (type) {
-                    is Charts.Sun -> R.string.day_length
-                    is Charts.Moon -> R.string.duration
-                    else -> R.string.uptime
-                }
-                CustomColumn(stringResource(daylengthText), dayLength.formatDuration(true))
+                CustomColumn(
+                    header = stringResource(R.string.day_length),
+                    value = dayLength.formatDuration(true)
+                )
                 CustomVerticalDivider()
-                CustomColumn(stringResource(R.string.altitude), "${currentSunAltitude.round()}°")
+                CustomColumn(
+                    header = "${stringResource(R.string.sun)} ${stringResource(R.string.altitude)}",
+                    value = "${currentSunAltitude.round()}°"
+                )
                 CustomVerticalDivider()
-                CustomColumn(stringResource(R.string.azimuth), "${currentSunAzimuth.round()}°")
-                val phaseText = R.string.phase
-                if (phase != "") {
-                    CustomVerticalDivider()
-                    CustomColumn(stringResource(phaseText), phase)
-                }
+                CustomColumn(
+                    header = "${stringResource(R.string.sun)} ${stringResource(R.string.azimuth)}",
+                    value = "${currentSunAzimuth.round()}°"
+                )
+            }
+            CustomHorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
+                    .padding(top = 8.dp, bottom = 9.dp, start = 40.dp),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CustomRow(
+                    header = "${stringResource(R.string.sun)} ${stringResource(R.string.phase)}",
+                    value = sunPhase
+                )
+            }
+            CustomHorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
+                    .padding(top = 8.dp, bottom = 9.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CustomColumn(
+                    header = "${stringResource(R.string.moon)} ${stringResource(R.string.duration)}",
+                    value = 0.0.formatDuration(true)
+                )
+                CustomVerticalDivider()
+                CustomColumn(
+                    header = "${stringResource(R.string.moon)} ${stringResource(R.string.altitude)}",
+                    value = "${currentMoonAltitude.round()}°"
+                )
+                CustomVerticalDivider()
+                CustomColumn(
+                    header = "${stringResource(R.string.moon)} ${stringResource(R.string.azimuth)}",
+                    value = "${currentMoonAzimuth.round()}°"
+                )
+            }
+            CustomHorizontalDivider()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
+                    .padding(top = 8.dp, bottom = 9.dp, start = 40.dp),
+                horizontalArrangement = Arrangement.Start,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CustomRow(
+                    header = "${stringResource(R.string.moon)} ${stringResource(R.string.phase)}",
+                    value = moonPhase
+                )
             }
         }
     }
