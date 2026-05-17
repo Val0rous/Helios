@@ -87,6 +87,7 @@ fun Sun(
         }
         item {
             SmallCardRow(
+                disableInnerHorizontalPadding = true,
                 leftCard = {
                     Irradiance(
                         currentIrradiance = liveMetrics.irradiance,

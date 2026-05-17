@@ -16,6 +16,7 @@ internal fun SmallCardRow(
     leftCard: @Composable () -> Unit,
     rightCard: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    disableInnerHorizontalPadding: Boolean = false
 ) {
     Row(
         modifier = modifier
@@ -26,12 +27,14 @@ internal fun SmallCardRow(
         // Left Card
         SmallCard(
             card = { leftCard() },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            disableInnerHorizontalPadding = disableInnerHorizontalPadding
         )
         // Right Card
         SmallCard(
             card = { rightCard() },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            disableInnerHorizontalPadding = disableInnerHorizontalPadding
         )
     }
 }

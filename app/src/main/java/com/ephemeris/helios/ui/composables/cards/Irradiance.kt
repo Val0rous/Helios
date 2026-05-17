@@ -39,6 +39,7 @@ fun Irradiance(
     }
 
     Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
     ) {
         HeaderEntry(
             text = stringResource(R.string.irradiance),
@@ -47,7 +48,9 @@ fun Irradiance(
         )
         // Inside your screen:
         Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -94,6 +97,9 @@ fun Irradiance(
 //                Text("High", style = MaterialTheme.typography.labelMedium)
 //            }
         }
+    }
+    CustomHorizontalDivider()
+    Row(Modifier.padding(horizontal = 12.dp)) {
         TextEntry(text = peakIrradiance.printSignificant(), textVariant = "W/m²", icon = R.drawable.ic_bolt, desc = "Peak Irradiance")
     }
 }

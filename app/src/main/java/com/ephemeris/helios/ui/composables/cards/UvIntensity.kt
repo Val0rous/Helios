@@ -69,7 +69,9 @@ fun UvIntensity(
         )
     } else rawFillColor
 
-    Column {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+    ) {
         // Assuming you have a string resource for "UV Index"
         HeaderEntry(text = stringResource(R.string.uv_intensity), icon = R.drawable.ic_beach_access_filled)
 
@@ -77,7 +79,7 @@ fun UvIntensity(
             modifier = Modifier
                 .fillMaxWidth()
 //                .height(120.dp)
-                .padding(horizontal = 0.dp, vertical = 8.dp),
+                .padding(top = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -137,6 +139,9 @@ fun UvIntensity(
 //                )
             }
         }
+    }
+    CustomHorizontalDivider()
+    Row(Modifier.padding(horizontal = 12.dp)) {
         TextEntry(
             text = "UVI ${peakUvIntensity.round(1)}",
             textVariant = "${(25 * peakUvIntensity).roundToInt()} mW/m²",

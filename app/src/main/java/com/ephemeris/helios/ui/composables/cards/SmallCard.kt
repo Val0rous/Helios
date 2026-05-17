@@ -16,8 +16,10 @@ import androidx.compose.ui.unit.dp
 internal fun SmallCard(
     card: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    disableInnerHorizontalPadding: Boolean = false
 ) {
     val paddingValue = if (modifier == Modifier) 16.dp else 8.dp
+    val horizontalPadding = if (disableInnerHorizontalPadding) 0.dp else 12.dp
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -28,7 +30,7 @@ internal fun SmallCard(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = horizontalPadding, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             card()
         }
