@@ -146,7 +146,7 @@ fun UvIntensity(
             text = "UVI ${peakUvIntensity.round(1)}",
             textVariant = "${(25 * peakUvIntensity).roundToInt()} mW/m²",
             icon = R.drawable.ic_beach_access,
-            desc = "Current UV Index"
+            desc = "Peak UV Index"
         )
     }
 }

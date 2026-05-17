@@ -109,7 +109,7 @@ fun Double.roundToSignificant(): Double {
         absValue < 100.0 -> 1
         else -> 0
     }
-    return BigDecimal(this).setScale(decimals, RoundingMode.HALF_UP).toDouble()
+    return BigDecimal(this.toString()).setScale(decimals, RoundingMode.HALF_UP).toDouble()
 }
 
 fun Double.printSignificant(): String {
@@ -124,7 +124,7 @@ fun Double.printSignificant(): String {
         absValue < 100.0 -> 1
         else -> 0
     }
-    return String.format(Locale.getDefault(), "%.${decimals}f", rounded)
+    return String.format(Locale.getDefault(), "%,.${decimals}f", rounded)
 }
 
 fun Double.printRounded(decimals: Int = 2, stripTrailingZeros: Boolean = true): String {

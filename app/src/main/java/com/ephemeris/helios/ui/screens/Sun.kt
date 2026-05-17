@@ -12,7 +12,9 @@ import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
+import com.ephemeris.helios.ui.composables.cards.Illuminance
 import com.ephemeris.helios.ui.composables.cards.Irradiance
+import com.ephemeris.helios.ui.composables.cards.ShadowRatio
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.cards.UvIntensity
 import com.ephemeris.helios.ui.composables.entries.DailyPeaksEntry
@@ -98,6 +100,24 @@ fun Sun(
                     UvIntensity(
                         currentUvIntensity = liveMetrics.uvIntensity,
                         peakUvIntensity = dailyPeakMetrics.uvIntensity
+                    )
+                }
+            )
+        }
+        item {
+            SmallCardRow(
+                disableInnerHorizontalPadding = true,
+                leftCard = {
+                    Illuminance(
+                        currentIlluminance = liveMetrics.luminance,
+                        peakIlluminance = dailyPeakMetrics.luminance
+                    )
+                },
+                rightCard = {
+                    ShadowRatio(
+                        currentShadowRatio = liveMetrics.shadowRatio,
+                        peakShadowRatio = dailyPeakMetrics.shadowRatio,
+                        sunAltitude = currentSolarPosition.altitude,
                     )
                 }
             )
