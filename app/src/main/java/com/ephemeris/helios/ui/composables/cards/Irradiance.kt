@@ -39,7 +39,9 @@ fun Irradiance(
     }
 
     Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
     ) {
         HeaderEntry(
             text = stringResource(R.string.irradiance),
@@ -65,7 +67,7 @@ fun Irradiance(
 //                    )
                 Text(
                     text = description,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmallEmphasized,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(

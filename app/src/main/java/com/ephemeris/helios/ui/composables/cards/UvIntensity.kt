@@ -89,7 +89,7 @@ fun UvIntensity(
             ) {
                 Text(
                     text = description,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmallEmphasized,
 //                    fontSize = 15.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
