@@ -41,7 +41,7 @@ fun UvDial(
     // 2. Exact Color Map pulled directly from UVSlicing.kt
     // Leaving native alphas untouched per your request!
     val rawFillColor = when {
-        currentUv < 0.01f -> MaterialTheme.colorScheme.onSurfaceVariant // Nighttime/Zero UV
+        currentUv < 0.01f -> colorScheme.onSurfaceVariant // Nighttime/Zero UV
         currentUv < 2f -> colors.uvDarkGreen
         currentUv < 3f -> colors.uvGreen
         currentUv < 5f -> colors.uvYellow
@@ -65,7 +65,7 @@ fun UvDial(
     // --- Faint Background Match ---
     // Washes out the active color to 15% opacity for the unfilled background
     val trackColor = if (fillColor == Color.Transparent) {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+        colorScheme.onSurface.copy(alpha = 0.05f)
     } else {
         fillColor.copy(alpha = 0.15f)
     }

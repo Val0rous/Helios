@@ -31,12 +31,13 @@ fun ShadowRatio(
 
     val description = when {
         isNight -> "Infinite"
-        currentShadowRatio < 0.01 -> "None"
-        currentShadowRatio < 0.25 -> "Overhead"
-        currentShadowRatio < 0.5 -> "Minimal"
-        currentShadowRatio < 0.75 -> "Very Short"
-        currentShadowRatio < 1.0 -> "Short"
+        currentShadowRatio < 0.001 -> "None"
+        currentShadowRatio < 0.25 -> "Minimal"
+        currentShadowRatio < 0.5 -> "Very Short"
+        currentShadowRatio < 0.75 -> "Short"
+        currentShadowRatio < 1.0 -> "Reduced"
         currentShadowRatio < 2.0 -> "Moderate"
+        currentShadowRatio < 3.0 -> "Extended"
         currentShadowRatio < 5.0 -> "Long"
         currentShadowRatio < 10.0 -> "Very Long"
         else -> "Extreme"

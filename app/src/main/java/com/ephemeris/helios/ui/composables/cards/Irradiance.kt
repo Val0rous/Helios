@@ -28,13 +28,13 @@ fun Irradiance(
     val irradianceFloat = currentIrradiance.toFloat()
 
     val description = when {
-        irradianceFloat <= 0.01f -> "None"
-        irradianceFloat <= 10f -> "Negligible"
-        irradianceFloat <= 100f -> "Marginal"
-        irradianceFloat <= 250f -> "Low"
-        irradianceFloat <= 500f -> "Moderate"
-        irradianceFloat <= 800f -> "High"
-        irradianceFloat <= 1000f -> "Excellent"
+        irradianceFloat < 0.001f -> "None"
+        irradianceFloat < 10f -> "Trace"
+        irradianceFloat < 100f -> "Very Weak"
+        irradianceFloat < 250f -> "Weak"
+        irradianceFloat < 500f -> "Moderate"
+        irradianceFloat < 800f -> "Strong"
+        irradianceFloat < 1000f -> "Very Strong"
         else -> "Extreme"
     }
 

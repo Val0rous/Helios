@@ -29,15 +29,31 @@ fun IlluminancePill(
     trackColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
 ) {
     val colors = LocalCustomColors.current
+    val colorScheme = MaterialTheme.colorScheme
 
     // --- LOGARITHMIC BASE-10 MATH ---
     // Max Lux is 100,000. log10(100,000) = 5.
     // We floor current lux at 1f so log10(0) doesn't crash to negative infinity!
+    val isNight = currentIlluminance < 0.001f
     val safeLux = currentIlluminance.coerceAtLeast(1f)
     val fraction = (log10(safeLux) / 5f).coerceIn(0f, 1f)
 
     // Calculate a single solid color using the logarithmic fraction
-    val fillColor = lerp(colors.luxDim, colors.luxBright, fraction).copy(alpha = 1f)
+    val fillColor = if (isNight) {
+        colorScheme.onSurfaceVariant
+    } else {
+        lerp(colors.luxDim, colors.luxBright, fraction).copy(alpha = 1f)
+    }
+
+    // --- DYNAMIC TRACK COLOR (Matches UvDial) ---
+    // If night, use a faint onSurface grey.
+    // Otherwise, wash out the active fill color to 15% opacity!
+    val trackColor = if (isNight) {
+//        colorScheme.onSurface.copy(alpha = 0.05f)
+        colorScheme.onSurfaceVariant.copy(alpha = 0.15f)
+    } else {
+        fillColor.copy(alpha = 0.15f)
+    }
 
     Canvas(modifier = modifier.fillMaxSize()) {
         // Reserve space on the left side for the indicator triangle
@@ -83,7 +99,7 @@ fun IlluminancePill(
             close()
         }
 
-        val markerColor = Color.White.copy(alpha = 0.9f)
+        val markerColor = colorScheme.onSurface.copy(alpha = 0.9f)
         drawPath(trianglePath, markerColor, style = Fill)
         drawPath(
             trianglePath,

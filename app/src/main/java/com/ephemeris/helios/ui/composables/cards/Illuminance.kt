@@ -23,16 +23,19 @@ fun Illuminance(
     peakIlluminance: Double
 ) {
     val luxFloat = currentIlluminance.toFloat()
-    // Direct Illuminance mathematically mirrors your Irradiance thresholds (* 105 efficacy)
+    // Direct Beam Illuminance Scale (Matched to Half-Decade Chart steps)
+    // 0 lux = Sun is below the horizon (Twilight is ambient, not direct!)
     val description = when {
-        luxFloat < 1f -> "None"
-        luxFloat <= 1000f -> "Negligible"
-        luxFloat <= 10500f -> "Marginal"
-        luxFloat <= 26250f -> "Low"
-        luxFloat <= 52500f -> "Moderate"
-        luxFloat <= 84000f -> "High"
-        luxFloat <= 105000f -> "Excellent"
-        else -> "Extreme"
+        luxFloat < 0.001f -> "None"           // Sun below horizon
+//        luxFloat < 1f -> "Very Faint"       // < 1.5° : Sun just cresting, negligible direct beam // Same as 10f for a smoother UX
+        luxFloat < 10f -> "Very Faint"        // ~2.3°  : Deep red horizon disk
+        luxFloat < 100f -> "Faint"            // ~4.0°  : Golden hour beginning, weak beam
+        luxFloat < 1000f -> "Soft"            // ~7.0°  : Clearly visible but low-energy light
+        luxFloat < 10000f -> "Moderate"       // ~15.0° : Gentle morning/evening light
+        luxFloat < 30000f -> "Bright"         // ~27.0° : Comfortable, clear daylight
+        luxFloat < 60000f -> "Very Bright"    // ~44.0° : High sun, casting harsh shadows
+        luxFloat < 105000f -> "Intense"       // Zenith : Absolute peak overhead
+        else -> "Extreme"                     // High altitude / Reflection spikes
     }
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)

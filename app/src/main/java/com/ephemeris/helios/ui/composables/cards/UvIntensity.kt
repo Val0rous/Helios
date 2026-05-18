@@ -29,7 +29,7 @@ fun UvIntensity(
     currentUvIntensity: Double,
     peakUvIntensity: Double
 ) {
-    val uvFloat = currentUvIntensity.toFloat()
+    val uvFloat = currentUvIntensity.round(1).toFloat()
 
     // Standard WHO text descriptions
     val description = when {
