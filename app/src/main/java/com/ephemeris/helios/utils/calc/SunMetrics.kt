@@ -105,7 +105,7 @@ object SunMetrics {
 //            outSunElevations[i] = sunElevDeg.toFloat()
 
             // If the sun is below the horizon, all light metrics are strictly 0.
-            if (sunElevDeg <= 0.0) {
+            if (sunElevDeg <= -0.833) {
                 outAirMass[i] = 0f // 0f (instead of old 1f) aligns it to chart minimum
                 outIrradiance[i] = 0f
                 outIlluminance[i] = 0f
@@ -154,10 +154,9 @@ object SunMetrics {
             outShadowRatio[i] = (1.0 / tan(sunElevRad)).toFloat()
 
             // 6. Color Temperature (Kelvin)
-            // Clamp actualAirMass to a minimum of 1.0 to prevent mathematical anomalies
-            // if high-altitude calculations push AM slightly below 1
-            val safeAirMass = max(1.0, actualAirMass)
-            outColorTemp[i] = (2000.0 + 3500.0 * exp(-0.1 * (safeAirMass - 1.0))).toFloat()
+            // No clamp! Allowing Air Mass to drop below 1.0 at altitude mathematically
+            // pushes the temperature naturally from 5500K (Sea Level) towards 5800K (Space).
+            outColorTemp[i] = (2000.0 + 3500.0 * exp(-0.1 * (actualAirMass - 1.0))).toFloat()
         }
     }
 }

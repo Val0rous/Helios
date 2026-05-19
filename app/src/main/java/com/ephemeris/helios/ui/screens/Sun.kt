@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
+import com.ephemeris.helios.ui.composables.cards.AirMass
 import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.composables.cards.ColorTemperature
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
@@ -132,25 +133,10 @@ fun Sun(
                         peakColorTemp = dailyPeakMetrics.colorTemp
                     )
                 },
-                rightCard = {}
-            )
-        }
-        item {
-            SmallCardRow(
-                leftCard = {
-                    LiveMetricsEntry(
-                        irradiance = liveMetrics.irradiance,
-                        uvIntensity = liveMetrics.uvIntensity,
-                        luminance = liveMetrics.luminance,
-                        shadowRatio = liveMetrics.shadowRatio
-                    )
-                },
                 rightCard = {
-                    DailyPeaksEntry(
-                        irradiance = dailyPeakMetrics.irradiance,
-                        uvIntensity = dailyPeakMetrics.uvIntensity,
-                        luminance = dailyPeakMetrics.luminance,
-                        shadowRatio = dailyPeakMetrics.shadowRatio
+                    AirMass(
+                        currentAirMass = liveMetrics.airMass,
+                        minAirMass = dailyPeakMetrics.airMass
                     )
                 }
             )
