@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.composables.charts.IrradianceDial
@@ -73,10 +74,12 @@ fun Irradiance(
                 Text(
                     text = currentIrradiance.printSignificant(),
                     style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black
                 )
                 Text(
                     text = "W/m²",
                     style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

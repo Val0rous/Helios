@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.charts.IlluminancePill
@@ -61,10 +62,12 @@ fun Illuminance(
                 Text(
                     text = currentIlluminance.printSignificant(),
                     style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black
                 )
                 Text(
                     text = "lux",
                     style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

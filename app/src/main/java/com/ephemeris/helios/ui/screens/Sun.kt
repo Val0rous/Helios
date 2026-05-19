@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.ChartArrays
+import com.ephemeris.helios.ui.composables.cards.ColorTemperature
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.Illuminance
 import com.ephemeris.helios.ui.composables.cards.Irradiance
@@ -120,6 +121,18 @@ fun Sun(
                         sunAltitude = currentSolarPosition.altitude,
                     )
                 }
+            )
+        }
+        item {
+            SmallCardRow(
+                disableInnerHorizontalPadding = true,
+                leftCard = {
+                    ColorTemperature(
+                        currentColorTemp = liveMetrics.colorTemp,
+                        peakColorTemp = dailyPeakMetrics.colorTemp
+                    )
+                },
+                rightCard = {}
             )
         }
         item {

@@ -56,7 +56,7 @@ sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serial
             object Trajectory: Daily(R.string.trajectory, R.drawable.ic_explore, R.drawable.ic_explore_filled) // Path
             object Illuminance: Daily(R.string.illuminance, R.drawable.ic_lightbulb, R.drawable.ic_lightbulb_filled) // Lux
             object Shadows: Daily(R.string.shadows, R.drawable.ic_ev_shadow, R.drawable.ic_ev_shadow_filled)
-            object ColorTemperature: Daily(R.string.color_temperature, R.drawable.ic_thermometer, R.drawable.ic_thermometer_filled) // Kelvin
+            object ColorTemperature: Daily(R.string.color_temp, R.drawable.ic_thermometer, R.drawable.ic_thermometer_filled) // Kelvin
             object AirMass: Daily(R.string.air_mass, R.drawable.ic_foggy, R.drawable.ic_foggy_filled) // Atmosphere
 
             companion object {
@@ -71,7 +71,7 @@ sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serial
             object Trajectory : Daily(R.string.trajectory, R.drawable.ic_explore, R.drawable.ic_explore_filled) // Azimuth
             object Illuminance : Daily(R.string.illuminance, R.drawable.ic_lightbulb, R.drawable.ic_lightbulb_filled)
             object Shadows : Daily(R.string.shadows, R.drawable.ic_ev_shadow, R.drawable.ic_ev_shadow_filled)
-            object ColorTemperature : Daily(R.string.color_temperature, R.drawable.ic_thermometer, R.drawable.ic_thermometer_filled)
+            object ColorTemperature : Daily(R.string.color_temp, R.drawable.ic_thermometer, R.drawable.ic_thermometer_filled)
             object AirMass : Daily(R.string.air_mass, R.drawable.ic_foggy, R.drawable.ic_foggy_filled)
 
             companion object {

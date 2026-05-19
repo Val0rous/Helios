@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -90,12 +91,12 @@ fun UvIntensity(
                 Text(
                     text = description,
                     style = MaterialTheme.typography.titleSmallEmphasized,
-//                    fontSize = 15.sp,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = currentUvIntensity.printRounded(decimals = 1, stripTrailingZeros = false), // Uses your exact Formatter for 1 decimal
                     style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black
                 )
 //                Spacer(modifier = Modifier.height(2.dp))
                 Text(
