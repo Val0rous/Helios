@@ -36,6 +36,7 @@ fun getDailyEphemerisData(
     val dailyPeakMetrics = SunMetrics.calculateMetrics(
         sunElevationDeg = events.solarNoonAltitude,
         observerAltitudeMeters = coordinates.altitude,
+        distanceAu = events.distanceAu,
         ozoneDU = dailyOzone
     )
 
@@ -74,6 +75,7 @@ fun getLiveUpdates(
     val metrics = SunMetrics.calculateMetrics(
         sunElevationDeg = pos.altitude,
         observerAltitudeMeters = coordinates.altitude,
+        distanceAu = pos.distanceAu,
         ozoneDU = dailyOzone
     )
 

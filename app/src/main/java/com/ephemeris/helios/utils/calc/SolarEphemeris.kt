@@ -3,6 +3,7 @@ package com.ephemeris.helios.utils.calc
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.LightPhasePreferences
 import com.ephemeris.helios.utils.round
+import com.mapbox.maps.extension.style.expressions.dsl.generated.distance
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import kotlin.math.*
@@ -22,7 +23,8 @@ object SolarEphemeris {
 
     data class SolarPosition(
         val altitude: Double, // degrees
-        val azimuth: Double   // degrees
+        val azimuth: Double,  // degrees
+        val distanceAu: Double  // Orbital distance
     )
 
     data class DailyEvents(
@@ -60,7 +62,8 @@ object SolarEphemeris {
         val duskAlpenglowUpper: Double?,
         val duskAlpenglowLower: Double?,
         val morningPlutoTime: Double?,
-        val eveningPlutoTime: Double?
+        val eveningPlutoTime: Double?,
+        val distanceAu: Double,
     )
 
     data class DailyDurations(
@@ -217,7 +220,8 @@ object SolarEphemeris {
             duskBlueUpper = blueUpper?.second, duskBlueLower = blueLower?.second,
             dawnAlpenglowLower = alpenglowLower?.first, dawnAlpenglowUpper = alpenglowUpper?.first,
             duskAlpenglowUpper = alpenglowUpper?.second, duskAlpenglowLower = alpenglowLower?.second,
-            morningPlutoTime = pluto?.first, eveningPlutoTime = pluto?.second
+            morningPlutoTime = pluto?.first, eveningPlutoTime = pluto?.second,
+            distanceAu = noonPos.distanceAu
         )
     }
 
@@ -335,7 +339,11 @@ object SolarEphemeris {
 
     // --- NOAA / Meeus Mathematical Core ---
 
-    private data class SolarParams(val declinationRad: Double, val eotMinutes: Double)
+    private data class SolarParams(
+        val declinationRad: Double,
+        val eotMinutes: Double,
+        val distanceAu: Double
+    )
 
     private fun calculateJulianCentury(date: LocalDate, decimalHour: Double, tzOffsetHours: Double): Double {
         var y = date.year
@@ -381,6 +389,11 @@ object SolarEphemeris {
         val sunTrueLong = l0 + c
         val sunAppLongRad = Math.toRadians(sunTrueLong - 0.00569 - 0.00478 * sin(Math.toRadians(125.04 - 1934.136 * t)))
 
+        // --- Calculate Exact Distance (Radius Vector) ---
+        // True Anomaly (v) = Mean Anomaly (m) + Equation of Center (c)
+        val vRad = mRad + Math.toRadians(c)
+        val distanceAu = (1.000001018 * (1.0 - e * e)) / (1.0 + e * cos(vRad))
+
         // Mean Obliquity of Ecliptic
         val epsilon0 = 23.0 + 26.0 / 60.0 + 21.448 / 3600.0 - (46.815 / 3600.0) * t - (0.00059 / 3600.0) * t * t + (0.001813 / 3600.0) * t * t * t
         val epsilonRad = Math.toRadians(epsilon0 + 0.00256 * cos(Math.toRadians(125.04 - 1934.136 * t)))
@@ -398,7 +411,7 @@ object SolarEphemeris {
                     1.25 * e * e * sin(2 * mRad)
         )
 
-        return SolarParams(declinationRad, eotMinutes)
+        return SolarParams(declinationRad, eotMinutes, distanceAu)
     }
 
     // --- Extracted continuous math helpers for clean code ---
@@ -471,7 +484,8 @@ object SolarEphemeris {
         // Return rounded to 2 decimal places
         return SolarPosition(
             altitude = Math.toDegrees(altitudeRad).round(2),
-            azimuth = azimuthDeg.round(2)
+            azimuth = azimuthDeg.round(2),
+            distanceAu = params.distanceAu
         )
     }
 

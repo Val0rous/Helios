@@ -53,6 +53,7 @@ import com.ephemeris.helios.utils.formatDirection
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import com.ephemeris.helios.utils.round
+import com.mapbox.maps.extension.style.expressions.dsl.generated.distance
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
@@ -304,6 +305,7 @@ internal fun generateSunData(
 ): Pair<Map<Charts, FloatArray>, Map<Charts, FloatArray>> {
     val elevationCalc = DoubleArray(X_SIZE)
     val azimuthsCalc = FloatArray(X_SIZE)
+    val distancesCalc = DoubleArray(X_SIZE)
     val xMap = mutableMapOf<Charts, FloatArray>()
     val yMap = mutableMapOf<Charts, FloatArray>()
     for (i in 0 until X_SIZE) {
@@ -316,6 +318,7 @@ internal fun generateSunData(
         )
         elevationCalc[i] = position.altitude
         azimuthsCalc[i] = position.azimuth.toFloat()
+        distancesCalc[i] = position.distanceAu
     }
     val elevation = FloatArray(X_SIZE) { elevationCalc[it].toFloat() }
     val irradiance = FloatArray(X_SIZE)
@@ -328,6 +331,7 @@ internal fun generateSunData(
     SunMetrics.calculateMetrics(
         sunElevationsDeg = elevationCalc,
         observerAltitudeMeters = coordinates.altitude,
+        distancesAu = distancesCalc,
         ozoneDU = dailyOzone,
         outIrradiance = irradiance,
         outUvi = uvIntensity,

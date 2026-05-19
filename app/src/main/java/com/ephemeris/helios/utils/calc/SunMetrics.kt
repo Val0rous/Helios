@@ -1,5 +1,6 @@
 package com.ephemeris.helios.utils.calc
 
+import com.mapbox.maps.extension.style.expressions.dsl.generated.distance
 import kotlin.math.*
 
 object SunMetrics {
@@ -17,12 +18,14 @@ object SunMetrics {
         val luminance: Double,
         val shadowRatio: Double,
         val airMass: Double,
-        val colorTemp: Double
+        val colorTemp: Double,
+        val distanceKm: Double
     )
 
     fun calculateMetrics(
         sunElevationDeg: Double,
         observerAltitudeMeters: Double,
+        distanceAu: Double = 1.0,   // Default to 1 for safety
         ozoneDU: Double = DEFAULT_OZONE_DU
     ): SunMetricsResult {
         val outIrradiance = FloatArray(1)
@@ -35,6 +38,7 @@ object SunMetrics {
         calculateMetrics(
             sunElevationsDeg = doubleArrayOf(sunElevationDeg),
             observerAltitudeMeters = observerAltitudeMeters,
+            distancesAu = doubleArrayOf(distanceAu),
             ozoneDU = ozoneDU,
             outIrradiance = outIrradiance,
             outUvi = outUvi,
@@ -43,13 +47,18 @@ object SunMetrics {
             outAirMass = outAirMass,
             outColorTemp = outColorTemp
         )
+
+        // 1 AU is exactly 149,597,870.7 kilometers
+        val distanceKm = distanceAu * 149597870.7
+
         return SunMetricsResult(
             irradiance = outIrradiance[0].toDouble(),
             uvIntensity = outUvi[0].toDouble(),
             luminance = outIlluminance[0].toDouble(),
             shadowRatio = outShadowRatio[0].toDouble(),
             airMass = outAirMass[0].toDouble(),
-            colorTemp = outColorTemp[0].toDouble()
+            colorTemp = outColorTemp[0].toDouble(),
+            distanceKm = distanceKm
         )
     }
 
@@ -67,6 +76,7 @@ object SunMetrics {
     fun calculateMetrics(
         sunElevationsDeg: DoubleArray,
         observerAltitudeMeters: Double,
+        distancesAu: DoubleArray,
         ozoneDU: Double = DEFAULT_OZONE_DU,
 //        outSunElevations: FloatArray,
         outIrradiance: FloatArray,
@@ -77,6 +87,7 @@ object SunMetrics {
         outColorTemp: FloatArray
     ) {
         val size = sunElevationsDeg.size
+
         // Hoist constant calculations outside the loop
         // 1. UV Modifiers
         val uvOzoneModifier = DEFAULT_OZONE_DU / ozoneDU
@@ -112,6 +123,11 @@ object SunMetrics {
                 continue
             }
 
+            // --- Orbital Power Modifier ---
+            // Inverse-Square Law: Intensity = 1 / R^2
+            val distanceAu = distancesAu[i]
+            val distanceModifier = 1.0 / (distanceAu * distanceAu)
+
             val sunElevRad = Math.toRadians(sunElevDeg)
             val sinElev = sin(sunElevRad)
 
@@ -121,16 +137,16 @@ object SunMetrics {
             val actualAirMass = relativeAirMass * amElevationModifier
             outAirMass[i] = actualAirMass.toFloat()
 
-            // 2. Irradiance (Depends on Air Mass)
-            val irradiance = SOLAR_CONSTANT * 0.7.pow(actualAirMass) * sinElev
+            // 2. Irradiance (Depends on Air Mass) (Scaled by distance)
+            val irradiance = (SOLAR_CONSTANT * distanceModifier) * 0.7.pow(actualAirMass) * sinElev
             outIrradiance[i] = irradiance.toFloat()
 
             // 3. Illuminance (Depends on Irradiance)
             outIlluminance[i] = (irradiance * LUMINOUS_EFFICACY).toFloat()
 
-            // 4. UV Index
+            // 4. UV Index (Scaled by distance)
             // Note: max(0.0, sinAlt) prevents NaN errors if floating point inaccuracies dip below 0
-            val baseUv = 12.5 * max(0.0, sinElev).pow(2.42)
+            val baseUv = (12.5 * distanceModifier) * max(0.0, sinElev).pow(2.42)
             outUvi[i] = (baseUv * combinedUvModifier).toFloat()
 
             // 5. Shadow Ratio (Cotangent)
