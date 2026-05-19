@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 
@@ -35,10 +36,25 @@ fun AirMassPill(
 
     // The gradient represents the physical atmosphere.
     // Thickest/Horizon (Top of the pill) to Thinnest/Zenith (Bottom of the pill)
-    val gradientBrush = Brush.verticalGradient(
-        0.0f to colors.amHorizon, // Assuming you have horizon/extreme AM colors defined
-        1.0f to colors.amZenith   // Assuming you have zenith/minimal AM colors defined
-    )
+//    val gradientBrush = Brush.verticalGradient(
+//        0.0f to colors.amHorizon, // Assuming you have horizon/extreme AM colors defined
+//        1.0f to colors.amZenith   // Assuming you have zenith/minimal AM colors defined
+//    )
+    val fillColor = if (isNight) {
+        colorScheme.onSurfaceVariant
+    } else {
+        lerp(colors.amZenith, colors.amHorizon, fraction).copy(alpha = 1f)
+    }
+
+    // --- DYNAMIC TRACK COLOR (Matches UvDial) ---
+    // If night, use a faint onSurface gray.
+    // Otherwise, wash out the active fill color to 15% opacity!
+    val trackColor = if (isNight) {
+//        colorScheme.onSurface.copy(alpha = 0.05f)
+        colorScheme.onSurfaceVariant.copy(alpha = 0.15f)
+    } else {
+        fillColor.copy(alpha = 0.15f)
+    }
 
     Canvas(modifier = modifier.fillMaxSize()) {
         val indicatorSpace = 12.dp.toPx()
@@ -55,8 +71,8 @@ fun AirMassPill(
             )
         } else {
             drawRoundRect(
-                brush = gradientBrush,
-                alpha = 0.2f, // This makes the "inactive" zone transparent but still colored!
+                color = trackColor,
+//                alpha = 0.2f, // This makes the "inactive" zone transparent but still colored!
                 topLeft = Offset(indicatorSpace, 0f),
                 size = Size(pillWidth, size.height),
                 cornerRadius = cornerRadius
@@ -77,7 +93,7 @@ fun AirMassPill(
             ) {
                 // We draw the EXACT same gradient, but at 100% opacity, constrained by the clip!
                 drawRoundRect(
-                    brush = gradientBrush,
+                    color = fillColor,
                     topLeft = Offset(indicatorSpace, 0f),
                     size = Size(pillWidth, size.height),
                     cornerRadius = cornerRadius
