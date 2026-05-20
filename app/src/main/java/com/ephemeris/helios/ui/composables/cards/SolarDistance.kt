@@ -69,7 +69,7 @@ fun SolarDistance(
             .padding(horizontal = 12.dp)
     ) {
         HeaderEntry(
-            text = "Solar Distance",
+            text = "Distance from Sun",
             icon = R.drawable.ic_orbit_filled // Use whichever orbit/distance icon you prefer
         )
 

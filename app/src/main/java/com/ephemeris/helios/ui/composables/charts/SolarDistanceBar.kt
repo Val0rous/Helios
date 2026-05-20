@@ -11,8 +11,10 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
+import com.ephemeris.helios.utils.Charts
 
 @Composable
 fun SolarDistanceBar(
@@ -41,14 +43,23 @@ fun SolarDistanceBar(
         1.0f to farColor
     )
 
+    val sunIconDrawer = rememberChartIconDrawer(Charts.Sun.Daily.Elevation)
+
     Canvas(modifier = modifier.fillMaxSize()) {
         val trackHeight = 8.dp.toPx()
         val thumbRadius = 8.dp.toPx()
 
+        val iconSize = 20.dp.toPx()
+        val padding = 10.dp.toPx()
         val trackTop = (size.height - trackHeight) / 2f
 
-        val usableWidth = size.width
-        val trackStart = 0.dp.toPx()
+        val trackStart = iconSize + padding
+        val usableWidth = size.width - trackStart
+
+        // Draw Sun Icon at the start (Perihelion side)
+        translate(left = 0f, top = (size.height - iconSize) / 2f) {
+            sunIconDrawer(iconSize, false)
+        }
 
         // 1. Draw the Background Gradient Track
         drawRoundRect(

@@ -22,6 +22,8 @@ import com.ephemeris.helios.ui.composables.entries.TextEntry
 import com.ephemeris.helios.utils.round
 import java.time.ZonedDateTime
 import kotlin.math.abs
+import androidx.compose.ui.platform.LocalLocale
+import com.ephemeris.helios.ui.composables.charts.DeclinationPill
 
 @Composable
 fun Declination(
@@ -36,11 +38,19 @@ fun Declination(
 
     val dec = currentDeclinationDeg
     val description = when {
-        dec > 23.3 -> "Northern Solstice"
-        dec < -23.3 -> "Southern Solstice"
-        abs(dec) < 0.5 -> "At Celestial Equator"
-        dec > 0 -> if (isHeadingNorth) "Ascending North" else "Descending to Equator"
-        else -> if (isHeadingNorth) "Ascending to Equator" else "Descending South"
+        dec > 23.435 -> "Northern Solstice"
+        dec > 20.29 -> "Peak North"
+        dec > 16.57 -> "High North"
+        dec > 11.72  -> "Mid North"
+        dec > 6.06   -> "Low North"
+        dec > 0.50 -> if (isHeadingNorth) "Leaving Equator" else "Reaching Equator"
+        dec < -23.435 -> "Southern Solstice"
+        dec < -20.29 -> "Peak South"
+        dec < -16.57 -> "High South"
+        dec < -11.72 -> "Mid South"
+        dec < -6.06  -> "Low South"
+        dec < -0.50 -> if (isHeadingNorth) "Reaching Equator" else "Leaving Equator"
+        else -> "Celestial Equator"
     }
 
     val sign = if (dec > 0) "+" else if (dec < 0) "-" else ""
@@ -49,7 +59,7 @@ fun Declination(
         modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp)
     ) {
         HeaderEntry(
-            text = "Solar Declination",
+            text = "Declination",
             icon = R.drawable.ic_globe // Compass or globe icon
         )
 
@@ -65,80 +75,24 @@ fun Declination(
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = "$sign${abs(dec).round(2)}°",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black
-                    )
-                }
+                Text(
+                    text = "$sign${String.format(LocalLocale.current.platformLocale, "%.2f", abs(dec))}°",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Black
+                )
                 Text(
                     text = "Relative to Equator",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelSmall,
+//                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
+
+            DeclinationPill(
+                declination = currentDeclinationDeg.toFloat(),
+                modifier = Modifier.width(40.dp).height(72.dp)
+            )
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        DeclinationBar(
-            declination = currentDeclinationDeg.toFloat(),
-            modifier = Modifier.fillMaxWidth().height(24.dp)
-        )
-    }
-}
-
-@Composable
-fun DeclinationBar(
-    declination: Float,
-    modifier: Modifier = Modifier
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    val maxDec = 23.44f
-
-    // Map -23.44 -> +23.44 to a 0.0 -> 1.0 fraction
-    val fraction = ((declination + maxDec) / (maxDec * 2)).coerceIn(0f, 1f)
-
-    // Cold Blue (South) to Hot Amber (North)
-    val southColor = Color(0xFF0288D1)
-    val northColor = Color(0xFFFF8C00)
-    val activeColor = lerp(southColor, northColor, fraction)
-
-    val gradientBrush = Brush.horizontalGradient(0.0f to southColor, 1.0f to northColor)
-
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val trackHeight = 8.dp.toPx()
-        val thumbRadius = 10.dp.toPx()
-        val trackTop = (size.height - trackHeight) / 2f
-        val usableWidth = size.width - (thumbRadius * 2)
-        val trackStart = thumbRadius
-
-        // 1. Gradient Track
-        drawRoundRect(
-            brush = gradientBrush,
-            topLeft = Offset(trackStart, trackTop),
-            size = Size(usableWidth, trackHeight),
-            cornerRadius = CornerRadius(trackHeight / 2f)
-        )
-
-        // 2. Center Equator Line
-        val centerX = trackStart + (usableWidth / 2f)
-        drawLine(
-            color = colorScheme.onSurfaceVariant,
-            start = Offset(centerX, trackTop - 4.dp.toPx()),
-            end = Offset(centerX, trackTop + trackHeight + 4.dp.toPx()),
-            strokeWidth = 2.dp.toPx()
-        )
-
-        // 3. Thumb Indicator
-        val thumbX = trackStart + (usableWidth * fraction)
-        val thumbCenter = Offset(thumbX, size.height / 2f)
-
-        drawCircle(color = colorScheme.surface, radius = thumbRadius - 2.dp.toPx(), center = thumbCenter)
-        drawCircle(color = activeColor, radius = thumbRadius - 2.dp.toPx(), center = thumbCenter)
-        drawCircle(color = colorScheme.onSurface, radius = thumbRadius - 1.dp.toPx(), center = thumbCenter, style = Stroke(width = 2.dp.toPx()))
     }
 }

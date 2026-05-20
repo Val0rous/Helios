@@ -50,7 +50,7 @@ fun SolarSpeed(
         modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp)
     ) {
         HeaderEntry(
-            text = "Solar Velocity",
+            text = "Apparent Velocity",
             icon = R.drawable.ic_speed_filled // Replace with your speedometer icon
         )
 
@@ -103,17 +103,6 @@ fun SolarSpeed(
         SolarSpeedBar(
             speedDegPerMin = speedFloat,
             modifier = Modifier.fillMaxWidth().height(16.dp)
-        )
-    }
-
-    CustomHorizontalDivider()
-
-    Row(Modifier.padding(horizontal = 12.dp)) {
-        TextEntry(
-            text = "0.25 °/min",
-            textVariant = "",
-            icon = R.drawable.ic_speed, // Or a limit/maximum icon
-            desc = "Absolute Physical Limit"
         )
     }
 }

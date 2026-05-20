@@ -55,7 +55,8 @@ fun ShadowDial(
     // 2. COLORIMETRY: Absolute Coloring exactly like DailyChart.kt
     val colorFraction = if (isNight) 1f else (currentShadow.coerceIn(0f, 10f) / 10f)
     // We force alpha to 1f so the dial is vibrant, not ghostly!
-    val fillColor = lerp(colors.shadowShort, colors.shadowLong, colorFraction).copy(alpha = 1f)
+    val fillColor = colors.shadowLong.copy(alpha = 1f) //lerp(colors.shadowShort, colors.shadowLong, colorFraction).copy(alpha = 1f)
+    val trackColor = colors.shadowShort.copy(alpha = 1f)
 
     Box(
         modifier = modifier,

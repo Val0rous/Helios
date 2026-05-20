@@ -43,9 +43,11 @@ fun IrradianceDial(
 
     // 3. Lerp based on the absolute physical scale
     val fillColor = when {
-        fraction <= 0.5f -> lerp(colors.irrLow, colors.irrMid, fraction * 2f)
-        else -> lerp(colors.irrMid, colors.irrHigh, (fraction - 0.5f) * 2f)
+//        fraction <= 0.5f -> lerp(colors.irrLow, colors.irrMid, fraction * 2f)
+//        else -> lerp(colors.irrMid, colors.irrHigh, (fraction - 0.5f) * 2f)
+        else -> lerp(colors.irrMid, colors.irrHigh, fraction)
     }
+    val trackColor = colors.irrLow
 
     Box(
         modifier = modifier,

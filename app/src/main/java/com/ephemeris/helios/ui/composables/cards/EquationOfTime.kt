@@ -8,6 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.charts.AnalemmaIndicator
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
@@ -27,10 +28,24 @@ fun EquationOfTime(
     // 1. Determine the status description
     // Positive EoT = Solar Time is ahead of Mean Time (Sundial is Fast)
     // Negative EoT = Solar Time is behind Mean Time (Sundial is Slow)
+    val eotFloat = currentEotMinutes.toFloat()
+    val absEot = abs(eotFloat)
+    // The Analemma curve ranges from ~14.3m slow (Feb) to ~16.4m fast (Nov).
+    // This scale properly weights the distribution of the shifts.
     val status = when {
-        currentEotMinutes > 0.1 -> "Sun is Fast"
-        currentEotMinutes < -0.1 -> "Sun is Slow"
-        else -> "Clock Alignment" // Within ~6 seconds of true solar time
+        absEot <= 0.5f -> "Synchronized"       // Within 30 seconds of clock time
+        eotFloat > 0 -> when {
+            eotFloat >= 14.5f -> "Peak Fast"   // The November extreme
+            eotFloat > 9.0f -> "Significantly Fast"
+            eotFloat > 3.0f -> "Moderately Fast"
+            else -> "Slightly Fast"            // 0.5m to 3.0m
+        }
+        else -> when {
+            eotFloat <= -14.0f -> "Peak Slow"  // The February extreme
+            eotFloat < -9.0f -> "Significantly Slow"
+            eotFloat < -3.0f -> "Moderately Slow"
+            else -> "Slightly Slow"            // -0.5m to -3.0m
+        }
     }
 
     // 2. Format the time string (e.g., "+ 4m 22s")
@@ -50,7 +65,7 @@ fun EquationOfTime(
     ) {
         HeaderEntry(
             text = "Equation of Time",
-            icon = R.drawable.ic_nest_clock_farsight_analog // Replace with a clock/time icon
+            icon = R.drawable.ic_nest_clock_farsight_analog_filled // Replace with a clock/time icon
         )
 
         Row(
@@ -68,16 +83,17 @@ fun EquationOfTime(
 
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        text = "$sign ${mins}m ${secs}s",
+                        text = "$sign${mins}m ${secs}s",
                         style = MaterialTheme.typography.headlineSmall,
+//                        lineHeight = 36.sp,
                         fontWeight = FontWeight.Black
                     )
                 }
 
                 Text(
-                    text = "Solar vs. Mean Time",
+                    text = "vs. Mean Time",
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
+//                    fontWeight = FontWeight.Black,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 2.dp)
                 )
@@ -91,18 +107,5 @@ fun EquationOfTime(
                 modifier = Modifier.width(48.dp).height(72.dp) // Slightly wider to fit the figure-8
             )
         }
-    }
-
-    CustomHorizontalDivider()
-
-    // Bottom Metric: Solar Declination (The Y-Axis of the Analemma)
-    val decSign = if (currentDeclinationDeg > 0) "+" else ""
-    Row(Modifier.padding(horizontal = 12.dp)) {
-        TextEntry(
-            text = "$decSign${currentDeclinationDeg.round(2)}°",
-            textVariant = "",
-            icon = R.drawable.ic_nest_clock_farsight_analog, // A compass or globe icon
-            desc = "Current Solar Declination"
-        )
     }
 }

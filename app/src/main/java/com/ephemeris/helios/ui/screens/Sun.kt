@@ -157,10 +157,8 @@ fun Sun(
                     )
                 },
                 rightCard = {
-                    EquationOfTime(
-                        currentEotMinutes = currentSolarPosition.eotMinutes,
-                        currentDeclinationDeg = currentSolarPosition.declination,
-                        currentTime = currentTime
+                    SolarSpeed(
+                        currentSpeedDegPerMin = liveMetrics.solarSpeed
                     )
                 }
             )
@@ -175,8 +173,10 @@ fun Sun(
                     )
                 },
                 rightCard = {
-                    SolarSpeed(
-                        currentSpeedDegPerMin = liveMetrics.solarSpeed
+                    EquationOfTime(
+                        currentEotMinutes = currentSolarPosition.eotMinutes,
+                        currentDeclinationDeg = currentSolarPosition.declination,
+                        currentTime = currentTime
                     )
                 }
             )

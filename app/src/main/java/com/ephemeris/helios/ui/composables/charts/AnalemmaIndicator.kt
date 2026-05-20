@@ -7,11 +7,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import java.time.ZonedDateTime
@@ -84,6 +86,15 @@ fun AnalemmaIndicator(
             cap = StrokeCap.Round
         )
 
+        // Colors: Blue for Slow (-), Red for Fast (+)
+        val slowColor = Color(0xFF0288D1)
+        val fastColor = Color(0xFFD32F2F)
+
+        val gradientBrush = Brush.horizontalGradient(
+            0.0f to slowColor,
+            1.0f to fastColor
+        )
+
         // 2. Generate and draw the 365-day background Analemma path
         val analemmaPath = Path()
         analemmaPoints.forEachIndexed { index, point ->
@@ -98,7 +109,9 @@ fun AnalemmaIndicator(
 
         drawPath(
             path = analemmaPath,
-            color = colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+            brush = gradientBrush,
+//            color = colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+            alpha = 0.5f,
             style = Stroke(
                 width = 2.dp.toPx(),
                 join = StrokeJoin.Round
@@ -109,16 +122,20 @@ fun AnalemmaIndicator(
         val currentPoint = mapToScreen(currentEot, currentDeclination)
         val thumbRadius = 4.dp.toPx()
 
+        // Calculate the exact color of the dot based on its X-axis position
+        val fraction = ((currentEot - minEoT) / (maxEoT - minEoT)).coerceIn(0f, 1f)
+        val activeColor = lerp(slowColor, fastColor, fraction)
+
         // Thumb background blanker (cuts out the path underneath)
         drawCircle(
-            color = colorScheme.surface,
+            color = colorScheme.onSurface.copy(alpha = 0.9f),
             radius = thumbRadius + 1.dp.toPx(),
             center = currentPoint
         )
 
         // Solid colored thumb
         drawCircle(
-            color = colorScheme.primary,
+            color = activeColor,
             radius = thumbRadius,
             center = currentPoint
         )
