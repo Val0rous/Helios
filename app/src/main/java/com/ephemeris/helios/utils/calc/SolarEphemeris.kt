@@ -22,9 +22,12 @@ object SolarEphemeris {
     const val ALT_PLUTO_TIME = -2.20
 
     data class SolarPosition(
-        val altitude: Double, // degrees
-        val azimuth: Double,  // degrees
-        val distanceAu: Double  // Orbital distance
+        val altitude: Double,    // degrees
+        val azimuth: Double,     // degrees
+        val distanceAu: Double,  // Orbital distance
+        val declination: Double, // degrees
+        val eotMinutes: Double,  // Equation of Time
+        val solarSpeedDegPerMin: Double // Instantaneous vertical speed
     )
 
     data class DailyEvents(
@@ -472,6 +475,12 @@ object SolarEphemeris {
         val sinAlt = sin(latRad) * sin(params.declinationRad) + cos(latRad) * cos(params.declinationRad) * cos(hourAngleRad)
         val altitudeRad = asin(sinAlt.coerceIn(-1.0, 1.0))
 
+        // --- Analytical Solar Speed (Calculus Derivative) ---
+        // d(Alt)/dt = 0.25 * (-cos(Lat) * cos(Dec) * sin(HourAngle)) / cos(Alt)
+        // safeCosAlt prevents DivisionByZero crashes when the sun is exactly at Zenith (90°)
+        val safeCosAlt = max(0.00001, cos(altitudeRad))
+        val speedDegPerMin = 0.25 * (cos(latRad) * cos(params.declinationRad) * -sin(hourAngleRad)) / safeCosAlt
+
         // 4. Calculate raw Azimuth
         val cosAz = (sin(params.declinationRad) - sin(altitudeRad) * sin(latRad)) / (cos(altitudeRad) * cos(latRad))
 
@@ -485,7 +494,10 @@ object SolarEphemeris {
         return SolarPosition(
             altitude = Math.toDegrees(altitudeRad).round(2),
             azimuth = azimuthDeg.round(2),
-            distanceAu = params.distanceAu
+            distanceAu = params.distanceAu,
+            declination = Math.toDegrees(params.declinationRad),
+            eotMinutes = params.eotMinutes,
+            solarSpeedDegPerMin = speedDegPerMin
         )
     }
 
@@ -569,5 +581,24 @@ object SolarEphemeris {
 
         // The sun's 24-hour cycle is permanently trapped inside this phase (e.g., Twilight all day)
         return PhaseDurations(12.0, 12.0)
+    }
+
+    /**
+     * Generates the precise 365-day universal Analemma (Equation of Time vs Declination).
+     * This curve is identical for the entire Earth.
+     */
+    fun getUniversalAnalemma(year: Int): List<Pair<Double, Double>> {
+        val points = mutableListOf<Pair<Double, Double>>()
+        // Step 2 calculates every other day to save CPU while keeping the curve perfectly smooth
+        for (day in 1..365 step 2) {
+            val date = LocalDate.ofYearDay(year, day)
+            // Calculate for UTC Noon to get the pure orbital parameters
+            val t = calculateJulianCentury(date, 12.0, 0.0)
+            val params = calculateSolarParams(t)
+
+            // Return Pair(EquationOfTime, Declination)
+            points.add(Pair(params.eotMinutes, Math.toDegrees(params.declinationRad)))
+        }
+        return points
     }
 }

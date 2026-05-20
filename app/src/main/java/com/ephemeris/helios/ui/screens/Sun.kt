@@ -9,15 +9,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.liveData
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.AirMass
 import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.composables.cards.ColorTemperature
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
+import com.ephemeris.helios.ui.composables.cards.Declination
+import com.ephemeris.helios.ui.composables.cards.EquationOfTime
 import com.ephemeris.helios.ui.composables.cards.Illuminance
 import com.ephemeris.helios.ui.composables.cards.Irradiance
 import com.ephemeris.helios.ui.composables.cards.ShadowRatio
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
+import com.ephemeris.helios.ui.composables.cards.SolarDistance
+import com.ephemeris.helios.ui.composables.cards.SolarSpeed
 import com.ephemeris.helios.ui.composables.cards.UvIntensity
 import com.ephemeris.helios.ui.composables.entries.DailyPeaksEntry
 import com.ephemeris.helios.ui.composables.entries.DurationEntry
@@ -137,6 +142,41 @@ fun Sun(
                     AirMass(
                         currentAirMass = liveMetrics.airMass,
                         minAirMass = dailyPeakMetrics.airMass
+                    )
+                }
+            )
+        }
+        item {
+            SmallCardRow(
+                disableInnerHorizontalPadding = true,
+                leftCard = {
+                    SolarDistance(
+                        currentDistanceAu = currentSolarPosition.distanceAu,
+                        currentDistanceKm = liveMetrics.distanceKm,
+                        currentTime = currentTime
+                    )
+                },
+                rightCard = {
+                    EquationOfTime(
+                        currentEotMinutes = currentSolarPosition.eotMinutes,
+                        currentDeclinationDeg = currentSolarPosition.declination,
+                        currentTime = currentTime
+                    )
+                }
+            )
+        }
+        item {
+            SmallCardRow(
+                disableInnerHorizontalPadding = true,
+                leftCard = {
+                    Declination(
+                        currentDeclinationDeg = currentSolarPosition.declination,
+                        currentTime = currentTime
+                    )
+                },
+                rightCard = {
+                    SolarSpeed(
+                        currentSpeedDegPerMin = liveMetrics.solarSpeed
                     )
                 }
             )

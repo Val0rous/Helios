@@ -1,6 +1,5 @@
 package com.ephemeris.helios.utils.calc
 
-import android.util.Log
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import java.time.ZoneId
@@ -76,11 +75,17 @@ fun getLiveUpdates(
         sunElevationDeg = pos.altitude,
         observerAltitudeMeters = coordinates.altitude,
         distanceAu = pos.distanceAu,
-        ozoneDU = dailyOzone
+        ozoneDU = dailyOzone,
+        solarSpeed = pos.solarSpeedDegPerMin
     )
 
     val lunarPos = LunarEphemeris.calculatePosition(currentTime, coordinates)
     val lunarMetrics = MoonMetrics.calculateMetrics(currentTime, coordinates)
 
-    return LiveUpdatesData(pos, metrics, lunarPos, lunarMetrics)
+    return LiveUpdatesData(
+        currentSunPosition = pos,
+        liveSunMetrics = metrics,
+        currentMoonPosition = lunarPos,
+        liveMoonMetrics = lunarMetrics
+    )
 }

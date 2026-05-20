@@ -102,7 +102,8 @@ fun UvIntensity(
                 Text(
                     text = "${(25 * currentUvIntensity).roundToInt()} mW/m²",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelLarge
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Black
                 )
 //                Text(
 //                    text = "",

@@ -19,14 +19,17 @@ object SunMetrics {
         val shadowRatio: Double,
         val airMass: Double,
         val colorTemp: Double,
-        val distanceKm: Double
+        val distanceKm: Double,
+        val distanceAu: Double,
+        val solarSpeed: Double
     )
 
     fun calculateMetrics(
         sunElevationDeg: Double,
         observerAltitudeMeters: Double,
         distanceAu: Double = 1.0,   // Default to 1 for safety
-        ozoneDU: Double = DEFAULT_OZONE_DU
+        ozoneDU: Double = DEFAULT_OZONE_DU,
+        solarSpeed: Double = 0.0
     ): SunMetricsResult {
         val outIrradiance = FloatArray(1)
         val outUvi = FloatArray(1)
@@ -58,7 +61,9 @@ object SunMetrics {
             shadowRatio = outShadowRatio[0].toDouble(),
             airMass = outAirMass[0].toDouble(),
             colorTemp = outColorTemp[0].toDouble(),
-            distanceKm = distanceKm
+            distanceKm = distanceKm,
+            distanceAu = distanceAu,
+            solarSpeed = solarSpeed
         )
     }
 
