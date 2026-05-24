@@ -330,6 +330,8 @@ object LunarEphemeris {
         var maxAlt = prevAlt
         var peakHour = 0.0
 
+        // 1. Calculate dynamic lunar horizon (Base Refraction/Parallax - Altitude Dip)
+        val dynamicHorizonAlt = ALT_MOONRISE_MOONSET - coordinates.horizonDipDeg
         for (minute in 30..1440 step 30) {
             val currentHour = minute / 60.0
             val pos = getPositionAtHour(date, currentHour, coordinates, tzOffsetHours)
@@ -345,11 +347,11 @@ object LunarEphemeris {
                 transitHour = refineTransit(date, prevHour, currentHour, coordinates, tzOffsetHours)
             }
 
-            // Detect Horizon Crossings
-            if (prevAlt < ALT_MOONRISE_MOONSET && pos.altitude >= ALT_MOONRISE_MOONSET) {
-                riseHour = refineEvent(date, prevHour, currentHour, coordinates, tzOffsetHours, true)
+            // Detect Horizon Crossings using the Dynamic Horizon
+            if (prevAlt < dynamicHorizonAlt && pos.altitude >= dynamicHorizonAlt) {
+                riseHour = refineEvent(date, prevHour, currentHour, coordinates, tzOffsetHours, true, dynamicHorizonAlt)
             } else if (prevAlt > ALT_MOONRISE_MOONSET && pos.altitude <= ALT_MOONRISE_MOONSET) {
-                setHour = refineEvent(date, prevHour, currentHour, coordinates, tzOffsetHours, false)
+                setHour = refineEvent(date, prevHour, currentHour, coordinates, tzOffsetHours, false, dynamicHorizonAlt)
             }
 
             prevAlt = pos.altitude
@@ -382,8 +384,8 @@ object LunarEphemeris {
         if (riseHour != null) riseAz = getPositionAtHour(date, riseHour, coordinates, tzOffsetHours).azimuth
         if (setHour != null) setAz = getPositionAtHour(date, setHour, coordinates, tzOffsetHours).azimuth
 
-        val isUpAllDay = riseHour == null && setHour == null && prevAlt > 0.0
-        val isDownAllDay = riseHour == null && setHour == null && prevAlt < 0.0
+        val isUpAllDay = riseHour == null && setHour == null && prevAlt > dynamicHorizonAlt
+        val isDownAllDay = riseHour == null && setHour == null && prevAlt < dynamicHorizonAlt
 
         return LunarDailyEvents(
             transit = transitHour,
@@ -409,7 +411,8 @@ object LunarEphemeris {
         endHour: Double,
         coordinates: Coordinates,
         tz: Double,
-        isRising: Boolean
+        isRising: Boolean,
+        targetAlt: Double
     ): Double {
 
         var low = startHour
@@ -419,7 +422,7 @@ object LunarEphemeris {
             val mid = (low + high) / 2.0
             val alt = getPositionAtHour(date, mid, coordinates, tz).altitude
 
-            if (alt > ALT_MOONRISE_MOONSET) {
+            if (alt > targetAlt) {
                 if (isRising) high = mid else low = mid
             } else {
                 if (isRising) low = mid else high = mid

@@ -38,7 +38,7 @@ fun Home(
                 dayLength = sunEvents.dayLength,
                 currentSunAltitude = currentSunPosition.altitude,
                 currentSunAzimuth = currentSunPosition.azimuth,
-                sunPhase = getSunPhase(currentSunPosition.altitude).desc,
+                sunPhase = getSunPhase(currentSunPosition.altitude, coordinates.sunApparentHorizonAlt).desc,
                 currentMoonAltitude = currentMoonPosition.altitude,
                 currentMoonAzimuth = currentMoonPosition.azimuth,
                 moonPhase = currentMoonPhase,

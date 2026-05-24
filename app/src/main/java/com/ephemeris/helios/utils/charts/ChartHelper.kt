@@ -1,6 +1,7 @@
 package com.ephemeris.helios.utils.charts
 
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.location.Coordinates
 import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -52,25 +53,33 @@ fun getMinY(yValues: FloatArray, chartType: Charts): Float {
     val className = chartType.javaClass.simpleName
     if (className.contains("Elevation")) return -90f
     if (className.contains("Trajectory")) return -90f
-    if (className.contains("ColorTemperature")) return 2000f
+    if (className.contains("ColorTemperature")) return 1800f
     return 0f
 }
 
 fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
     val className = chartType.javaClass.simpleName
+    // Strip out the NaNs so math operations don't crash
+    val validY = yValues.filter { !it.isNaN() }
+    val maxY = validY.maxOrNull() ?: 0f
+
     if (className.contains("Elevation")) return 90f
     if (className.contains("Trajectory")) return 90f
-    if (className.contains("Irradiance")) return max(300f, yValues.max())
-    if (className.contains("UvIntensity")) return max(3f, yValues.max())
-    if (className.contains("Illuminance")) return max(100000f, yValues.max())
-    if (className.contains("Shadows")) return max(10f, 5f * yValues.filter { it > 0 }.min())
-    if (className.contains("ColorTemperature")) return max(5500f, yValues.max())    // TODO: Edit
-    if (className.contains("AirMass")) return max(10f, 5f * yValues.filter { it > 0 }.min()) // or 15f
+    if (className.contains("Irradiance")) return max(300f, maxY)
+    if (className.contains("UvIntensity")) return max(3f, maxY)
+    if (className.contains("Illuminance")) return max(100000f, maxY)
+    if (className.contains("Shadows")) return max(10f, 5f * (validY.filter { it > 0 }.minOrNull() ?: 0f))
+    if (className.contains("ColorTemperature")) return max(5500f, maxY)    // TODO: Edit
+    if (className.contains("AirMass")) return max(10f, 5f * (validY.filter { it > 0 }.minOrNull() ?: 0f)) // or 15f
     return 90f // Todo: Change
 }
 
-fun getZeroYPixel(chartType: Charts, mapY: (Float) -> Float): Float {
-    if (chartType.javaClass.simpleName.contains("ColorTemperature")) return mapY(2000f)
+fun getZeroYPixel(chartType: Charts, mapY: (Float) -> Float, coordinates: Coordinates? = null): Float {
+    if (chartType.javaClass.simpleName.contains("ColorTemperature")) return mapY(1800f)
+    if (chartType.javaClass.simpleName.contains("Elevation") || chartType.javaClass.simpleName.contains("Trajectory")) {
+        val dip = coordinates?.horizonDipDeg?.toFloat() ?: 0f
+        return mapY(-dip)
+    }
 //            Charts.Sun.Daily.AirMass -> mapY(1f)
 //            Charts.Sun.Daily.AirMass -> mapY(0f)
     return mapY(0f)

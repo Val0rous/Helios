@@ -257,11 +257,12 @@ fun FullscreenAzimuthMap(
                 val daySegments = mutableListOf<List<LatLng>>()
                 val nightSegments = mutableListOf<List<LatLng>>()
                 var currentSegment = mutableListOf<LatLng>()
-                var wasAbove = elevations[0] >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()
+                val sunHorizon = location.sunApparentHorizonAlt.toFloat()
+                var wasAbove = elevations[0] >= sunHorizon
 
                 for (i in elevations.indices) {
                     val el = elevations[i]
-                    val isAbove = el >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()
+                    val isAbove = el >= sunHorizon
                     val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
                     val pt = SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble())
 
@@ -324,12 +325,12 @@ fun FullscreenAzimuthMap(
 
                 val perimeterPoints = mutableListOf<LatLng>()
 
-                if (minElevation >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()) {
+                if (minElevation >= sunHorizon) {
                     // POLAR DAY: Draw a full 360-degree circle
                     for (i in 0..360 step 2) {
                         perimeterPoints.add(SphericalUtil.computeOffset(drawCenter, radiusMeters, i.toDouble()))
                     }
-                } else if (maxElevation < SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()) {
+                } else if (maxElevation < sunHorizon) {
                     // POLAR NIGHT: Do nothing (the list remains empty)
                 } else {
                     // STANDARD DAY: Draw an arc from Sunrise to Sunset
@@ -393,11 +394,12 @@ fun FullscreenAzimuthMap(
                 val daySegments = mutableListOf<List<LatLng>>()
                 val nightSegments = mutableListOf<List<LatLng>>()
                 var currentSegment = mutableListOf<LatLng>()
-                var wasAbove = elevations[0] >= LunarEphemeris.ALT_MOONRISE_MOONSET.toFloat()
+                val moonHorizon = location.moonApparentHorizonAlt.toFloat()
+                var wasAbove = elevations[0] >= moonHorizon
 
                 for (i in elevations.indices) {
                     val el = elevations[i]
-                    val isAbove = el >= LunarEphemeris.ALT_MOONRISE_MOONSET.toFloat()
+                    val isAbove = el >= moonHorizon
                     val dist = radiusMeters * cos(Math.toRadians(el.toDouble()))
                     val pt = SphericalUtil.computeOffset(drawCenter, dist, azimuths[i].toDouble())
 
@@ -445,7 +447,7 @@ fun FullscreenAzimuthMap(
         }
 
         // 4a. Current Sun Line (Solid)
-        if (currentSunElevation >= SolarEphemeris.ALT_SUNRISE_SUNSET) {
+        if (currentSunElevation >= location.sunApparentHorizonAlt) {
             Polyline(
                 points = listOf(drawCenter, currentSunEdgePoint),
                 color = colors.sunPath,
@@ -454,7 +456,7 @@ fun FullscreenAzimuthMap(
         }
 
         // 4b. Current Moon Line (Solid)
-        if (currentMoonElevation >= LunarEphemeris.ALT_MOONRISE_MOONSET) {
+        if (currentMoonElevation >= location.moonApparentHorizonAlt) {
             Polyline(
                 points = listOf(drawCenter, currentMoonEdgePoint),
                 color = colors.moonPath,
@@ -549,7 +551,7 @@ fun FullscreenAzimuthMap(
         Marker(state = moonEdgeState, icon = moonEdgeDotIcon, anchor = Offset(0.5f, 0.5f), zIndex = 1f)
 
         // 7a. The Sun Icon Marker
-        val isSunAbove = currentSunElevation >= SolarEphemeris.ALT_SUNRISE_SUNSET
+        val isSunAbove = currentSunElevation >= location.sunApparentHorizonAlt
         val sunDrawer = rememberChartIconDrawer(chartType = Charts.Sun.Daily.Elevation)
         val sunIcon = rememberIconBitmapDescriptor(isAbove = isSunAbove, drawer = sunDrawer)
         val sunMarkerState = rememberUpdatedMarkerState(position = currentSunPoint)
@@ -565,7 +567,7 @@ fun FullscreenAzimuthMap(
         )
 
         // 7b. The Moon Icon Marker
-        val isMoonAbove = currentMoonElevation >= LunarEphemeris.ALT_MOONRISE_MOONSET
+        val isMoonAbove = currentMoonElevation >= location.moonApparentHorizonAlt
         val moonDrawer = rememberChartIconDrawer(chartType = Charts.Moon.Daily.Elevation)
         val moonIcon = rememberIconBitmapDescriptor(isAbove = isMoonAbove, drawer = moonDrawer)
         val moonMarkerState = rememberUpdatedMarkerState(position = currentMoonPoint)

@@ -70,7 +70,7 @@ fun Sun(
                 dayLength = events.dayLength,
                 currentAltitude = currentSolarPosition.altitude,
                 currentAzimuth = currentSolarPosition.azimuth,
-                phase = getSunPhase(currentSolarPosition.altitude).desc,
+                phase = getSunPhase(currentSolarPosition.altitude, coordinates.sunApparentHorizonAlt).desc,
                 type = Charts.Sun.Daily.Elevation,
                 chartArrays = sunChartArrays
             )

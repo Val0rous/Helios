@@ -27,7 +27,7 @@ fun ColorTempBar(
     val customColors = LocalCustomColors.current
 
     // Define our math boundaries
-    val minK = 2000f
+    val minK = 1800f
     val maxK = 5800f
     val rangeK = maxK - minK
 

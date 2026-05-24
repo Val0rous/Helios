@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.*
+import com.ephemeris.helios.utils.location.Coordinates
 import kotlin.math.max
 import kotlin.math.min
 
@@ -33,6 +34,7 @@ fun DailyComboChart(
     currentSunAltitude: Float,
     currentMoonAzimuth: Float,
     currentMoonAltitude: Float,
+    coordinates: Coordinates?,
     modifier: Modifier = Modifier
 ) {
     val sunChartType = Charts.Sun.Daily.Elevation
@@ -84,7 +86,7 @@ fun DailyComboChart(
 
         fun mapX(x: Float) = getMapX(x, params)
         fun mapY(y: Float) = getMapY(y, params, chartType)
-        val zeroYPixel = getZeroYPixel(chartType, ::mapY)
+        val zeroYPixel = getZeroYPixel(chartType, ::mapY, coordinates)
 
         // --- CURRENT POSITIONS ---
         val drawCurrentSunX = if (isTrajectory) { if (shiftTrajectory) (currentSunAzimuth + 180f) % 360f else currentSunAzimuth } else currentHour
@@ -209,10 +211,10 @@ fun DailyComboChart(
         // --- 5. ICONS & DROP LINES ---
         // Draw Moon Icon First (Bottom layer)
         drawVerticalDropLine(localCustomColors, currentMoonXPx, currentMoonYPx, zeroYPixel)
-        paintIcon(currentMoonXPx, currentMoonAltitude, currentMoonYPx, zeroYPixel, moonChartType, drawMoonIcon)
+        paintIcon(currentMoonXPx, currentMoonAltitude, currentMoonYPx, zeroYPixel, moonChartType, coordinates, drawMoonIcon)
 
         // Draw Sun Icon Last (Top layer)
         drawVerticalDropLine(localCustomColors, currentSunXPx, currentSunYPx, zeroYPixel)
-        paintIcon(currentSunXPx, currentSunAltitude, currentSunYPx, zeroYPixel, sunChartType, drawSunIcon)
+        paintIcon(currentSunXPx, currentSunAltitude, currentSunYPx, zeroYPixel, sunChartType, coordinates, drawSunIcon)
     }
 }

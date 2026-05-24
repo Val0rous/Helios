@@ -187,6 +187,7 @@ fun DailyPathCard(
                     chartType = selectedChartType,
                     currentAzimuth = currentAzimuth.toFloat(),
                     currentAltitude = currentAltitude.toFloat(),
+                    coordinates = coordinates,
                     modifier = Modifier
                         .aspectRatio(2f)
                         .clip(
@@ -333,6 +334,7 @@ internal fun generateSunData(
         observerAltitudeMeters = coordinates.altitude,
         distancesAu = distancesCalc,
         ozoneDU = dailyOzone,
+        horizonAltDeg = coordinates.sunApparentHorizonAlt,
         outIrradiance = irradiance,
         outUvi = uvIntensity,
         outIlluminance = illuminance,

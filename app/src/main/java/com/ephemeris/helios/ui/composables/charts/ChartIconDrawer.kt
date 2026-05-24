@@ -24,6 +24,7 @@ import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.SolarEphemeris
+import com.ephemeris.helios.utils.location.Coordinates
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 
@@ -87,20 +88,23 @@ fun DrawScope.paintIcon(
     currentYPx: Float,
     zeroYPixel: Float,
     chartType: Charts,
+    coordinates: Coordinates?,
     drawChartIcon: DrawScope.(Float, Boolean) -> Unit
 ) {
     val className = chartType.javaClass.simpleName
     val isUp = when {
         className.contains("Elevation") || className.contains("Trajectory") -> {
             when (chartType) {
-                is Charts.Sun -> currentY >= SolarEphemeris.ALT_SUNRISE_SUNSET.toFloat()
-                is Charts.Moon -> currentY >= LunarEphemeris.ALT_MOONRISE_MOONSET.toFloat()
+                is Charts.Sun -> currentY >= coordinates!!.sunApparentHorizonAlt.toFloat()
+                is Charts.Moon -> currentY >= coordinates!!.moonApparentHorizonAlt.toFloat()
                 else -> currentY >= 0f
             }
         }
-        className.contains("ColorTemperature") -> currentY > 2000f
-        className.contains("AirMass") -> currentY > 1f
-        else -> currentY > 0f
+        // Protect the boolean checks against NaN!
+        className.contains("Shadows") -> currentY.isFinite() && currentY >= 0f
+        className.contains("ColorTemperature") -> currentY.isFinite() && currentY >= 1800f
+        className.contains("AirMass") -> currentY.isFinite() && currentY >= 0f
+        else -> !currentY.isNaN() && currentY > 0f
     }
 
     if (isUp) {

@@ -3,7 +3,6 @@ package com.ephemeris.helios.utils.calc
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.LightPhasePreferences
 import com.ephemeris.helios.utils.round
-import com.mapbox.maps.extension.style.expressions.dsl.generated.distance
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import kotlin.math.*
@@ -102,6 +101,16 @@ object SolarEphemeris {
         val date = time.toLocalDate()
         val tzOffsetHours = time.offset.totalSeconds / 3600.0
 
+        // --- NEW: Horizon Dip Math ---
+        // Prevents negative roots if altitude is somehow negative
+        val elevation = max(0.0, coordinates.altitude)
+        // Standard astronomical formula: ~0.032 degrees of dip per sqrt(meters)
+        val horizonDipDeg = 0.032 * sqrt(elevation)
+        val dynamicSunriseSunsetAlt = ALT_SUNRISE_SUNSET - horizonDipDeg
+
+        // Inject the dynamic horizon into the user's preferences
+        val prefs = prefs.copy(apparentHorizonAlt = dynamicSunriseSunsetAlt)
+
         // 1. Iterative Solar Noon (Meeus)
         var exactSolarNoon = 12.0 - (longitude / 15.0) + tzOffsetHours
         for (i in 1..2) {
@@ -157,7 +166,8 @@ object SolarEphemeris {
 //            return Pair(exactSolarNoon - offsetHours, exactSolarNoon + offsetHours)
 //        }
 
-        val sun = findPreciseEventTimes(ALT_SUNRISE_SUNSET)
+        // Use the dynamically adjusted altitude for Sunrise/Sunset ONLY!
+        val sun = findPreciseEventTimes(dynamicSunriseSunsetAlt)
         val civil = findPreciseEventTimes(ALT_CIVIL_TWILIGHT)
         val nautical = findPreciseEventTimes(ALT_NAUTICAL_TWILIGHT)
         val astro = findPreciseEventTimes(ALT_ASTRONOMICAL_TWILIGHT)
@@ -182,7 +192,7 @@ object SolarEphemeris {
         val sunrisePos = sun?.first?.let { getPositionAtHour(date, it, latitude, longitude, tzOffsetHours) }
         val sunsetPos = sun?.second?.let { getPositionAtHour(date, it, latitude, longitude, tzOffsetHours) }
 
-        val dayLength = getExactDayLength(sun?.first, sun?.second, noonPos.altitude)
+        val dayLength = getExactDayLength(sun?.first, sun?.second, noonPos.altitude, dynamicSunriseSunsetAlt)
 
         // 4. Iterative Solar Midnight
         // Start with a rough 12h guess based on noon
@@ -230,11 +240,20 @@ object SolarEphemeris {
 
     fun calculateDailyDurations(
         events: DailyEvents,
+        altitudeMeters: Double,
         prefs: LightPhasePreferences = LightPhasePreferences()
     ): DailyDurations {
+        // Calculate the dip again so Civil Twilight calculates its duration cleanly
+        val elevation = max(0.0, altitudeMeters)
+        val horizonDipDeg = 0.032 * sqrt(elevation)
+        val dynamicSunriseSunsetAlt = ALT_SUNRISE_SUNSET - horizonDipDeg
+
+        // Inject the dynamic horizon into the user's preferences
+        val prefs = prefs.copy(apparentHorizonAlt = dynamicSunriseSunsetAlt)
+
         val civilDurations = calculatePhaseDuration(
             lowerBoundAlt = ALT_CIVIL_TWILIGHT,
-            upperBoundAlt = ALT_SUNRISE_SUNSET,
+            upperBoundAlt = dynamicSunriseSunsetAlt,
             morningLowerTime = events.dawnCivil,
             eveningLowerTime = events.duskCivil,
             morningUpperTime = events.sunrise,
@@ -504,10 +523,15 @@ object SolarEphemeris {
     /**
      * Calculates and formats the exact duration of daylight.
      */
-    fun getExactDayLength(sunriseHours: Double?, sunsetHours: Double?, solarNoonAltitude: Double): Double {
+    fun getExactDayLength(
+        sunriseHours: Double?,
+        sunsetHours: Double?,
+        solarNoonAltitude: Double,
+        sunriseSunsetAltThreshold: Double
+    ): Double {
         // 1. Handle edge cases (Polar day/night)
         if (sunriseHours == null || sunsetHours == null) {
-            return if (solarNoonAltitude > ALT_SUNRISE_SUNSET) {
+            return if (solarNoonAltitude > sunriseSunsetAltThreshold) {
                 24.0 // Polar Day (Midnight Sun)
             } else {
                 0.0 // Polar Night

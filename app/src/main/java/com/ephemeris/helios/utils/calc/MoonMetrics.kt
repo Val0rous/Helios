@@ -106,14 +106,20 @@ object MoonMetrics {
         var shadowRatio = 0.0
         var colorTempKelvin = 4100.0 // Physical baseline of reflected moonlight
 
-        // Only calculate light if the moon is above the horizon
-        if (position.altitude > 0.0) {
+        // Only calculate light if the moon is above the apparent horizon
+        if (position.altitude > coordinates.moonApparentHorizonAlt) {
             val altRad = Math.toRadians(position.altitude)
             val sinAlt = sin(altRad)
 
-            // A. Air Mass (Kasten-Young, identical to SunMetrics)
-            val amDenominator = sinAlt + 0.50572 * (position.altitude + 6.07995).pow(-1.6364)
-            val relativeAirMass = 1.0 / amDenominator
+            // A. Air Mass (Kasten-Young with Sub-Zero Projection)
+            val relativeAirMass = if (position.altitude >= 0.0) {
+                val amDenominator = sinAlt + 0.50572 * (position.altitude + 6.07995).pow(-1.6364)
+                1.0 / amDenominator
+            } else {
+                val amZero = 1.0 / (0.50572 * 6.07995.pow(-1.6364)) // ~37.92
+                val absElev = abs(position.altitude)
+                amZero + (10.0 * absElev) + (5.0 * absElev.pow(2))
+            }
             // Apply elevation modifier (thinner atmosphere at high altitudes)
             val amElevationModifier = exp(-coordinates.altitude / 8434.0)
             actualAirMass = relativeAirMass * amElevationModifier
@@ -135,8 +141,9 @@ object MoonMetrics {
             // 0.74 is the standard clear-sky atmospheric transmittance coefficient for moonlight
             illuminanceLux = exoAtmosphericLux * 0.74.pow(actualAirMass)
 
-            // C. Shadow Ratio
-            shadowRatio = 1.0 / tan(altRad)
+            // C. Shadow Ratio (Clamped to prevent negative moonlight shadows)
+            val safeShadowElevRad = Math.toRadians(max(0.01, position.altitude))
+            shadowRatio = 1.0 / tan(safeShadowElevRad)
 
             // D. Color Temperature (Atmospheric Reddening)
             // Moonlight starts at ~4100K. As Air Mass increases, Rayleigh scattering

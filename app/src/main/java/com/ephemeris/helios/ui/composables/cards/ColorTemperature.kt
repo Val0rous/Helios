@@ -28,7 +28,7 @@ fun ColorTemperature(
     peakColorTemp: Double,
     modifier: Modifier = Modifier
 ) {
-    val isNight = currentColorTemp <= 2000
+    val isNight = currentColorTemp.isNaN()
     val customColors = LocalCustomColors.current
     val tempF = currentColorTemp.toFloat()
 
@@ -83,7 +83,7 @@ fun ColorTemperature(
                 Spacer(modifier = Modifier.height(2.dp))
 
                 // Color temp with 'K' on the same line
-                if (!isNight && currentColorTemp > 2000.0) {
+                if (!isNight) {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             text = currentColorTemp.printSignificant(),

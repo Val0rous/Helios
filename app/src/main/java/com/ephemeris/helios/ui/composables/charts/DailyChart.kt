@@ -43,6 +43,7 @@ import com.ephemeris.helios.utils.charts.getMaxY
 import com.ephemeris.helios.utils.charts.getMinX
 import com.ephemeris.helios.utils.charts.getMinY
 import com.ephemeris.helios.utils.charts.getZeroYPixel
+import com.ephemeris.helios.utils.location.Coordinates
 import kotlin.math.max
 import kotlin.math.min
 
@@ -54,6 +55,7 @@ fun DailyChart(
     currentHour: Float,
     currentAzimuth: Float,
     currentAltitude: Float,
+    coordinates: Coordinates?,
     modifier: Modifier = Modifier
 ) {
     val drawChartIcon = rememberChartIconDrawer(chartType)
@@ -118,7 +120,7 @@ fun DailyChart(
         fun mapX(x: Float) = getMapX(x, params)
         fun mapY(y: Float) = getMapY(y, params, chartType)
 
-        val zeroYPixel = getZeroYPixel(chartType, ::mapY)
+        val zeroYPixel = getZeroYPixel(chartType, ::mapY, coordinates)
 
         // --- Current Position Mapping ---
         val drawCurrentX = if (isTrajectory) {
@@ -143,16 +145,28 @@ fun DailyChart(
                 if (currentHour in minX..maxX) {
                     val timeDelta = x2 - x1
                     if (timeDelta != 0f) {
-                        // Linear interpolation to find the exact altitude at this moment
-                        val fraction = (currentHour - x1) / timeDelta
-                        currentY =
-                            yValues[i] + fraction * (yValues[i + 1] - yValues[i])
+                        val y1 = yValues[i]
+                        val y2 = yValues[i + 1]
+
+                        // Safely interpolate. If both are NaN (night), currentY becomes NaN.
+                        if (!y1.isNaN() && !y2.isNaN()) {
+                            // Linear interpolation to find the exact altitude at this moment
+                            val fraction = (currentHour - x1) / timeDelta
+                            currentY = y1 + fraction * (y2 - y1)
+                        } else if (!y1.isNaN()) {
+                            currentY = y1
+                        } else if (!y2.isNaN()) {
+                            currentY = y2
+                        } else {
+                            currentY = Float.NaN
+                        }
                     }
                     break
                 }
             }
         }
-        val currentYPx = mapY(currentY)
+        // If it's night (NaN), park the Y-pixel firmly on the baseline!
+        val currentYPx = if (currentY.isNaN()) zeroYPixel else mapY(currentY)
         val bestIndex = ((currentHour / 24f) * (xValues.size - 1)).toInt().coerceIn(0, xValues.size - 1)
 
         // Path Building
@@ -168,16 +182,42 @@ fun DailyChart(
             primaryFillPath = buildDynPath(0, drawXValues.size - 1, true)
             elapsedLinePath = buildDynPath(0, bestIndex, false)
         } else {
+            // Only draw the continuous curve when the sun is up (skipping NaNs)
             primaryCurvePath = Path().apply {
-                moveTo(mapX(xValues[0]), mapY(yValues[0]))
-                for (i in 1 until xValues.size) lineTo(mapX(xValues[i]), mapY(yValues[i]))
+                var isFirst = true
+                for (i in xValues.indices) {
+                    val y = yValues[i]
+                    if (!y.isNaN()) {
+                        if (isFirst) {
+                            moveTo(mapX(xValues[i]), mapY(y))
+                            isFirst = false
+                        } else {
+                            lineTo(mapX(xValues[i]), mapY(y))
+                        }
+                    }
+                }
             }
+            // Seal the fill area safely around the valid day-band
             primaryFillPath = Path().apply {
-                moveTo(mapX(xValues[0]), zeroYPixel)
-                lineTo(mapX(xValues[0]), mapY(yValues[0]))
-                for (i in 1 until xValues.size) lineTo(mapX(xValues[i]), mapY(yValues[i]))
-                lineTo(mapX(xValues.last()), zeroYPixel)
-                close()
+                var firstValidIndex = -1
+                var lastValidIndex = -1
+                for (i in xValues.indices) {
+                    if (!yValues[i].isNaN()) {
+                        if (firstValidIndex == -1) firstValidIndex = i
+                        lastValidIndex = i
+                    }
+                }
+                if (firstValidIndex != -1) {
+                    moveTo(mapX(xValues[firstValidIndex]), zeroYPixel)
+                    lineTo(mapX(xValues[firstValidIndex]), mapY(yValues[firstValidIndex]))
+                    for (i in firstValidIndex + 1..lastValidIndex) {
+                        if (!yValues[i].isNaN()) {
+                            lineTo(mapX(xValues[i]), mapY(yValues[i]))
+                        }
+                    }
+                    lineTo(mapX(xValues[lastValidIndex]), zeroYPixel)
+                    close()
+                }
             }
         }
 
@@ -429,6 +469,6 @@ fun DailyChart(
         drawVerticalDropLine(localCustomColors, currentXPx, currentYPx, zeroYPixel)
 
         // 7. Paint the Sun Icon if above horizon
-        paintIcon(currentXPx, currentY, currentYPx, zeroYPixel, chartType, drawChartIcon)
+        paintIcon(currentXPx, currentY, currentYPx, zeroYPixel, chartType, coordinates, drawChartIcon)
     }
 }

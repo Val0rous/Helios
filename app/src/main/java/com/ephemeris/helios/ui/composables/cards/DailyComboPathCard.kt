@@ -141,6 +141,7 @@ fun DailyComboPathCard(
                     currentSunAltitude = currentSunAltitude.toFloat(),
                     currentMoonAzimuth = currentMoonAzimuth.toFloat(),
                     currentMoonAltitude = currentMoonAltitude.toFloat(),
+                    coordinates = coordinates,
                     modifier = Modifier
                         .aspectRatio(2f)
                         .clip(

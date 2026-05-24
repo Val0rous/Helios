@@ -29,7 +29,8 @@ object SunMetrics {
         observerAltitudeMeters: Double,
         distanceAu: Double = 1.0,   // Default to 1 for safety
         ozoneDU: Double = DEFAULT_OZONE_DU,
-        solarSpeed: Double = 0.0
+        solarSpeed: Double = 0.0,
+        horizonAltDeg: Double = -0.833
     ): SunMetricsResult {
         val outIrradiance = FloatArray(1)
         val outUvi = FloatArray(1)
@@ -43,6 +44,7 @@ object SunMetrics {
             observerAltitudeMeters = observerAltitudeMeters,
             distancesAu = doubleArrayOf(distanceAu),
             ozoneDU = ozoneDU,
+            horizonAltDeg = horizonAltDeg,
             outIrradiance = outIrradiance,
             outUvi = outUvi,
             outIlluminance = outIlluminance,
@@ -83,6 +85,7 @@ object SunMetrics {
         observerAltitudeMeters: Double,
         distancesAu: DoubleArray,
         ozoneDU: Double = DEFAULT_OZONE_DU,
+        horizonAltDeg: Double = -0.833,
 //        outSunElevations: FloatArray,
         outIrradiance: FloatArray,
         outUvi: FloatArray,
@@ -110,13 +113,13 @@ object SunMetrics {
 //            outSunElevations[i] = sunElevDeg.toFloat()
 
             // If the sun is below the horizon, all light metrics are strictly 0.
-            if (sunElevDeg <= -0.833) {
+            if (sunElevDeg <= horizonAltDeg) {
                 outAirMass[i] = 0f // 0f (instead of old 1f) aligns it to chart minimum
                 outIrradiance[i] = 0f
                 outIlluminance[i] = 0f
                 outUvi[i] = 0f
                 outShadowRatio[i] = 0f // 0 represents infinite/no shadow
-                outColorTemp[i] = 2000f // Sun is down, no direct beam temp. 2000f aligns it to chart minimum
+                outColorTemp[i] = Float.NaN // Sun is down, no direct beam temp. 2000f aligns it to chart minimum
 //                // Color Temperature Piecewise Logic
 //                if (sunElevDeg >= -6.0) {
 //                    // Sun is in Civil Twilight (Blue Hour)
@@ -136,18 +139,32 @@ object SunMetrics {
             val sunElevRad = Math.toRadians(sunElevDeg)
             val sinElev = sin(sunElevRad)
 
-            // 1. Air Mass (Kasten-Young)
-            val amDenominator = sinElev + 0.50572 * (sunElevDeg + 6.07995).pow(-1.6364)
-            val relativeAirMass = 1.0 / amDenominator
+            // 1. Air Mass (Kasten-Young with Sub-Zero Projection)
+            // Kasten-Young breaks and bends backwards at -1.8°. We use it natively above 0°,
+            // and seamlessly project it downwards using a continuous polynomial below 0°
+            // so the atmosphere correctly continues to thicken to infinity!
+            val relativeAirMass = if (sunElevDeg >= 0.0) {
+                val amDenominator = sinElev + 0.50572 * (sunElevDeg + 6.07995).pow(-1.6364)
+                1.0 / amDenominator
+            } else {
+                val amZero = 1.0 / (0.50572 * 6.07995.pow(-1.6364)) // Exact value at 0.0° (~37.92)
+                val absElev = abs(sunElevDeg)
+                // Smooth quadratic explosion that seamlessly connects to the 0° slope
+                amZero + (10.0 * absElev) + (5.0 * absElev.pow(2))
+            }
             val actualAirMass = relativeAirMass * amElevationModifier
             outAirMass[i] = actualAirMass.toFloat()
 
             // 2. Irradiance (Depends on Air Mass) (Scaled by distance)
-            val irradiance = (SOLAR_CONSTANT * distanceModifier) * 0.7.pow(actualAirMass) * sinElev
-            outIrradiance[i] = irradiance.toFloat()
+            // DNI (For cameras, eyes, and tracking solar panels)
+            val directIrradiance = (SOLAR_CONSTANT * distanceModifier) * 0.7.pow(actualAirMass)
+            // GHI (For flat ground and flat solar panels)
+            // Notice the max() clamp to prevent the negative ground shadow bug!
+            val flatGroundIrradiance = directIrradiance * max(0.0, sinElev)
+            outIrradiance[i] = directIrradiance.toFloat()
 
             // 3. Illuminance (Depends on Irradiance)
-            outIlluminance[i] = (irradiance * LUMINOUS_EFFICACY).toFloat()
+            outIlluminance[i] = (directIrradiance * LUMINOUS_EFFICACY).toFloat()
 
             // 4. UV Index (Scaled by distance)
             // Note: max(0.0, sinAlt) prevents NaN errors if floating point inaccuracies dip below 0
@@ -156,12 +173,15 @@ object SunMetrics {
 
             // 5. Shadow Ratio (Cotangent)
             // We use 1.0 / tan(x) instead of a custom cotangent function to save a method call
-            outShadowRatio[i] = (1.0 / tan(sunElevRad)).toFloat()
+            // Clamp to 0.01 to prevent negative shadows and Infinity/NaN crashes in the UI
+            val safeShadowElevRad = Math.toRadians(max(0.01, sunElevDeg))
+            outShadowRatio[i] = (1.0 / tan(safeShadowElevRad)).toFloat()
 
             // 6. Color Temperature (Kelvin)
             // No clamp! Allowing Air Mass to drop below 1.0 at altitude mathematically
             // pushes the temperature naturally from 5500K (Sea Level) towards 5800K (Space).
-            outColorTemp[i] = (2000.0 + 3500.0 * exp(-0.1 * (actualAirMass - 1.0))).toFloat()
+            // Bottoms out at 1800K
+            outColorTemp[i] = (1800.0 + 3700.0 * exp(-0.1 * (actualAirMass - 1.0))).toFloat()
         }
     }
 }

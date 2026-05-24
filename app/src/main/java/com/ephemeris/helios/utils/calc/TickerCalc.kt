@@ -4,6 +4,7 @@ import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import kotlin.math.max
 
 data class DayEphemerisData(
     val events: SolarEphemeris.DailyEvents,
@@ -27,16 +28,23 @@ fun getDailyEphemerisData(
     coordinates: Coordinates,
 ): DayEphemerisData {
     val events = SolarEphemeris.calculateDailyEvents(currentTime, coordinates)
-    val durations = SolarEphemeris.calculateDailyDurations(events)
+    val durations = SolarEphemeris.calculateDailyDurations(events, coordinates.altitude)
     val dailyOzone = estimateHistoricalOzone(
         latitude = coordinates.latitude,
         date = currentTime.toLocalDate()
     )
+
+    // Calculate dynamic peak cutoff (rarely matters for noon, but good for physics consistency)
+    val elevation = max(0.0, coordinates.altitude)
+    val horizonDipDeg = 0.032 * kotlin.math.sqrt(elevation)
+    val dynamicSunriseSunsetAlt = SolarEphemeris.ALT_SUNRISE_SUNSET - horizonDipDeg
+
     val dailyPeakMetrics = SunMetrics.calculateMetrics(
         sunElevationDeg = events.solarNoonAltitude,
         observerAltitudeMeters = coordinates.altitude,
         distanceAu = events.distanceAu,
-        ozoneDU = dailyOzone
+        ozoneDU = dailyOzone,
+        horizonAltDeg = dynamicSunriseSunsetAlt
     )
 
     val seasonalEvents = SeasonalEphemeris.getSeasonalEvents(currentTime.year, ZoneId.systemDefault())
@@ -71,12 +79,19 @@ fun getLiveUpdates(
         latitude = coordinates.latitude,
         date = currentTime.toLocalDate()
     )
+
+    // Calculate the dynamic horizon specifically for the live observer
+    val elevation = max(0.0, coordinates.altitude)
+    val horizonDipDeg = 0.032 * kotlin.math.sqrt(elevation)
+    val dynamicSunriseSunsetAlt = SolarEphemeris.ALT_SUNRISE_SUNSET - horizonDipDeg
+
     val metrics = SunMetrics.calculateMetrics(
         sunElevationDeg = pos.altitude,
         observerAltitudeMeters = coordinates.altitude,
         distanceAu = pos.distanceAu,
         ozoneDU = dailyOzone,
-        solarSpeed = pos.solarSpeedDegPerMin
+        solarSpeed = pos.solarSpeedDegPerMin,
+        horizonAltDeg = dynamicSunriseSunsetAlt
     )
 
     val lunarPos = LunarEphemeris.calculatePosition(currentTime, coordinates)

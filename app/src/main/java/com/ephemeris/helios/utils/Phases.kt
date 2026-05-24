@@ -40,9 +40,9 @@ sealed class Phases(val desc: String) {
     }
 }
 
-fun getSunPhase(altitude: Double): Phases {
+fun getSunPhase(altitude: Double, apparentHorizonAlt: Double): Phases {
     return when (altitude) {
-        in -0.833..90.0 -> Phases.Sun.Daylight // Todo: don't hardcore number(s)
+        in apparentHorizonAlt..90.0 -> Phases.Sun.Daylight // Todo: don't hardcore number(s)
         in -6.0..-0.833 -> Phases.Sun.Twilight.Civil
         in -12.0..-6.0 -> Phases.Sun.Twilight.Nautical
         in -18.0..-12.0 -> Phases.Sun.Twilight.Astronomical

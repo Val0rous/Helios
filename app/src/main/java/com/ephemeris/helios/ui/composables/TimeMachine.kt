@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.MaterialColors
+import com.ephemeris.helios.utils.LightPhasePreferences
 import com.ephemeris.helios.utils.TimeMachineFilter
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.location.Coordinates
@@ -415,7 +416,7 @@ fun TimeMachine(
 
                             // Calculate the exact solar altitude at this specific time anchor
                             val pos = SolarEphemeris.calculatePosition(currentAnchor, coordinates)
-                            val color = SolarColorMap.getColorForAltitude(pos.altitude)
+                            val color = SolarColorMap.getColorForAltitude(pos.altitude, coordinates.sunApparentHorizonAlt)
 
                             // Compose brushes require strictly ascending fractions
                             if (stops.isEmpty() || fraction > stops.last().first) {
@@ -615,7 +616,7 @@ fun TimeMachine(
 }
 
 object SolarColorMap {
-    // Flatted Thresholds based on your specifications
+    // Atmospheric baseline constants
     private const val NIGHT = -18.0
     private const val ASTRO = -12.0
     private const val PEAK_ASTRO = (ASTRO + NIGHT) / 2
@@ -639,20 +640,81 @@ object SolarColorMap {
     private const val DAYLIGHT = 10.50
     private const val MIDDAY = 90.0
 
-    fun getColorForAltitude(altitude: Double): Color {
+    fun getColorForAltitude(altitude: Double, horizonAlt: Double): Color {
         val alt = altitude.coerceIn(NIGHT, MIDDAY)
 
-        return when {
-            alt <= ASTRO -> calculateLerp(alt, NIGHT, ASTRO, MaterialColors.Gray900, MaterialColors.BlueGray900)
-            alt <= PEAK_NAUTICAL -> calculateLerp(alt, ASTRO, PEAK_NAUTICAL, MaterialColors.BlueGray900, MaterialColors.BlueGray800)
-            alt <= PEAK_BLUE -> calculateLerp(alt, PEAK_NAUTICAL, PEAK_BLUE, MaterialColors.BlueGray800, MaterialColors.Blue700)
-            alt <= PEAK_PINK -> calculateLerp(alt, PEAK_BLUE, PEAK_PINK, MaterialColors.Blue700, MaterialColors.Pink500)
-            alt <= SUNRISE_SET -> calculateLerp(alt, PEAK_ALPENGLOW, SUNRISE_SET, MaterialColors.Pink500, MaterialColors.Red700)
-            alt <= PEAK_GOLDEN -> calculateLerp(alt, SUNRISE_SET, PEAK_GOLDEN, MaterialColors.Red700, MaterialColors.Amber700)
-            alt <= DAYLIGHT -> calculateLerp(alt, PEAK_GOLDEN, DAYLIGHT, MaterialColors.Amber700, MaterialColors.Yellow700)
-            // Taper the daylight slightly lighter toward true noon to give a visual peak
-            else -> calculateLerp(alt, DAYLIGHT, MIDDAY, MaterialColors.Yellow700, MaterialColors.Yellow400)
+        // Let the preferences engine calculate the exact crushed bounds based on your altitude!
+        val prefs = LightPhasePreferences(apparentHorizonAlt = horizonAlt)
+
+        val blueStart = prefs.blueHourRange.start
+        val blueEnd = prefs.blueHourRange.endInclusive
+        val pinkStart = prefs.pinkHourRange.start
+        val pinkEnd = prefs.pinkHourRange.endInclusive
+        val goldenStart = prefs.goldenHourRange.start
+        val goldenEnd = prefs.goldenHourRange.endInclusive
+
+        val nodes = mutableListOf<Pair<Double, Color>>()
+        nodes.add(NIGHT to MaterialColors.Gray900)
+        nodes.add(ASTRO to MaterialColors.BlueGray900)
+        nodes.add(PEAK_NAUTICAL to MaterialColors.BlueGray800)
+
+        // 1. Blue Hour Node (Only if it exists)
+        if (blueStart < blueEnd) {
+            nodes.add((blueStart + blueEnd) / 2.0 to MaterialColors.Blue700)
         }
+
+        // 2. Pink Hour / Alpenglow Node
+        if (pinkStart < pinkEnd) {
+            nodes.add((pinkStart + pinkEnd) / 2.0 to MaterialColors.Pink500)
+        } else {
+            // If Pink Hour was crushed (e.g. you are on an airplane at -4.0 horizon),
+            // we inject a tiny Alpenglow band just 0.5 degrees before the horizon
+            // so it smoothly transitions from Deep Blue directly into Red!
+            val alpenglowAlt = horizonAlt - 0.5
+            if (nodes.isNotEmpty() && alpenglowAlt > nodes.last().first) {
+                nodes.add(alpenglowAlt to MaterialColors.Pink500)
+            }
+        }
+
+        // 3. True Horizon (The moment the direct beam hits)
+        nodes.add(horizonAlt to MaterialColors.Red700)
+
+        // 4. Golden Hour
+        if (goldenStart < goldenEnd) {
+            nodes.add((goldenStart + goldenEnd) / 2.0 to MaterialColors.Amber700)
+        }
+
+        // 5. Daylight
+        nodes.add(goldenEnd to MaterialColors.Yellow700)
+        nodes.add(MIDDAY to MaterialColors.Yellow400)
+
+        // Safety sort to guarantee strictly ascending altitudes for the lerp math
+        nodes.sortBy { it.first }
+
+        // Find the bounding nodes and interpolate!
+        for (i in 0 until nodes.size - 1) {
+            val lower = nodes[i]
+            val upper = nodes[i + 1]
+            if (alt in lower.first..upper.first) {
+                return calculateLerp(alt, lower.first, upper.first, lower.second, upper.second)
+            }
+        }
+
+        // Fallbacks
+        if (alt <= nodes.first().first) return nodes.first().second
+        return nodes.last().second
+
+//        return when {
+//            alt <= ASTRO -> calculateLerp(alt, NIGHT, ASTRO, MaterialColors.Gray900, MaterialColors.BlueGray900)
+//            alt <= PEAK_NAUTICAL -> calculateLerp(alt, ASTRO, PEAK_NAUTICAL, MaterialColors.BlueGray900, MaterialColors.BlueGray800)
+//            alt <= PEAK_BLUE -> calculateLerp(alt, PEAK_NAUTICAL, PEAK_BLUE, MaterialColors.BlueGray800, MaterialColors.Blue700)
+//            alt <= PEAK_PINK -> calculateLerp(alt, PEAK_BLUE, PEAK_PINK, MaterialColors.Blue700, MaterialColors.Pink500)
+//            alt <= SUNRISE_SET -> calculateLerp(alt, PEAK_ALPENGLOW, SUNRISE_SET, MaterialColors.Pink500, MaterialColors.Red700)
+//            alt <= PEAK_GOLDEN -> calculateLerp(alt, SUNRISE_SET, PEAK_GOLDEN, MaterialColors.Red700, MaterialColors.Amber700)
+//            alt <= DAYLIGHT -> calculateLerp(alt, PEAK_GOLDEN, DAYLIGHT, MaterialColors.Amber700, MaterialColors.Yellow700)
+//            // Taper the daylight slightly lighter toward true noon to give a visual peak
+//            else -> calculateLerp(alt, DAYLIGHT, MIDDAY, MaterialColors.Yellow700, MaterialColors.Yellow400)
+//        }
     }
 
     private fun calculateLerp(
@@ -662,7 +724,9 @@ object SolarColorMap {
         lowerColor: Color,
         upperColor: Color
     ): Color {
-        val fraction = ((currentAlt - lowerAlt) / (upperAlt - lowerAlt)).toFloat()
+        // Prevent Division by Zero if bounds are exactly identical
+        if (upperAlt <= lowerAlt) return upperColor
+        val fraction = ((currentAlt - lowerAlt) / (upperAlt - lowerAlt)).toFloat().coerceIn(0f, 1f)
         return lerp(lowerColor, upperColor, fraction)
     }
 }
