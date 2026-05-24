@@ -101,12 +101,7 @@ object SolarEphemeris {
         val date = time.toLocalDate()
         val tzOffsetHours = time.offset.totalSeconds / 3600.0
 
-        // --- NEW: Horizon Dip Math ---
-        // Prevents negative roots if altitude is somehow negative
-        val elevation = max(0.0, coordinates.altitude)
-        // Standard astronomical formula: ~0.032 degrees of dip per sqrt(meters)
-        val horizonDipDeg = 0.032 * sqrt(elevation)
-        val dynamicSunriseSunsetAlt = ALT_SUNRISE_SUNSET - horizonDipDeg
+        val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
 
         // Inject the dynamic horizon into the user's preferences
         val prefs = prefs.copy(apparentHorizonAlt = dynamicSunriseSunsetAlt)
@@ -240,13 +235,10 @@ object SolarEphemeris {
 
     fun calculateDailyDurations(
         events: DailyEvents,
-        altitudeMeters: Double,
+        coordinates: Coordinates,
         prefs: LightPhasePreferences = LightPhasePreferences()
     ): DailyDurations {
-        // Calculate the dip again so Civil Twilight calculates its duration cleanly
-        val elevation = max(0.0, altitudeMeters)
-        val horizonDipDeg = 0.032 * sqrt(elevation)
-        val dynamicSunriseSunsetAlt = ALT_SUNRISE_SUNSET - horizonDipDeg
+        val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
 
         // Inject the dynamic horizon into the user's preferences
         val prefs = prefs.copy(apparentHorizonAlt = dynamicSunriseSunsetAlt)

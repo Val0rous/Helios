@@ -331,7 +331,7 @@ object LunarEphemeris {
         var peakHour = 0.0
 
         // 1. Calculate dynamic lunar horizon (Base Refraction/Parallax - Altitude Dip)
-        val dynamicHorizonAlt = ALT_MOONRISE_MOONSET - coordinates.horizonDipDeg
+        val dynamicHorizonAlt = coordinates.moonApparentHorizonAlt
         for (minute in 30..1440 step 30) {
             val currentHour = minute / 60.0
             val pos = getPositionAtHour(date, currentHour, coordinates, tzOffsetHours)

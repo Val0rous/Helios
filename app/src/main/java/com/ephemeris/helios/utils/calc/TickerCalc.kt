@@ -28,16 +28,13 @@ fun getDailyEphemerisData(
     coordinates: Coordinates,
 ): DayEphemerisData {
     val events = SolarEphemeris.calculateDailyEvents(currentTime, coordinates)
-    val durations = SolarEphemeris.calculateDailyDurations(events, coordinates.altitude)
+    val durations = SolarEphemeris.calculateDailyDurations(events, coordinates)
     val dailyOzone = estimateHistoricalOzone(
         latitude = coordinates.latitude,
         date = currentTime.toLocalDate()
     )
 
-    // Calculate dynamic peak cutoff (rarely matters for noon, but good for physics consistency)
-    val elevation = max(0.0, coordinates.altitude)
-    val horizonDipDeg = 0.032 * kotlin.math.sqrt(elevation)
-    val dynamicSunriseSunsetAlt = SolarEphemeris.ALT_SUNRISE_SUNSET - horizonDipDeg
+    val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
 
     val dailyPeakMetrics = SunMetrics.calculateMetrics(
         sunElevationDeg = events.solarNoonAltitude,
