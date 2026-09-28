@@ -24,14 +24,23 @@ fun DrawScope.drawYLabels(
     params: ChartData,
     mapY: (Float) -> Float,
     textMeasurer: TextMeasurer,
-    labelStyle: TextStyle
+    labelStyle: TextStyle,
+    isApparentElevation: Boolean = false
 ) {
     val horizontalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx()), 0f)
     val horizontalGridlineColor = materialTheme.outline.copy(alpha = 0.3f) // Light and subtle
     val className = chartType.javaClass.simpleName
+    val isElevationOrTrajectory = className.contains("Elevation") || className.contains("Trajectory")
 
     val yLabels = when {
-        className.contains("Elevation") || className.contains("Trajectory") -> (-90 until 91 step 15).map { it.toFloat() }
+        isElevationOrTrajectory -> {
+            if (isApparentElevation) {
+                // Transformed legend ticks
+                listOf(-90f, -56f, -41f, -30f, -20f, -10f, 0f, 10f, 20f, 30f, 41f, 56f, 90f)
+            } else {
+                (-90 until 91 step 15).map { it.toFloat() }
+            }
+        }
         className.contains("Irradiance") -> (0 until ((params.maxY / 100.0).roundToInt() * 100 + 1) step 100).map { it.toFloat() }
         className.contains("UvIntensity") -> (0 until (params.maxY.roundToInt() + 1) step floor(params.maxY / 10f).toInt().coerceAtLeast(1)).map { it.toFloat() }
         className.contains("Illuminance") -> listOf(0f) + (0..5).flatMap {
@@ -43,7 +52,12 @@ fun DrawScope.drawYLabels(
         else -> emptyList()
     }
     yLabels.forEach { yVal ->
-        val yPx = mapY(yVal)
+        val mappedYVal = if (isApparentElevation && isElevationOrTrajectory) {
+            transformApparentElevation(yVal)
+        } else {
+            yVal
+        }
+        val yPx = mapY(mappedYVal)
 //            if (yVal == 0f) return@forEach // Skip the zero
 
         // Draw horizontal dotted grid line (Skip 0f to avoid drawing over the solid horizon line)
@@ -58,7 +72,7 @@ fun DrawScope.drawYLabels(
         }
 
         val text = when {
-            className.contains("Elevation") || className.contains("Trajectory") -> "${yVal.toInt()}°"
+            isElevationOrTrajectory -> "${yVal.toInt()}°"
             className.contains("Irradiance") -> "${formatNumber(yVal.toDouble())} W/m²"
             className.contains("ColorTemperature") -> "${formatNumber(yVal.toDouble())}K"
             className.contains("Illuminance") -> "${formatNumber(yVal.toDouble())} lx"

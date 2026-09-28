@@ -15,7 +15,8 @@ fun DrawScope.drawDayNightHorizontalTwilights(
     params: ChartData,
     zeroYPixel: Float,
     mapY: (Float) -> Float,
-    chartType: Charts
+    chartType: Charts,
+    isApparentElevation: Boolean = false
 ) {
     val dayFill = colors.dayBackground
     val civilTwilightFill = colors.civilTwilight
@@ -23,12 +24,16 @@ fun DrawScope.drawDayNightHorizontalTwilights(
     val astroTwilightFill = colors.astronomicalTwilight
     val nightFill = colors.nightBackground // TODO: add "night" for moon and planets
 
+    val className = chartType.javaClass.simpleName
+    val isElevationOrTrajectory = className.contains("Elevation") || className.contains("Trajectory")
     val showTwilights = when (chartType) {
         Charts.Sun.Daily.Trajectory -> true
         else -> false
     }
 
-    val nightY = if (showTwilights) mapY(-18f) else zeroYPixel
+    fun mapAlt(alt: Float) = mapY(if (isApparentElevation && isElevationOrTrajectory) transformApparentElevation(alt) else alt)
+
+    val nightY = if (showTwilights) mapAlt(-18f) else zeroYPixel
 
     clipPath(fillPath) {
 
@@ -42,25 +47,25 @@ fun DrawScope.drawDayNightHorizontalTwilights(
         }
 
         if (showTwilights) {
-            clipRect(top = zeroYPixel, bottom = mapY(-6f)) {
+            clipRect(top = zeroYPixel, bottom = mapAlt(-6f)) {
                 drawRect(
                     color = civilTwilightFill,
                     topLeft = Offset(0f, zeroYPixel),
-                    size = Size(params.width, mapY(-6f) - zeroYPixel)
+                    size = Size(params.width, mapAlt(-6f) - zeroYPixel)
                 )
             }
-            clipRect(top = mapY(-6f), bottom = mapY(-12f)) {
+            clipRect(top = mapAlt(-6f), bottom = mapAlt(-12f)) {
                 drawRect(
                     color = nauticalTwilightFill,
-                    topLeft = Offset(0f, mapY(-6f)),
-                    size = Size(params.width, mapY(-12f) - mapY(-6f))
+                    topLeft = Offset(0f, mapAlt(-6f)),
+                    size = Size(params.width, mapAlt(-12f) - mapAlt(-6f))
                 )
             }
-            clipRect(top = mapY(-12f), bottom = mapY(-18f)) {
+            clipRect(top = mapAlt(-12f), bottom = mapAlt(-18f)) {
                 drawRect(
                     color = astroTwilightFill,
-                    topLeft = Offset(0f, mapY(-12f)),
-                    size = Size(params.width, mapY(-18f) - mapY(-12f))
+                    topLeft = Offset(0f, mapAlt(-12f)),
+                    size = Size(params.width, mapAlt(-18f) - mapAlt(-12f))
                 )
             }
         }
