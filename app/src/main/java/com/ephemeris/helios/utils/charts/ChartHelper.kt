@@ -5,7 +5,10 @@ import com.ephemeris.helios.utils.location.Coordinates
 import kotlin.math.log10
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
+
+const val IS_APPARENT_ELEVATION_DEFAULT: Boolean = true
 
 fun getMapX(
     x: Float,
@@ -74,11 +77,31 @@ fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
     return 90f // Todo: Change
 }
 
-fun getZeroYPixel(chartType: Charts, mapY: (Float) -> Float, coordinates: Coordinates? = null): Float {
-    if (chartType.javaClass.simpleName.contains("ColorTemperature")) return mapY(1800f)
-    if (chartType.javaClass.simpleName.contains("Elevation") || chartType.javaClass.simpleName.contains("Trajectory")) {
+/**
+/ Transforms true altitude (in degrees) to apparent visual elevation using y = 90 * sin(x).
+ */
+fun transformApparentElevation(y: Float): Float {
+    if (y.isNaN()) return Float.NaN
+    val clamped = y.coerceIn(-90f, 90f)
+    return 90f * sin(Math.toRadians(clamped.toDouble())).toFloat()
+}
+
+fun transformApparentElevation(yValues: FloatArray): FloatArray {
+    return FloatArray(yValues.size) { i -> transformApparentElevation(yValues[i]) }
+}
+
+fun getZeroYPixel(
+    chartType: Charts,
+    mapY: (Float) -> Float,
+    coordinates: Coordinates? = null,
+    isApparentElevation: Boolean = false
+): Float {
+    val className = chartType.javaClass.simpleName
+    if (className.contains("ColorTemperature")) return mapY(1800f)
+    if (className.contains("Elevation") || className.contains("Trajectory")) {
         val dip = coordinates?.horizonDipDeg?.toFloat() ?: 0f
-        return mapY(-dip)
+        val targetY = if (isApparentElevation) transformApparentElevation(-dip) else -dip
+        return mapY(targetY)
     }
 //            Charts.Sun.Daily.AirMass -> mapY(1f)
 //            Charts.Sun.Daily.AirMass -> mapY(0f)

@@ -21,6 +21,7 @@ import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.ChartData
+import com.ephemeris.helios.utils.charts.IS_APPARENT_ELEVATION_DEFAULT
 import com.ephemeris.helios.utils.charts.buildDynamicPath
 import com.ephemeris.helios.utils.charts.createHorizontalBrush
 import com.ephemeris.helios.utils.charts.drawCurvePath
@@ -43,6 +44,7 @@ import com.ephemeris.helios.utils.charts.getMaxY
 import com.ephemeris.helios.utils.charts.getMinX
 import com.ephemeris.helios.utils.charts.getMinY
 import com.ephemeris.helios.utils.charts.getZeroYPixel
+import com.ephemeris.helios.utils.charts.transformApparentElevation
 import com.ephemeris.helios.utils.location.Coordinates
 import kotlin.math.max
 import kotlin.math.min
@@ -56,7 +58,8 @@ fun DailyChart(
     currentAzimuth: Float,
     currentAltitude: Float,
     coordinates: Coordinates?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isApparentElevation: Boolean = IS_APPARENT_ELEVATION_DEFAULT
 ) {
     val drawChartIcon = rememberChartIconDrawer(chartType)
     val colors = LocalCustomColors.current
@@ -83,11 +86,17 @@ fun DailyChart(
     Canvas(modifier = modifier) {
         if (xValues.isEmpty() || yValues.isEmpty()) return@Canvas
 
-        val isTrajectory = chartType.javaClass.simpleName.contains("Trajectory")
+        val className = chartType.javaClass.simpleName
+        val isTrajectory = className.contains("Trajectory")
+        val isElevationOrTrajectory = className.contains("Elevation") || isTrajectory
+        val shouldTransform = isApparentElevation && isElevationOrTrajectory
+
+        // Transformed arrays used solely for rendering
+        val drawYValues = if (shouldTransform) transformApparentElevation(yValues) else yValues
 
         val params = ChartData(
             xValues = xValues,
-            yValues = yValues,
+            yValues = drawYValues,
             minX = getMinX(xValues, chartType),
             maxX = getMaxX(xValues, chartType),
             minY = getMinY(yValues, chartType),
@@ -120,7 +129,7 @@ fun DailyChart(
         fun mapX(x: Float) = getMapX(x, params)
         fun mapY(y: Float) = getMapY(y, params, chartType)
 
-        val zeroYPixel = getZeroYPixel(chartType, ::mapY, coordinates)
+        val zeroYPixel = getZeroYPixel(chartType, ::mapY, coordinates, shouldTransform)
 
         // --- Current Position Mapping ---
         val drawCurrentX = if (isTrajectory) {
@@ -145,8 +154,8 @@ fun DailyChart(
                 if (currentHour in minX..maxX) {
                     val timeDelta = x2 - x1
                     if (timeDelta != 0f) {
-                        val y1 = yValues[i]
-                        val y2 = yValues[i + 1]
+                        val y1 = drawYValues[i]
+                        val y2 = drawYValues[i + 1]
 
                         // Safely interpolate. If both are NaN (night), currentY becomes NaN.
                         if (!y1.isNaN() && !y2.isNaN()) {
@@ -166,7 +175,8 @@ fun DailyChart(
             }
         }
         // If it's night (NaN), park the Y-pixel firmly on the baseline!
-        val currentYPx = if (currentY.isNaN()) zeroYPixel else mapY(currentY)
+        val drawCurrentY = if (isTrajectory) (if (shouldTransform && !currentY.isNaN()) transformApparentElevation(currentAltitude) else currentAltitude) else currentY
+        val currentYPx = if (drawCurrentY.isNaN()) zeroYPixel else mapY(drawCurrentY)
         val bestIndex = ((currentHour / 24f) * (xValues.size - 1)).toInt().coerceIn(0, xValues.size - 1)
 
         // Path Building
@@ -176,7 +186,7 @@ fun DailyChart(
 
         if (isTrajectory) {
             fun buildDynPath(start: Int, end: Int, isFill: Boolean) =
-                buildDynamicPath(start, end, isFill, drawXValues, yValues, zeroYPixel, ::mapX, ::mapY)
+                buildDynamicPath(start, end, isFill, drawXValues, drawYValues, zeroYPixel, ::mapX, ::mapY)
 
             primaryCurvePath = buildDynPath(0, drawXValues.size - 1, false)
             primaryFillPath = buildDynPath(0, drawXValues.size - 1, true)
@@ -186,7 +196,7 @@ fun DailyChart(
             primaryCurvePath = Path().apply {
                 var isFirst = true
                 for (i in xValues.indices) {
-                    val y = yValues[i]
+                    val y = drawYValues[i]
                     if (!y.isNaN()) {
                         if (isFirst) {
                             moveTo(mapX(xValues[i]), mapY(y))
@@ -202,17 +212,17 @@ fun DailyChart(
                 var firstValidIndex = -1
                 var lastValidIndex = -1
                 for (i in xValues.indices) {
-                    if (!yValues[i].isNaN()) {
+                    if (!drawYValues[i].isNaN()) {
                         if (firstValidIndex == -1) firstValidIndex = i
                         lastValidIndex = i
                     }
                 }
                 if (firstValidIndex != -1) {
                     moveTo(mapX(xValues[firstValidIndex]), zeroYPixel)
-                    lineTo(mapX(xValues[firstValidIndex]), mapY(yValues[firstValidIndex]))
+                    lineTo(mapX(xValues[firstValidIndex]), mapY(drawYValues[firstValidIndex]))
                     for (i in firstValidIndex + 1..lastValidIndex) {
-                        if (!yValues[i].isNaN()) {
-                            lineTo(mapX(xValues[i]), mapY(yValues[i]))
+                        if (!drawYValues[i].isNaN()) {
+                            lineTo(mapX(xValues[i]), mapY(drawYValues[i]))
                         }
                     }
                     lineTo(mapX(xValues[lastValidIndex]), zeroYPixel)
@@ -247,7 +257,7 @@ fun DailyChart(
 
         if (isTrajectory) {
             // 3. Draw the Twilight Horizontal Bands
-            drawDayNightHorizontalTwilights(primaryFillPath, colors, params, zeroYPixel, ::mapY, chartType)
+            drawDayNightHorizontalTwilights(primaryFillPath, colors, params, zeroYPixel, ::mapY, chartType, shouldTransform)
         } else {
             // 3a. Calculate exact X intersections for vertical stripes
             val thresholds = when (chartType) {
@@ -424,7 +434,8 @@ fun DailyChart(
                     uniqueXPoints,
                     ::mapX,
                     zeroYPixel,
-                    chartType
+                    chartType,
+                    shouldTransform
                 )
 
                 // 3. Draw the elapsed time overlay (clipped strictly up to currentHour)
@@ -456,7 +467,7 @@ fun DailyChart(
         drawHorizonLine(materialTheme, params, zeroYPixel)
 
         // 5a. Draw Vertical Legend (Y-axis Altitudes)
-        drawYLabels(chartType, materialTheme, params, ::mapY, textMeasurer, labelStyle)
+        drawYLabels(chartType, materialTheme, params, ::mapY, textMeasurer, labelStyle, shouldTransform)
 
         if (isTrajectory) {
             drawXLabels(chartType, materialTheme, params, ::mapX, textMeasurer, labelStyle, context, shiftTrajectory)

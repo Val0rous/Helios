@@ -35,7 +35,8 @@ fun DailyComboChart(
     currentMoonAzimuth: Float,
     currentMoonAltitude: Float,
     coordinates: Coordinates?,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isApparentElevation: Boolean = IS_APPARENT_ELEVATION_DEFAULT
 ) {
     val sunChartType = Charts.Sun.Daily.Elevation
     val moonChartType = Charts.Moon.Daily.Elevation
@@ -60,12 +61,22 @@ fun DailyComboChart(
     Canvas(modifier = modifier) {
         if (sunXValues.isEmpty() || sunYValues.isEmpty() || moonXValues.isEmpty()) return@Canvas
 
+        val className = chartType.javaClass.simpleName
+        val isElevationOrTrajectory = className.contains("Elevation") || className.contains("Trajectory")
+        val shouldTransform = isApparentElevation && isElevationOrTrajectory
         val isTrajectory = chartType.javaClass.simpleName.contains("Trajectory")
+
+        val drawSunYValues = if (shouldTransform) transformApparentElevation(sunYValues) else sunYValues
+        val drawMoonYValues = if (shouldTransform) transformApparentElevation(moonYValues) else moonYValues
+
+        val drawCurrentSunAltitude = if (shouldTransform) transformApparentElevation(currentSunAltitude) else currentSunAltitude
+        val drawCurrentMoonAltitude = if (shouldTransform) transformApparentElevation(currentMoonAltitude) else currentMoonAltitude
+
 
         // We base the chart bounds on the Sun's properties (since it dictates the daylight constraints)
         val params = ChartData(
             xValues = sunXValues,
-            yValues = sunYValues,
+            yValues = drawSunYValues,
             minX = getMinX(sunXValues, chartType),
             maxX = getMaxX(sunXValues, chartType),
             minY = -90f, // Combo charts always span the full celestial sphere
@@ -86,7 +97,7 @@ fun DailyComboChart(
 
         fun mapX(x: Float) = getMapX(x, params)
         fun mapY(y: Float) = getMapY(y, params, chartType)
-        val zeroYPixel = getZeroYPixel(chartType, ::mapY, coordinates)
+        val zeroYPixel = getZeroYPixel(chartType, ::mapY, coordinates, shouldTransform)
 
         // --- CURRENT POSITIONS ---
         val drawCurrentSunX = if (isTrajectory) { if (shiftTrajectory) (currentSunAzimuth + 180f) % 360f else currentSunAzimuth } else currentHour
@@ -94,8 +105,8 @@ fun DailyComboChart(
 
         val currentSunXPx = mapX(drawCurrentSunX)
         val currentMoonXPx = mapX(drawCurrentMoonX)
-        val currentSunYPx = mapY(currentSunAltitude)
-        val currentMoonYPx = mapY(currentMoonAltitude)
+        val currentSunYPx = mapY(drawCurrentSunAltitude)
+        val currentMoonYPx = mapY(drawCurrentMoonAltitude)
 
         val bestIndex = ((currentHour / 24f) * (sunXValues.size - 1)).toInt().coerceIn(0, sunXValues.size - 1)
 
@@ -107,19 +118,19 @@ fun DailyComboChart(
             fun buildDynPath(start: Int, end: Int, isFill: Boolean, xVals: FloatArray, yVals: FloatArray) =
                 buildDynamicPath(start, end, isFill, xVals, yVals, zeroYPixel, ::mapX, ::mapY)
 
-            sunCurvePath = buildDynPath(0, drawSunX.size - 1, false, drawSunX, sunYValues)
-            sunFillPath = buildDynPath(0, drawSunX.size - 1, true, drawSunX, sunYValues)
-            sunElapsedPath = buildDynPath(0, bestIndex, false, drawSunX, sunYValues)
+            sunCurvePath = buildDynPath(0, drawSunX.size - 1, false, drawSunX, drawSunYValues)
+            sunFillPath = buildDynPath(0, drawSunX.size - 1, true, drawSunX, drawSunYValues)
+            sunElapsedPath = buildDynPath(0, bestIndex, false, drawSunX, drawSunYValues)
 
-            moonCurvePath = buildDynPath(0, drawMoonX.size - 1, false, drawMoonX, moonYValues)
-            moonFillPath = buildDynPath(0, drawMoonX.size - 1, true, drawMoonX, moonYValues)
-            moonElapsedPath = buildDynPath(0, bestIndex, false, drawMoonX, moonYValues)
+            moonCurvePath = buildDynPath(0, drawMoonX.size - 1, false, drawMoonX, drawMoonYValues)
+            moonFillPath = buildDynPath(0, drawMoonX.size - 1, true, drawMoonX, drawMoonYValues)
+            moonElapsedPath = buildDynPath(0, bestIndex, false, drawMoonX, drawMoonYValues)
         } else {
-            sunCurvePath = Path().apply { moveTo(mapX(sunXValues[0]), mapY(sunYValues[0])); for (i in 1 until sunXValues.size) lineTo(mapX(sunXValues[i]), mapY(sunYValues[i])) }
-            sunFillPath = Path().apply { moveTo(mapX(sunXValues[0]), zeroYPixel); lineTo(mapX(sunXValues[0]), mapY(sunYValues[0])); for (i in 1 until sunXValues.size) lineTo(mapX(sunXValues[i]), mapY(sunYValues[i])); lineTo(mapX(sunXValues.last()), zeroYPixel); close() }
+            sunCurvePath = Path().apply { moveTo(mapX(sunXValues[0]), mapY(drawSunYValues[0])); for (i in 1 until sunXValues.size) lineTo(mapX(sunXValues[i]), mapY(drawSunYValues[i])) }
+            sunFillPath = Path().apply { moveTo(mapX(sunXValues[0]), zeroYPixel); lineTo(mapX(sunXValues[0]), mapY(drawSunYValues[0])); for (i in 1 until sunXValues.size) lineTo(mapX(sunXValues[i]), mapY(drawSunYValues[i])); lineTo(mapX(sunXValues.last()), zeroYPixel); close() }
 
-            moonCurvePath = Path().apply { moveTo(mapX(moonXValues[0]), mapY(moonYValues[0])); for (i in 1 until moonXValues.size) lineTo(mapX(moonXValues[i]), mapY(moonYValues[i])) }
-            moonFillPath = Path().apply { moveTo(mapX(moonXValues[0]), zeroYPixel); lineTo(mapX(moonXValues[0]), mapY(moonYValues[0])); for (i in 1 until moonXValues.size) lineTo(mapX(moonXValues[i]), mapY(moonYValues[i])); lineTo(mapX(moonXValues.last()), zeroYPixel); close() }
+            moonCurvePath = Path().apply { moveTo(mapX(moonXValues[0]), mapY(drawMoonYValues[0])); for (i in 1 until moonXValues.size) lineTo(mapX(moonXValues[i]), mapY(drawMoonYValues[i])) }
+            moonFillPath = Path().apply { moveTo(mapX(moonXValues[0]), zeroYPixel); lineTo(mapX(moonXValues[0]), mapY(drawMoonYValues[0])); for (i in 1 until moonXValues.size) lineTo(mapX(moonXValues[i]), mapY(drawMoonYValues[i])); lineTo(mapX(moonXValues.last()), zeroYPixel); close() }
         }
 
         // --- 1. BACKGROUNDS (Dictated by Sun) ---
@@ -127,7 +138,7 @@ fun DailyComboChart(
         drawDayNightAreaFill(sunFillPath, colorScheme, zeroYPixel)
         if (isTrajectory) {
 //            drawDayNightHorizontalTwilights(moonFillPath, colors, params, zeroYPixel, ::mapY, Charts.Moon.Daily.Trajectory)
-            drawDayNightHorizontalTwilights(sunFillPath, colors, params, zeroYPixel, ::mapY, Charts.Sun.Daily.Trajectory)
+            drawDayNightHorizontalTwilights(sunFillPath, colors, params, zeroYPixel, ::mapY, Charts.Sun.Daily.Trajectory, shouldTransform)
         } else {
             // Time-Based Vertical Twilights
             val thresholds = floatArrayOf(0f, -6f, -12f, -18f)
@@ -158,7 +169,7 @@ fun DailyComboChart(
                 }
 
                 // Draw Vertical Twilights (Pass Charts.Sun.Daily.Elevation to clear any internal type-checks!)
-                drawNightVerticalTwilights(colors, params, uniqueXPoints, ::mapX, zeroYPixel, Charts.Sun.Daily.Elevation)
+                drawNightVerticalTwilights(colors, params, uniqueXPoints, ::mapX, zeroYPixel, Charts.Sun.Daily.Elevation, shouldTransform)
 
                 clipRect(right = currentSunXPx) {
                     clipRect(bottom = zeroYPixel) {
@@ -205,7 +216,7 @@ fun DailyComboChart(
 
         // --- 4. GRIDS AND LABELS ---
         drawHorizonLine(materialTheme, params, zeroYPixel)
-        drawYLabels(chartType, materialTheme, params, ::mapY, textMeasurer, labelStyle)
+        drawYLabels(chartType, materialTheme, params, ::mapY, textMeasurer, labelStyle, shouldTransform)
         drawXLabels(chartType, materialTheme, params, ::mapX, textMeasurer, labelStyle, context, if (isTrajectory) shiftTrajectory else false)
 
         // --- 5. ICONS & DROP LINES ---

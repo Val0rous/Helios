@@ -15,12 +15,23 @@ fun DrawScope.drawNightVerticalTwilights(
     uniqueXPoints: List<Float>,
     mapX: (Float) -> Float,
     zeroYPixel: Float,
-    chartType: Charts
+    chartType: Charts,
+    isApparentElevation: Boolean = false
 ) {
+    val className = chartType.javaClass.simpleName
+    val isElevationOrTrajectory = className.contains("Elevation") || className.contains("Trajectory")
+    val shouldTransform = isApparentElevation && isElevationOrTrajectory
+
     val civilTwilightFill = colors.civilTwilight
     val nauticalTwilightFill = colors.nauticalTwilight
     val astroTwilightFill = colors.astronomicalTwilight
     val nightFill = colors.nightBackground
+
+    val t0 = if (shouldTransform) transformApparentElevation(0f) else 0f
+    val t6 = if (shouldTransform) transformApparentElevation(-6f) else -6f
+    val t12 = if (shouldTransform) transformApparentElevation(-12f) else -12f
+    val t18 = if (shouldTransform) transformApparentElevation(-18f) else -18f
+
 
     val showTwilights = when (chartType) {
         Charts.Sun.Daily.Elevation -> true
@@ -49,10 +60,10 @@ fun DrawScope.drawNightVerticalTwilights(
             }
 
             val sliceColor = when {
-                midY >= 0f -> Color.Transparent // Day area already drawn above
-                midY >= -6f -> civilTwilightFill
-                midY >= -12f -> nauticalTwilightFill
-                midY >= -18f -> astroTwilightFill
+                midY >= t0 -> Color.Transparent // Day area already drawn above
+                midY >= t6 -> civilTwilightFill
+                midY >= t12 -> nauticalTwilightFill
+                midY >= t18 -> astroTwilightFill
                 else -> nightFill
             }
 
