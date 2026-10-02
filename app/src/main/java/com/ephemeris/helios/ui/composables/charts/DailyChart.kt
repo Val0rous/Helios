@@ -480,6 +480,6 @@ fun DailyChart(
         drawVerticalDropLine(localCustomColors, currentXPx, currentYPx, zeroYPixel)
 
         // 7. Paint the Sun Icon if above horizon
-        paintIcon(currentXPx, currentY, currentYPx, zeroYPixel, chartType, coordinates, drawChartIcon)
+        paintIcon(currentXPx, currentAltitude, currentYPx, zeroYPixel, chartType, coordinates, drawChartIcon)
     }
 }

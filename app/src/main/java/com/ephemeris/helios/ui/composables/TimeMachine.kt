@@ -232,13 +232,12 @@ fun TimeMachine(
                 val triangleIndicatorTop = MaterialTheme.colorScheme.surfaceContainerLow
                 val triangleIndicatorBottom = MaterialTheme.colorScheme.surfaceContainerLow
 
-                // Use bright white for the colored gradients, and standard text color for the flat Year view
-                val tickAndTextColor = if (selectedFilterType == TimeMachineFilter.Year) {
-                    MaterialTheme.colorScheme.onSurface
-                } else {
+                // Use bright white for the colored gradients, no more standard text color for the flat Year view
+                val tickAndTextColor = //if (selectedFilterType == TimeMachineFilter.Year) {
+                    //MaterialTheme.colorScheme.onSurface
+                //} else {
                     MaterialColors.Gray50
-                }
-
+                //}
                 val textStyle = TextStyle(
                     color = tickAndTextColor,
                     fontSize = 11.sp,   // was 10.dp
@@ -390,13 +389,13 @@ fun TimeMachine(
                     val endTime = time.plus(halfWidthMillis, ChronoUnit.MILLIS)
 
                     // Draw Background Gradient
-                    if (coordinates != null && selectedFilterType != TimeMachineFilter.Year) {
+                    if (coordinates != null) {
                         // Determine the step size based on zoom level to ensure smooth gradients
-                        // Hour mode: Anchor every 2 minutes. Day mode: Anchor every 15 minutes.
-                        val stepMillis = if (selectedFilterType == TimeMachineFilter.Hour) {
-                            Duration.ofMinutes(2).toMillis()
-                        } else {
-                            Duration.ofMinutes(15).toMillis()
+                        // Hour mode: Anchor every 2 minutes. Day mode: 15 minutes. Year mode: 1 day.
+                        val stepMillis = when (selectedFilterType) {
+                            TimeMachineFilter.Hour -> Duration.ofMinutes(2).toMillis()
+                            TimeMachineFilter.Day -> Duration.ofMinutes(15).toMillis()
+                            TimeMachineFilter.Year -> Duration.ofDays(1).toMillis()
                         }
                         val stops = mutableListOf<Pair<Float, Color>>()
 
@@ -414,9 +413,17 @@ fun TimeMachine(
                             val offsetMillis = Duration.between(startTime, currentAnchor).toMillis()
                             val fraction = offsetMillis.toFloat() / (halfWidthMillis * 2)
 
+                            //For Year mode, sample peak solar altitude at true solar noon
+                            val altitude = if (selectedFilterType == TimeMachineFilter.Year) {
+                                SolarEphemeris.calculateDailyEvents(currentAnchor, coordinates).solarNoonAltitude
+                            } else {
+                                SolarEphemeris.calculatePosition(currentAnchor, coordinates).altitude
+//                                currentAnchor
+                            }
+
                             // Calculate the exact solar altitude at this specific time anchor
-                            val pos = SolarEphemeris.calculatePosition(currentAnchor, coordinates)
-                            val color = SolarColorMap.getColorForAltitude(pos.altitude, coordinates.sunApparentHorizonAlt)
+//                            val pos = SolarEphemeris.calculatePosition(currentAnchor, coordinates)
+                            val color = SolarColorMap.getColorForAltitude(altitude, coordinates.sunApparentHorizonAlt)
 
                             // Compose brushes require strictly ascending fractions
                             if (stops.isEmpty() || fraction > stops.last().first) {
@@ -520,20 +527,19 @@ fun TimeMachine(
                         }
 
                         TimeMachineFilter.Year -> {
-                            var currentTick =
-                                startTime.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
+                            var currentTick = startTime.withDayOfMonth(1).truncatedTo(ChronoUnit.DAYS)
                             while (!currentTick.isAfter(endTime)) {
                                 val offsetMillis = Duration.between(time, currentTick).toMillis()
                                 val x = center + (offsetMillis / millisPerPixel)
 
                                 drawLine(
-                                    onSurface,
+                                    tickAndTextColor,
                                     Offset(x, 0f),
                                     Offset(x, majorTickLen),
                                     strokeWidth = 1.dp.toPx()
                                 )
                                 drawLine(
-                                    onSurface,
+                                    tickAndTextColor,
                                     Offset(x, h),
                                     Offset(x, h - majorTickLen),
                                     strokeWidth = 1.dp.toPx()
