@@ -20,13 +20,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import org.koin.compose.koinInject
 
 @SuppressLint("MissingPermission")
 @Composable
 fun LocationPermissionWrapper(
-    locationService: LocationService,
     snackbarHostState: SnackbarHostState,
     isContinuousGPSTrackingEnabled: Boolean,
+    locationService: LocationService = koinInject(),
     content: @Composable (
         requestOneOffLocation: () -> Unit,
         startContinuousTracking: (Long) -> Unit,

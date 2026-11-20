@@ -5,14 +5,11 @@ import android.content.Context
 import android.location.Location
 import java.io.File
 
-object AltitudeCorrector {
+class AltitudeCorrector(context: Context) {
 
     private var geoid: Geoid? = null
 
-    fun initialize(context: Context) {
-        // Prevent re-initialization if called multiple times
-        if (geoid != null) return
-
+    init {
         // CRITICAL: Grab the Application Context to prevent memory leaks
         val appContext = context.applicationContext
 

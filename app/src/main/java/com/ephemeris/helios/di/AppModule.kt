@@ -3,6 +3,7 @@ package com.ephemeris.helios.di
 import com.ephemeris.helios.utils.HeliosViewModel
 import com.ephemeris.helios.utils.LocationService
 import com.ephemeris.helios.utils.datastore.LocationDataStore
+import com.ephemeris.helios.utils.location.AltitudeCorrector
 import com.ephemeris.helios.utils.location.NativeGeocodingEngine
 import org.koin.core.module.dsl.singleOf
 import org.koin.core.module.dsl.viewModelOf
@@ -13,9 +14,7 @@ val appModule = module {
     singleOf(::LocationDataStore)
     singleOf(::NativeGeocodingEngine)
     singleOf(::LocationService)
-    // Tip: if you convert `object AltitudeCorrector` to `class AltitudeCorrector(context: Context)`,
-    // uncomment the line below:
-    // singleOf(::AltitudeCorrector)
+    singleOf(::AltitudeCorrector)
 
     // ViewModels (auto-wires constructor dependencies as you refactor HeliosViewModel)
     viewModelOf(::HeliosViewModel)

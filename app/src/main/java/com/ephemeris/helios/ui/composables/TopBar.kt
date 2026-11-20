@@ -41,6 +41,7 @@ import com.ephemeris.helios.utils.LocationStatus
 import com.ephemeris.helios.utils.formatShortLatitude
 import com.ephemeris.helios.utils.formatShortLongitude
 import com.ephemeris.helios.utils.location.Coordinates
+import org.koin.compose.koinInject
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
@@ -57,7 +58,7 @@ fun TopBar(
     onLocationClick: () -> Unit,
     isTracking: Boolean,
     onToggleTracking: (Boolean) -> Unit,
-    locationService: LocationService
+    locationService: LocationService = koinInject()
 ) {
     var locationStatus by remember { mutableStateOf(LocationStatus.DISABLED) } // Todo: make it store user setting
 

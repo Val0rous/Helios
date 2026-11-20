@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -42,21 +41,18 @@ import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.HeliosViewModel
 import com.ephemeris.helios.utils.LocationPermissionWrapper
-import com.ephemeris.helios.utils.LocationService
 import com.ephemeris.helios.utils.Routes
-import com.ephemeris.helios.utils.location.AltitudeCorrector
 import kotlinx.coroutines.delay
+import org.koin.androidx.viewmodel.ext.android.viewModel
 
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
-    private lateinit var locationService: LocationService
-    private val vm: HeliosViewModel by viewModels()
+    private val vm: HeliosViewModel by viewModel()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        locationService = LocationService(this)
         val initialStartDestination = intent.getStringExtra("startDestination") ?: Routes.Home.route
         // Initialize DataStore repository
 
@@ -71,9 +67,6 @@ class MainActivity : ComponentActivity() {
 
             val navBackStackEntry by navController.currentBackStackEntryAsState()
             val currentRoute = navBackStackEntry?.destination?.route
-
-            // Boot up the Geoid engine exactly once
-            AltitudeCorrector.initialize(this)
 
             // 1. Heavy Daily Math: Only recalculates when the DATE or LOCATION changes
             LaunchedEffect(coordinates, vm.currentTime.toLocalDate()) {
@@ -95,7 +88,6 @@ class MainActivity : ComponentActivity() {
             HeliosTheme {
                 // Wrapper handles all dialogs and lifecycle automatically
                 LocationPermissionWrapper(
-                    locationService = locationService,
                     snackbarHostState = snackbarHostState,
                     isContinuousGPSTrackingEnabled = isContinuousGPSTrackingEnabled
                 ) { requestOneOffLocation, startContinuousTracking, stopTracking ->
@@ -119,7 +111,6 @@ class MainActivity : ComponentActivity() {
                                             stopTracking()
                                         }
                                     },
-                                    locationService = locationService
                                 )
                             }
                         },

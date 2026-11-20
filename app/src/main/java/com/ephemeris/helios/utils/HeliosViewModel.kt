@@ -1,11 +1,10 @@
 package com.ephemeris.helios.utils
 
-import android.app.Application
 import android.location.Location
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ephemeris.helios.BuildConfig
 import com.ephemeris.helios.ui.composables.cards.ChartArrays
@@ -29,13 +28,11 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import kotlin.div
-import kotlin.math.round
 
-class HeliosViewModel(application: Application) : AndroidViewModel(application) {
-    private val locationDataStore = LocationDataStore(application)
-    private val geocodingEngine = NativeGeocodingEngine(application)
-
+class HeliosViewModel(
+    private val locationDataStore: LocationDataStore,
+    private val geocodingEngine: NativeGeocodingEngine,
+) : ViewModel() {
     // DataStore Flow converted to a StateFlow for Compose
     val coordinatesState = locationDataStore.coordinatesFlow.stateIn(
         scope = viewModelScope,

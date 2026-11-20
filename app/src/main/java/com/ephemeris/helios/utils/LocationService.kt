@@ -30,7 +30,10 @@ enum class MonitoringStatus { Monitoring, Paused, NotMonitoring }
 
 enum class StartMonitoringResult { Started, GPSDisabled, PermissionDenied }
 
-class LocationService(private val context: Context) {
+class LocationService(
+    private val context: Context,
+    private val altitudeCorrector: AltitudeCorrector,
+) {
     private var monitoringStatus by mutableStateOf(MonitoringStatus.NotMonitoring)
     var coordinates: Coordinates? by mutableStateOf(null)
         private set
@@ -48,7 +51,7 @@ class LocationService(private val context: Context) {
 
     // --- HELPER TO PREVENT CODE DUPLICATION ---
     private fun dispatchLocation(location: Location) {
-        val realAltitude = AltitudeCorrector.getRealAltitude(location)
+        val realAltitude = altitudeCorrector.getRealAltitude(location)
         val roundedAltitude = kotlin.math.round(realAltitude * 10.0) / 10.0
 
         coordinates = Coordinates(
