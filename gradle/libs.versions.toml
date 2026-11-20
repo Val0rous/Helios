@@ -1,5 +1,5 @@
 [versions]
-agp = "9.2.1"
+agp = "9.5.1"
 coreKtx = "1.19.1"
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -22,7 +22,7 @@ secretsPlugin = "2.0.1"
 #geoidheight4j = "main-SNAPSHOT"
 maps-utils = "7.0.0"
 mapbox = "11.22.0"
-koin-bom = "4.2.1"
+koin-bom = "4.2.2"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
