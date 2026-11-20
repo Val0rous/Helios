@@ -4,64 +4,60 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.ephemeris.helios.ui.composables.cards.ChartArrays
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.entries.LunarCulminationEntry
 import com.ephemeris.helios.ui.composables.entries.MoonriseMoonsetEntry
+import com.ephemeris.helios.ui.viewmodels.MoonViewModel
 import com.ephemeris.helios.utils.Charts
-import com.ephemeris.helios.utils.location.Coordinates
-import com.ephemeris.helios.utils.calc.LunarEphemeris
-import com.ephemeris.helios.utils.calc.MoonMetrics
 import com.ephemeris.helios.utils.formatDecimalHours
 import com.ephemeris.helios.utils.round
-import java.time.ZonedDateTime
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun Moon(
-    currentTime: ZonedDateTime,
-    coordinates: Coordinates,
-    currentPosition: LunarEphemeris.LunarPosition,
-    events: LunarEphemeris.LunarDailyEvents,
-    dailyPeakMetrics: MoonMetrics.LunarMetricsResult,
-    liveMetrics: MoonMetrics.LunarMetricsResult,
-    moonChartArrays: ChartArrays?,
-    liveTime: ZonedDateTime = currentTime,
+    viewModel: MoonViewModel = koinViewModel(),
 ) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val ui = state ?: return
+    val moon = ui.moon
+
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize()
     ) {
         item {
             DailyPathCard(
-                currentTime = currentTime,
-                liveTime = liveTime,
-                coordinates = coordinates,
+                currentTime = ui.currentTime,
+                liveTime = moon.timestamp,
+                coordinates = ui.coordinates,
                 dayLength = 0.0,
-                currentAltitude = currentPosition.altitude,
-                currentAzimuth = currentPosition.azimuth,
-                phase = liveMetrics.phase.displayName,
+                currentAltitude = moon.altitude,
+                currentAzimuth = moon.azimuth,
+                phase = moon.phase,
                 type = Charts.Moon.Daily.Elevation,
-                chartArrays = moonChartArrays
+                chartArrays = moon.chartArrays
             )
         }
         item {
             SmallCardRow(
                 leftCard = {
                     MoonriseMoonsetEntry(
-                        moonriseTime = events.moonrise.formatDecimalHours(),
-                        moonsetTime = events.moonset.formatDecimalHours(),
-                        moonriseAzimuth = events.moonriseAzimuth?.round(),
-                        moonsetAzimuth = events.moonsetAzimuth?.round()
+                        moonriseTime = moon.events.moonrise.formatDecimalHours(),
+                        moonsetTime = moon.events.moonset.formatDecimalHours(),
+                        moonriseAzimuth = moon.events.moonriseAzimuth?.round(),
+                        moonsetAzimuth = moon.events.moonsetAzimuth?.round()
                     )
                 },
                 rightCard = {
                     LunarCulminationEntry(
-                        culminationTime = events.culmination.formatDecimalHours(),
-                        culminationAzimuth = events.culminationAzimuth!!.round(),
-                        culminationAltitude = events.culminationAltitude!!.round()
+                        culminationTime = moon.events.culmination.formatDecimalHours(),
+                        culminationAzimuth = moon.events.culminationAzimuth!!.round(),
+                        culminationAltitude = moon.events.culminationAltitude!!.round()
                     )
                 }
             )

@@ -4,49 +4,43 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.ephemeris.helios.ui.composables.cards.ChartArrays
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ephemeris.helios.ui.composables.cards.DailyComboPathCard
+import com.ephemeris.helios.ui.viewmodels.HomeViewModel
 import com.ephemeris.helios.utils.Charts
-import com.ephemeris.helios.utils.calc.LunarEphemeris
-import com.ephemeris.helios.utils.calc.SolarEphemeris
-import com.ephemeris.helios.utils.getSunPhase
-import com.ephemeris.helios.utils.location.Coordinates
-import java.time.ZonedDateTime
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun Home(
-    currentTime: ZonedDateTime,
-    coordinates: Coordinates,
-    currentSunPosition: SolarEphemeris.SolarPosition,
-    sunEvents: SolarEphemeris.DailyEvents,
-    currentMoonPosition: LunarEphemeris.LunarPosition,
-    moonEvents: LunarEphemeris.LunarDailyEvents,
-    sunChartArrays: ChartArrays?,
-    moonChartArrays: ChartArrays?,
-    currentMoonPhase: String,
-    liveTime: ZonedDateTime = currentTime,
+    viewModel: HomeViewModel = koinViewModel(),
 ) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val ui = state ?: return
+    val sun = ui.sun
+    val moon = ui.moon
+
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize()
     ) {
         item {
             DailyComboPathCard(
-                currentTime = currentTime,
-                liveTime = liveTime,
-                coordinates = coordinates,
-                dayLength = sunEvents.dayLength,
-                currentSunAltitude = currentSunPosition.altitude,
-                currentSunAzimuth = currentSunPosition.azimuth,
-                sunPhase = getSunPhase(currentSunPosition.altitude, coordinates.sunApparentHorizonAlt).desc,
-                currentMoonAltitude = currentMoonPosition.altitude,
-                currentMoonAzimuth = currentMoonPosition.azimuth,
-                moonPhase = currentMoonPhase,
+                currentTime = ui.currentTime,
+                liveTime = sun.timestamp,
+                coordinates = ui.coordinates,
+                dayLength = sun.events.dayLength,
+                currentSunAltitude = sun.altitude,
+                currentSunAzimuth = sun.azimuth,
+                sunPhase = sun.phase,
+                currentMoonAltitude = moon.altitude,
+                currentMoonAzimuth = moon.azimuth,
+                moonPhase = moon.phase,
                 type = Charts.SunMoonCombo.Daily.Elevation,
-                sunChartArrays = sunChartArrays,
-                moonChartArrays = moonChartArrays
+                sunChartArrays = sun.chartArrays,
+                moonChartArrays = moon.chartArrays
             )
         }
     }

@@ -17,19 +17,17 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ephemeris.helios.ui.composables.Navbar
 import com.ephemeris.helios.ui.composables.TimeMachine
@@ -39,73 +37,52 @@ import com.ephemeris.helios.ui.screens.Maps
 import com.ephemeris.helios.ui.screens.Moon
 import com.ephemeris.helios.ui.screens.Sun
 import com.ephemeris.helios.ui.theme.HeliosTheme
-import com.ephemeris.helios.utils.HeliosViewModel
+import com.ephemeris.helios.ui.viewmodels.MainViewModel
 import com.ephemeris.helios.utils.LocationPermissionWrapper
 import com.ephemeris.helios.utils.Routes
-import kotlinx.coroutines.delay
 import org.koin.androidx.viewmodel.ext.android.viewModel
-
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
-    private val vm: HeliosViewModel by viewModel()
+    private val vm: MainViewModel by viewModel()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val initialStartDestination = intent.getStringExtra("startDestination") ?: Routes.Home.route
-        // Initialize DataStore repository
 
         setContent {
             navController = rememberNavController()
-            val context = LocalContext.current
             var startDestination by remember { mutableStateOf(initialStartDestination) }
-            val coordinates by vm.coordinatesState.collectAsState()
+            val coordinates by vm.coordinates.collectAsStateWithLifecycle()
+            val isDataStoreLoaded by vm.isDataStoreLoaded.collectAsStateWithLifecycle()
+            val locationStatus by vm.locationStatus.collectAsStateWithLifecycle()
+            val isTracking by vm.isContinuousGPSTrackingEnabled.collectAsStateWithLifecycle()
+            val currentTime by vm.currentTime.collectAsStateWithLifecycle()
+            val isAutoUpdateEnabled by vm.isAutoUpdateEnabled.collectAsStateWithLifecycle()
+            val isEphemerisReady by vm.isEphemerisReady.collectAsStateWithLifecycle()
 
             val snackbarHostState = remember { SnackbarHostState() }
-
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentRoute = navBackStackEntry?.destination?.route
-
-            // 1. Heavy Daily Math: Only recalculates when the DATE or LOCATION changes
-            LaunchedEffect(coordinates, vm.currentTime.toLocalDate()) {
-                coordinates?.let { vm.updateDayData(it) }
-            }
-
-            // 2. Live Updates Ticker: Runs every 12 seconds for live UI updates, or when datetime is manually changed
-            val manualTimeKey = if (!vm.isAutoUpdateEnabled) vm.currentTime else Unit
-            LaunchedEffect(vm.isAutoUpdateEnabled, coordinates, manualTimeKey) {
-                coordinates?.let {
-                    while (true) {
-                        vm.startLiveUpdatesTicker(it)
-                        if (!vm.isAutoUpdateEnabled) break   // Stop looping if manual
-                        delay(12000)
-                    }
-                }
-            }
 
             HeliosTheme {
                 // Wrapper handles all dialogs and lifecycle automatically
                 LocationPermissionWrapper(
                     snackbarHostState = snackbarHostState,
-                    onLocationRequestFailed = { vm.onLocationRequestFailed() },
+                    onLocationRequestFailed = vm::onLocationRequestFailed,
                 ) { requestOneOffLocation, startContinuousTracking, stopTracking ->
 
                     Scaffold(
-                        //modifier
                         topBar = {
                             TopBar(
-                                currentTime = vm.currentTime,
+                                currentTime = currentTime,
                                 coordinates = coordinates,
-                                locationStatus = vm.locationStatus,
-                                onSaveCoordinates = { coords, isFromGPS ->
-                                    vm.saveCoordinates(coords, isFromGPS)
-                                },
+                                locationStatus = locationStatus,
+                                onSaveCoordinates = vm::saveCoordinates,
                                 onLocationClick = {
                                     vm.onLocationRequestStarted()
                                     requestOneOffLocation()
                                 },
-                                isTracking = vm.isContinuousGPSTrackingEnabled,
+                                isTracking = isTracking,
                                 onToggleTracking = { enableTracking ->
                                     vm.setContinuousTracking(enableTracking)
                                     if (enableTracking) {
@@ -119,11 +96,11 @@ class MainActivity : ComponentActivity() {
                         bottomBar = {
                             Column(modifier = Modifier.fillMaxWidth()) {
                                 TimeMachine(
-                                    time = vm.currentTime,
+                                    time = currentTime,
                                     coordinates = coordinates,
-                                    isAutoUpdate = vm.isAutoUpdateEnabled,
-                                    onTimeChange = { vm.currentTime = it },
-                                    onAutoUpdateChange = { vm.isAutoUpdateEnabled = it },
+                                    isAutoUpdate = isAutoUpdateEnabled,
+                                    onTimeChange = vm::setTime,
+                                    onAutoUpdateChange = vm::setAutoUpdateEnabled,
                                 )
                                 Navbar(navController)
                             }
@@ -135,8 +112,9 @@ class MainActivity : ComponentActivity() {
                                 startDestination = savedRoute
                             }
                         }
+
                         // 1. Guard clause: Wait for the physical disk to finish reading
-                        if (!vm.isDataStoreLoaded) {
+                        if (!isDataStoreLoaded) {
                             Box(
                                 modifier = Modifier.fillMaxSize().padding(paddingValues),
                                 contentAlignment = Alignment.Center
@@ -170,7 +148,7 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // 3. Guard clause: Coordinates exist, but the background math is still calculating
-                        if (vm.dayData == null || vm.liveData == null) {
+                        if (!isEphemerisReady) {
                             Box(
                                 modifier = Modifier.fillMaxSize().padding(paddingValues),
                                 contentAlignment = Alignment.Center
@@ -189,124 +167,17 @@ class MainActivity : ComponentActivity() {
                             startDestination = startDestination,
                             modifier = Modifier.padding(paddingValues = paddingValues)
                         ) {
-                            composable(Routes.Home.route) {
-                                Home(
-                                    currentTime = vm.currentTime,
-                                    liveTime = vm.liveData!!.timestamp,
-                                    coordinates = coordinates!!,
-                                    currentSunPosition = vm.liveData!!.currentSunPosition,
-                                    sunEvents = vm.dayData!!.events,
-                                    currentMoonPosition = vm.liveData!!.currentMoonPosition,
-                                    moonEvents = vm.dayData!!.lunarEvents,
-                                    sunChartArrays = vm.sunChartArrays,
-                                    moonChartArrays = vm.moonChartArrays,
-                                    currentMoonPhase = vm.liveData!!.liveMoonMetrics.phase.displayName
-                                )
-                            }
+                            composable(Routes.Home.route) { Home() }
                             composable(Routes.Exposure.route) {
                                 //UV()
                             }
-                            composable(Routes.Sun.route) {
-                                Sun(
-                                    currentTime = vm.currentTime,
-                                    liveTime = vm.liveData!!.sun.timestamp,
-                                    coordinates = coordinates!!,
-                                    currentSolarPosition = vm.liveData!!.currentSunPosition,
-                                    events = vm.dayData!!.events,
-                                    durations = vm.dayData!!.durations,
-                                    dailyPeakMetrics = vm.dayData!!.dailyPeakMetrics,
-                                    liveMetrics = vm.liveData!!.liveSunMetrics,
-                                    seasonalEvents = vm.dayData!!.seasonalEvents,
-                                    seasonalDailyEvents = vm.dayData!!.seasonalDailyEvents,
-                                    sunChartArrays = vm.sunChartArrays
-                                )
-                            }
-                            composable(Routes.Moon.route) {
-                                Moon(
-                                    currentTime = vm.currentTime,
-                                    liveTime = vm.liveData!!.moon.timestamp,
-                                    coordinates = coordinates!!,
-                                    currentPosition = vm.liveData!!.currentMoonPosition,
-                                    events = vm.dayData!!.lunarEvents,
-                                    dailyPeakMetrics = vm.dayData!!.lunarDailyPeakMetrics!!,
-                                    liveMetrics = vm.liveData!!.liveMoonMetrics,
-                                    moonChartArrays = vm.moonChartArrays
-                                )
-                            }
-                            composable(Routes.Maps.route) {
-                                Maps(
-                                    coordinates = coordinates!!,
-                                    currentSolarPosition = vm.liveData!!.currentSunPosition,
-                                    solarEvents = vm.dayData!!.events,
-                                    currentLunarPosition = vm.liveData!!.currentMoonPosition,
-                                    lunarEvents = vm.dayData!!.lunarEvents,
-                                    sunChartArrays = vm.sunChartArrays,
-                                    moonChartArrays = vm.moonChartArrays,
-                                    onMapCenterSettled = { vm.saveCoordinates(it) }
-                                )
-                            }
+                            composable(Routes.Sun.route) { Sun() }
+                            composable(Routes.Moon.route) { Moon() }
+                            composable(Routes.Maps.route) { Maps() }
                         }
                     }
                 }
-//                HeliosApp()
             }
         }
     }
 }
-
-//@PreviewScreenSizes
-//@Composable
-//fun HeliosApp() {
-//    var currentDestination by rememberSaveable { mutableStateOf(AppDestinations.HOME) }
-//
-//    NavigationSuiteScaffold(
-//        navigationSuiteItems = {
-//            AppDestinations.entries.forEach {
-//                item(
-//                    icon = {
-//                        Icon(
-//                            painterResource(it.icon),
-//                            contentDescription = it.label
-//                        )
-//                    },
-//                    label = { Text(it.label) },
-//                    selected = it == currentDestination,
-//                    onClick = { currentDestination = it }
-//                )
-//            }
-//        }
-//    ) {
-//        Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-//            Greeting(
-//                name = "Android",
-//                modifier = Modifier.padding(innerPadding)
-//            )
-//        }
-//    }
-//}
-
-//enum class AppDestinations(
-//    val label: String,
-//    val icon: Int,
-//) {
-//    HOME("Home", R.drawable.ic_home),
-//    SUN("Sun", R.drawable.ic_sunny),
-//    MOON("Moon", R.drawable.ic_moon_stars),
-//    PLANETS("Planets", R.drawable.ic_planet),
-//}
-
-//@Composable
-//fun Greeting(name: String, modifier: Modifier = Modifier) {
-//    Text(
-//        text = "Hello $name!",
-//        modifier = modifier
-//    )
-//}
-//
-//@Preview(showBackground = true)
-//@Composable
-//fun GreetingPreview() {
-//    HeliosTheme {
-//        Greeting("Android")
-//    }
-//}

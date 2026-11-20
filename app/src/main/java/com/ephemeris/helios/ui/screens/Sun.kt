@@ -7,12 +7,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.liveData
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.AirMass
-import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.composables.cards.ColorTemperature
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.Declination
@@ -24,9 +24,7 @@ import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.cards.SolarDistance
 import com.ephemeris.helios.ui.composables.cards.SolarSpeed
 import com.ephemeris.helios.ui.composables.cards.UvIntensity
-import com.ephemeris.helios.ui.composables.entries.DailyPeaksEntry
 import com.ephemeris.helios.ui.composables.entries.DurationEntry
-import com.ephemeris.helios.ui.composables.entries.LiveMetricsEntry
 import com.ephemeris.helios.ui.composables.entries.NightEntry
 import com.ephemeris.helios.ui.composables.entries.PlutoTimeEntry
 import com.ephemeris.helios.ui.composables.entries.SeasonalEntry
@@ -35,63 +33,53 @@ import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
 import com.ephemeris.helios.ui.composables.entries.TwilightEntry
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
+import com.ephemeris.helios.ui.viewmodels.SunViewModel
 import com.ephemeris.helios.utils.Charts
-import com.ephemeris.helios.utils.calc.SeasonalEphemeris
-import com.ephemeris.helios.utils.location.Coordinates
-import com.ephemeris.helios.utils.calc.SolarEphemeris
-import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.formatDecimalHours
 import com.ephemeris.helios.utils.formatDuration
-import com.ephemeris.helios.utils.getSunPhase
 import com.ephemeris.helios.utils.round
-import java.time.ZonedDateTime
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun Sun(
-    currentTime: ZonedDateTime,
-    coordinates: Coordinates,
-    currentSolarPosition: SolarEphemeris.SolarPosition,
-    events: SolarEphemeris.DailyEvents,
-    durations: SolarEphemeris.DailyDurations,
-    dailyPeakMetrics: SunMetrics.SunMetricsResult,
-    liveMetrics: SunMetrics.SunMetricsResult,
-    seasonalEvents: SeasonalEphemeris.SeasonalEvents,
-    seasonalDailyEvents: SeasonalEphemeris.SeasonalDailyEvents,
-    sunChartArrays: ChartArrays?,
-    liveTime: ZonedDateTime = currentTime,
+    viewModel: SunViewModel = koinViewModel(),
 ) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val ui = state ?: return
+    val sun = ui.sun
+
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier.fillMaxSize()
     ) {
         item {
             DailyPathCard(
-                currentTime = currentTime,
-                liveTime = liveTime,
-                coordinates = coordinates,
-                dayLength = events.dayLength,
-                currentAltitude = currentSolarPosition.altitude,
-                currentAzimuth = currentSolarPosition.azimuth,
-                phase = getSunPhase(currentSolarPosition.altitude, coordinates.sunApparentHorizonAlt).desc,
+                currentTime = ui.currentTime,
+                liveTime = sun.timestamp,
+                coordinates = ui.coordinates,
+                dayLength = sun.events.dayLength,
+                currentAltitude = sun.altitude,
+                currentAzimuth = sun.azimuth,
+                phase = sun.phase,
                 type = Charts.Sun.Daily.Elevation,
-                chartArrays = sunChartArrays
+                chartArrays = sun.chartArrays
             )
         }
         item {
             SmallCardRow(
                 leftCard = {
                     SunriseSunsetEntry(
-                        sunriseTime = events.sunrise.formatDecimalHours(),
-                        sunsetTime = events.sunset.formatDecimalHours(),
-                        sunriseAzimuth = events.sunriseAzimuth.round(),
-                        sunsetAzimuth = events.sunsetAzimuth.round()
+                        sunriseTime = sun.events.sunrise.formatDecimalHours(),
+                        sunsetTime = sun.events.sunset.formatDecimalHours(),
+                        sunriseAzimuth = sun.events.sunriseAzimuth.round(),
+                        sunsetAzimuth = sun.events.sunsetAzimuth.round()
                     )
                 },
                 rightCard = {
                     SolarNoonEntry(
-                        noonTime = events.solarNoon.formatDecimalHours(),
-                        noonAzimuth = events.solarNoonAzimuth.round(),
-                        noonAltitude = events.solarNoonAltitude.round()
+                        noonTime = sun.events.solarNoon.formatDecimalHours(),
+                        noonAzimuth = sun.events.solarNoonAzimuth.round(),
+                        noonAltitude = sun.events.solarNoonAltitude.round()
                     )
                 }
             )
@@ -101,14 +89,14 @@ fun Sun(
                 disableInnerHorizontalPadding = true,
                 leftCard = {
                     Irradiance(
-                        currentIrradiance = liveMetrics.irradiance,
-                        peakIrradiance = dailyPeakMetrics.irradiance
+                        currentIrradiance = sun.metrics.irradiance,
+                        peakIrradiance = sun.dailyPeakMetrics.irradiance
                     )
                 },
                 rightCard = {
                     UvIntensity(
-                        currentUvIntensity = liveMetrics.uvIntensity,
-                        peakUvIntensity = dailyPeakMetrics.uvIntensity
+                        currentUvIntensity = sun.metrics.uvIntensity,
+                        peakUvIntensity = sun.dailyPeakMetrics.uvIntensity
                     )
                 }
             )
@@ -118,15 +106,15 @@ fun Sun(
                 disableInnerHorizontalPadding = true,
                 leftCard = {
                     Illuminance(
-                        currentIlluminance = liveMetrics.luminance,
-                        peakIlluminance = dailyPeakMetrics.luminance
+                        currentIlluminance = sun.metrics.luminance,
+                        peakIlluminance = sun.dailyPeakMetrics.luminance
                     )
                 },
                 rightCard = {
                     ShadowRatio(
-                        currentShadowRatio = liveMetrics.shadowRatio,
-                        peakShadowRatio = dailyPeakMetrics.shadowRatio,
-                        sunAltitude = currentSolarPosition.altitude,
+                        currentShadowRatio = sun.metrics.shadowRatio,
+                        peakShadowRatio = sun.dailyPeakMetrics.shadowRatio,
+                        sunAltitude = sun.altitude,
                     )
                 }
             )
@@ -136,14 +124,14 @@ fun Sun(
                 disableInnerHorizontalPadding = true,
                 leftCard = {
                     ColorTemperature(
-                        currentColorTemp = liveMetrics.colorTemp,
-                        peakColorTemp = dailyPeakMetrics.colorTemp
+                        currentColorTemp = sun.metrics.colorTemp,
+                        peakColorTemp = sun.dailyPeakMetrics.colorTemp
                     )
                 },
                 rightCard = {
                     AirMass(
-                        currentAirMass = liveMetrics.airMass,
-                        minAirMass = dailyPeakMetrics.airMass
+                        currentAirMass = sun.metrics.airMass,
+                        minAirMass = sun.dailyPeakMetrics.airMass
                     )
                 }
             )
@@ -153,14 +141,14 @@ fun Sun(
                 disableInnerHorizontalPadding = true,
                 leftCard = {
                     SolarDistance(
-                        currentDistanceAu = currentSolarPosition.distanceAu,
-                        currentDistanceKm = liveMetrics.distanceKm,
-                        currentTime = currentTime
+                        currentDistanceAu = sun.position.distanceAu,
+                        currentDistanceKm = sun.metrics.distanceKm,
+                        currentTime = ui.currentTime
                     )
                 },
                 rightCard = {
                     SolarSpeed(
-                        currentSpeedDegPerMin = liveMetrics.solarSpeed
+                        currentSpeedDegPerMin = sun.metrics.solarSpeed
                     )
                 }
             )
@@ -170,15 +158,15 @@ fun Sun(
                 disableInnerHorizontalPadding = true,
                 leftCard = {
                     Declination(
-                        currentDeclinationDeg = currentSolarPosition.declination,
-                        currentTime = currentTime
+                        currentDeclinationDeg = sun.position.declination,
+                        currentTime = ui.currentTime
                     )
                 },
                 rightCard = {
                     EquationOfTime(
-                        currentEotMinutes = currentSolarPosition.eotMinutes,
-                        currentDeclinationDeg = currentSolarPosition.declination,
-                        currentTime = currentTime
+                        currentEotMinutes = sun.position.eotMinutes,
+                        currentDeclinationDeg = sun.position.declination,
+                        currentTime = ui.currentTime
                     )
                 }
             )
@@ -191,24 +179,24 @@ fun Sun(
                     DurationEntry(
                         title = R.string.golden_hour,
                         color = goldenHourColor,
-                        morningStartTime = events.dawnGoldenLower.formatDecimalHours(),
-                        morningEndTime = events.dawnGoldenUpper.formatDecimalHours(),
-                        morningDuration = durations.goldenHour.morning.formatDuration(),
-                        eveningStartTime = events.duskGoldenUpper.formatDecimalHours(),
-                        eveningEndTime = events.duskGoldenLower.formatDecimalHours(),
-                        eveningDuration = durations.goldenHour.evening.formatDuration()
+                        morningStartTime = sun.events.dawnGoldenLower.formatDecimalHours(),
+                        morningEndTime = sun.events.dawnGoldenUpper.formatDecimalHours(),
+                        morningDuration = sun.durations.goldenHour.morning.formatDuration(),
+                        eveningStartTime = sun.events.duskGoldenUpper.formatDecimalHours(),
+                        eveningEndTime = sun.events.duskGoldenLower.formatDecimalHours(),
+                        eveningDuration = sun.durations.goldenHour.evening.formatDuration()
                     )
                 },
                 rightCard = {
                     DurationEntry(
                         title = R.string.blue_hour,
                         color = blueHourColor,
-                        morningStartTime = events.dawnBlueLower.formatDecimalHours(),
-                        morningEndTime = events.dawnBlueUpper.formatDecimalHours(),
-                        morningDuration = durations.blueHour.morning.formatDuration(),
-                        eveningStartTime = events.duskBlueUpper.formatDecimalHours(),
-                        eveningEndTime = events.duskBlueLower.formatDecimalHours(),
-                        eveningDuration = durations.blueHour.evening.formatDuration()
+                        morningStartTime = sun.events.dawnBlueLower.formatDecimalHours(),
+                        morningEndTime = sun.events.dawnBlueUpper.formatDecimalHours(),
+                        morningDuration = sun.durations.blueHour.morning.formatDuration(),
+                        eveningStartTime = sun.events.duskBlueUpper.formatDecimalHours(),
+                        eveningEndTime = sun.events.duskBlueLower.formatDecimalHours(),
+                        eveningDuration = sun.durations.blueHour.evening.formatDuration()
                     )
                 }
             )
@@ -221,24 +209,24 @@ fun Sun(
                     DurationEntry(
                         title = R.string.pink_hour,
                         color = pinkHourColor,
-                        morningStartTime = events.dawnPinkLower.formatDecimalHours(),
-                        morningEndTime = events.dawnPinkUpper.formatDecimalHours(),
-                        morningDuration = durations.pinkHour.morning.formatDuration(),
-                        eveningStartTime = events.duskPinkUpper.formatDecimalHours(),
-                        eveningEndTime = events.duskPinkLower.formatDecimalHours(),
-                        eveningDuration = durations.pinkHour.evening.formatDuration()
+                        morningStartTime = sun.events.dawnPinkLower.formatDecimalHours(),
+                        morningEndTime = sun.events.dawnPinkUpper.formatDecimalHours(),
+                        morningDuration = sun.durations.pinkHour.morning.formatDuration(),
+                        eveningStartTime = sun.events.duskPinkUpper.formatDecimalHours(),
+                        eveningEndTime = sun.events.duskPinkLower.formatDecimalHours(),
+                        eveningDuration = sun.durations.pinkHour.evening.formatDuration()
                     )
                 },
                 rightCard = {
                     DurationEntry(
                         title = R.string.alpenglow,
                         color = alpenglowColor,
-                        morningStartTime = events.dawnAlpenglowLower.formatDecimalHours(),
-                        morningEndTime = events.dawnAlpenglowUpper.formatDecimalHours(),
-                        morningDuration = durations.alpenglow.morning.formatDuration(),
-                        eveningStartTime = events.duskAlpenglowUpper.formatDecimalHours(),
-                        eveningEndTime = events.duskAlpenglowLower.formatDecimalHours(),
-                        eveningDuration = durations.alpenglow.evening.formatDuration()
+                        morningStartTime = sun.events.dawnAlpenglowLower.formatDecimalHours(),
+                        morningEndTime = sun.events.dawnAlpenglowUpper.formatDecimalHours(),
+                        morningDuration = sun.durations.alpenglow.morning.formatDuration(),
+                        eveningStartTime = sun.events.duskAlpenglowUpper.formatDecimalHours(),
+                        eveningEndTime = sun.events.duskAlpenglowLower.formatDecimalHours(),
+                        eveningDuration = sun.durations.alpenglow.evening.formatDuration()
                     )
                 }
             )
@@ -250,12 +238,12 @@ fun Sun(
                     TwilightEntry(
                         title = R.string.dawn,
                         subtitle = R.string.start,
-                        civilTime = events.dawnCivil.formatDecimalHours(),
-                        civilDuration = durations.civilTwilight.morning.formatDuration(),
-                        nauticalTime = events.dawnNautical.formatDecimalHours(),
-                        nauticalDuration = durations.nauticalTwilight.morning.formatDuration(),
-                        astroTime = events.dawnAstronomical.formatDecimalHours(),
-                        astroDuration = durations.astronomicalTwilight.morning.formatDuration(),
+                        civilTime = sun.events.dawnCivil.formatDecimalHours(),
+                        civilDuration = sun.durations.civilTwilight.morning.formatDuration(),
+                        nauticalTime = sun.events.dawnNautical.formatDecimalHours(),
+                        nauticalDuration = sun.durations.nauticalTwilight.morning.formatDuration(),
+                        astroTime = sun.events.dawnAstronomical.formatDecimalHours(),
+                        astroDuration = sun.durations.astronomicalTwilight.morning.formatDuration(),
                         nightTime = "",
                         nightDuration = ""
                     )
@@ -264,12 +252,12 @@ fun Sun(
                     TwilightEntry(
                         title = R.string.dusk,
                         subtitle = R.string.end,
-                        civilTime = events.duskCivil.formatDecimalHours(),
-                        civilDuration = durations.civilTwilight.evening.formatDuration(),
-                        nauticalTime = events.duskNautical.formatDecimalHours(),
-                        nauticalDuration = durations.nauticalTwilight.evening.formatDuration(),
-                        astroTime = events.duskAstronomical.formatDecimalHours(),
-                        astroDuration = durations.astronomicalTwilight.evening.formatDuration(),
+                        civilTime = sun.events.duskCivil.formatDecimalHours(),
+                        civilDuration = sun.durations.civilTwilight.evening.formatDuration(),
+                        nauticalTime = sun.events.duskNautical.formatDecimalHours(),
+                        nauticalDuration = sun.durations.nauticalTwilight.evening.formatDuration(),
+                        astroTime = sun.events.duskAstronomical.formatDecimalHours(),
+                        astroDuration = sun.durations.astronomicalTwilight.evening.formatDuration(),
                         nightTime = "",
                         nightDuration = ""
                     )
@@ -281,16 +269,16 @@ fun Sun(
             SmallCardRow(
                 leftCard = {
                     NightEntry(
-                        duration = durations.night.total.formatDuration(true),
-                        midnightTime = events.solarMidnight.formatDecimalHours(),
-                        midnightAzimuth = events.solarMidnightAzimuth.round(),
-                        midnightAltitude = events.solarMidnightAltitude.round()
+                        duration = sun.durations.night.total.formatDuration(true),
+                        midnightTime = sun.events.solarMidnight.formatDecimalHours(),
+                        midnightAzimuth = sun.events.solarMidnightAzimuth.round(),
+                        midnightAltitude = sun.events.solarMidnightAltitude.round()
                     )
                 },
                 rightCard = {
                     PlutoTimeEntry(
-                        morningTime = events.morningPlutoTime.formatDecimalHours(),
-                        eveningTime = events.eveningPlutoTime.formatDecimalHours()
+                        morningTime = sun.events.morningPlutoTime.formatDecimalHours(),
+                        eveningTime = sun.events.eveningPlutoTime.formatDecimalHours()
                     )
                 }
             )
@@ -302,24 +290,24 @@ fun Sun(
                     SeasonalEntry(
                         title = R.string.equinoxes,
                         color = MaterialTheme.colorScheme.primary,
-                        dateTimeTop = seasonalEvents.marchEquinox,
-                        daylightTop = seasonalDailyEvents.marchEquinoxDaylight,
-                        sunAngleTop = seasonalDailyEvents.marchEquinoxSunAngle,
-                        dateTimeBottom = seasonalEvents.septemberEquinox,
-                        daylightBottom = seasonalDailyEvents.septemberEquinoxDaylight,
-                        sunAngleBottom = seasonalDailyEvents.septemberEquinoxSunAngle
+                        dateTimeTop = sun.seasonalEvents.marchEquinox,
+                        daylightTop = sun.seasonalDailyEvents.marchEquinoxDaylight,
+                        sunAngleTop = sun.seasonalDailyEvents.marchEquinoxSunAngle,
+                        dateTimeBottom = sun.seasonalEvents.septemberEquinox,
+                        daylightBottom = sun.seasonalDailyEvents.septemberEquinoxDaylight,
+                        sunAngleBottom = sun.seasonalDailyEvents.septemberEquinoxSunAngle
                     )
                 },
                 rightCard = {
                     SeasonalEntry(
                         title = R.string.solstices,
                         color = LocalCustomColors.current.nightPrimary,
-                        dateTimeTop = seasonalEvents.juneSolstice,
-                        daylightTop = seasonalDailyEvents.juneSolsticeDaylight,
-                        sunAngleTop = seasonalDailyEvents.juneSolsticeSunAngle,
-                        dateTimeBottom = seasonalEvents.decemberSolstice,
-                        daylightBottom = seasonalDailyEvents.decemberSolsticeDaylight,
-                        sunAngleBottom = seasonalDailyEvents.decemberSolsticeSunAngle
+                        dateTimeTop = sun.seasonalEvents.juneSolstice,
+                        daylightTop = sun.seasonalDailyEvents.juneSolsticeDaylight,
+                        sunAngleTop = sun.seasonalDailyEvents.juneSolsticeSunAngle,
+                        dateTimeBottom = sun.seasonalEvents.decemberSolstice,
+                        daylightBottom = sun.seasonalDailyEvents.decemberSolsticeDaylight,
+                        sunAngleBottom = sun.seasonalDailyEvents.decemberSolsticeSunAngle
                     )
                 }
             )

@@ -1,7 +1,6 @@
 package com.ephemeris.helios.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,34 +16,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ephemeris.helios.ui.composables.InfoPager
 import com.ephemeris.helios.ui.composables.maps.FullscreenAzimuthMap
 import com.ephemeris.helios.ui.composables.maps.FullscreenShadeMap
-import com.ephemeris.helios.ui.composables.cards.ChartArrays
+import com.ephemeris.helios.ui.viewmodels.MapsViewModel
 import com.ephemeris.helios.utils.MapType
-import com.ephemeris.helios.utils.calc.LunarEphemeris
-import com.ephemeris.helios.utils.calc.SolarEphemeris
-import com.ephemeris.helios.utils.location.Coordinates
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun Maps(
-    coordinates: Coordinates,
-    currentSolarPosition: SolarEphemeris.SolarPosition,
-    solarEvents: SolarEphemeris.DailyEvents,
-    sunChartArrays: ChartArrays?,
-    currentLunarPosition: LunarEphemeris.LunarPosition,
-    lunarEvents: LunarEphemeris.LunarDailyEvents,
-    moonChartArrays: ChartArrays?,
-    onMapCenterSettled: (Coordinates) -> Unit
+    viewModel: MapsViewModel = koinViewModel(),
 ) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val ui = state ?: return
+    val sun = ui.sun
+    val moon = ui.moon
+
     var selectedMapType by rememberSaveable { mutableIntStateOf(MapType.AZIMUTH.ordinal) }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top,
-        modifier = Modifier
-            .fillMaxSize()
-//            .clip(RoundedCornerShape(16.dp))
+        modifier = Modifier.fillMaxSize()
     ) {
         PrimaryTabRow(
             selectedTabIndex = selectedMapType,
@@ -67,27 +61,26 @@ fun Maps(
         }
         Column(
             modifier = Modifier.weight(1f)
-//            modifier = Modifier.fillMaxSize()
         ) {
             when (selectedMapType) {
                 MapType.AZIMUTH.ordinal -> {
                     FullscreenAzimuthMap(
-                        location = coordinates,
-                        currentSolarPosition = currentSolarPosition,
-                        currentLunarPosition = currentLunarPosition,
-                        solarEvents = solarEvents,
-                        lunarEvents = lunarEvents,
-                        sunChartArrays = sunChartArrays,
-                        moonChartArrays = moonChartArrays,
-                        onMapCenterSettled = onMapCenterSettled
+                        location = ui.coordinates,
+                        currentSolarPosition = sun.position,
+                        currentLunarPosition = moon.position,
+                        solarEvents = sun.events,
+                        lunarEvents = moon.events,
+                        sunChartArrays = sun.chartArrays,
+                        moonChartArrays = moon.chartArrays,
+                        onMapCenterSettled = viewModel::onMapCenterSettled
                     )
                 }
 
                 MapType.SHADEMAP.ordinal -> {
                     FullscreenShadeMap(
-                        location = coordinates,
-                        currentSolarPosition = currentSolarPosition,
-                        onMapCenterSettled = onMapCenterSettled
+                        location = ui.coordinates,
+                        currentSolarPosition = sun.position,
+                        onMapCenterSettled = viewModel::onMapCenterSettled
                     )
                 }
 
@@ -101,10 +94,10 @@ fun Maps(
             }
         }
         InfoPager(
-            currentSunPosition = currentSolarPosition,
-            sunEvents = solarEvents,
-            currentMoonPosition = currentLunarPosition,
-            moonEvents = lunarEvents,
+            currentSunPosition = sun.position,
+            sunEvents = sun.events,
+            currentMoonPosition = moon.position,
+            moonEvents = moon.events,
         )
     }
 }
