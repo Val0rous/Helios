@@ -17,11 +17,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -31,17 +28,13 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.ChartSelectorChip
-import com.ephemeris.helios.ui.composables.charts.DailyChart
 import com.ephemeris.helios.ui.composables.charts.DailyComboChart
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.charts.toDecimalHour
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.location.Coordinates
-import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import com.ephemeris.helios.utils.round
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.time.ZonedDateTime
-import kotlin.math.round
 
 @Composable
 fun DailyComboPathCard(
@@ -56,16 +49,13 @@ fun DailyComboPathCard(
     moonPhase: String,
     type: Charts,
     sunChartArrays: ChartArrays?,
-    moonChartArrays: ChartArrays?
+    moonChartArrays: ChartArrays?,
+    liveTime: ZonedDateTime = currentTime,
 ) {
     var selectedChartType by rememberSaveable { mutableStateOf(type) }
 
-    val currentHour: Float by remember(currentTime) {
-        derivedStateOf {
-            // Always pass time (0-24). Never pass Azimuth!
-            currentTime.hour.toFloat() + currentTime.minute / 60f + currentTime.second / 3600f
-        }
-    }
+    val currentHour: Float = currentTime.toDecimalHour()
+    val liveHour: Float = liveTime.toDecimalHour()
 
     Card(
         modifier = Modifier
@@ -136,6 +126,7 @@ fun DailyComboPathCard(
                     moonXValues = secondaryXValues,
                     moonYValues = secondaryYValues,
                     currentHour = currentHour,
+                    liveHour = liveHour,
                     chartType = selectedChartType,
                     currentSunAzimuth = currentSunAzimuth.toFloat(),
                     currentSunAltitude = currentSunAltitude.toFloat(),

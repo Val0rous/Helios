@@ -23,11 +23,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -49,16 +46,11 @@ import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.MoonMetrics
 import com.ephemeris.helios.utils.calc.SunMetrics
-import com.ephemeris.helios.utils.formatDirection
+import com.ephemeris.helios.utils.charts.toDecimalHour
 import com.ephemeris.helios.utils.formatDuration
-import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import com.ephemeris.helios.utils.round
-import com.mapbox.maps.extension.style.expressions.dsl.generated.distance
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.ZonedDateTime
-import kotlin.math.round
 
 const val X_SIZE = 1441 // 1440 items (one sampling per minute)
 
@@ -116,16 +108,13 @@ fun DailyPathCard(
     currentAzimuth: Double,
     phase: String = "",
     type: Charts,
-    chartArrays: ChartArrays?
+    chartArrays: ChartArrays?,
+    liveTime: ZonedDateTime = currentTime,
 ) {
     var selectedChartType by rememberSaveable { mutableStateOf(type) }
 
-    val currentHour: Float by remember(currentTime) {
-        derivedStateOf {
-            // Always pass time (0-24). Never pass Azimuth!
-            currentTime.hour.toFloat() + currentTime.minute / 60f + currentTime.second / 3600f
-        }
-    }
+    val currentHour: Float = currentTime.toDecimalHour()
+    val liveHour: Float = liveTime.toDecimalHour()
 
 
 
@@ -184,6 +173,7 @@ fun DailyPathCard(
                     xValues = xValues,
                     yValues = yValues,
                     currentHour = currentHour,
+                    liveHour = liveHour,
                     chartType = selectedChartType,
                     currentAzimuth = currentAzimuth.toFloat(),
                     currentAltitude = currentAltitude.toFloat(),

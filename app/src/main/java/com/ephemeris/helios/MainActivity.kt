@@ -190,6 +190,7 @@ class MainActivity : ComponentActivity() {
                             composable(Routes.Home.route) {
                                 Home(
                                     currentTime = vm.currentTime,
+                                    liveTime = vm.liveData!!.timestamp,
                                     coordinates = coordinates!!,
                                     currentSunPosition = vm.liveData!!.currentSunPosition,
                                     sunEvents = vm.dayData!!.events,
@@ -206,6 +207,7 @@ class MainActivity : ComponentActivity() {
                             composable(Routes.Sun.route) {
                                 Sun(
                                     currentTime = vm.currentTime,
+                                    liveTime = vm.liveData!!.sun.timestamp,
                                     coordinates = coordinates!!,
                                     currentSolarPosition = vm.liveData!!.currentSunPosition,
                                     events = vm.dayData!!.events,
@@ -220,6 +222,7 @@ class MainActivity : ComponentActivity() {
                             composable(Routes.Moon.route) {
                                 Moon(
                                     currentTime = vm.currentTime,
+                                    liveTime = vm.liveData!!.moon.timestamp,
                                     coordinates = coordinates!!,
                                     currentPosition = vm.liveData!!.currentMoonPosition,
                                     events = vm.dayData!!.lunarEvents,

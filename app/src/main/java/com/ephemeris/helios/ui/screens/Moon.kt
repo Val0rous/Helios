@@ -27,7 +27,8 @@ fun Moon(
     events: LunarEphemeris.LunarDailyEvents,
     dailyPeakMetrics: MoonMetrics.LunarMetricsResult,
     liveMetrics: MoonMetrics.LunarMetricsResult,
-    moonChartArrays: ChartArrays?
+    moonChartArrays: ChartArrays?,
+    liveTime: ZonedDateTime = currentTime,
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -36,6 +37,7 @@ fun Moon(
         item {
             DailyPathCard(
                 currentTime = currentTime,
+                liveTime = liveTime,
                 coordinates = coordinates,
                 dayLength = 0.0,
                 currentAltitude = currentPosition.altitude,

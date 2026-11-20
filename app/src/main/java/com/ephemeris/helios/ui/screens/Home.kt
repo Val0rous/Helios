@@ -25,7 +25,8 @@ fun Home(
     moonEvents: LunarEphemeris.LunarDailyEvents,
     sunChartArrays: ChartArrays?,
     moonChartArrays: ChartArrays?,
-    currentMoonPhase: String
+    currentMoonPhase: String,
+    liveTime: ZonedDateTime = currentTime,
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -34,6 +35,7 @@ fun Home(
         item {
             DailyComboPathCard(
                 currentTime = currentTime,
+                liveTime = liveTime,
                 coordinates = coordinates,
                 dayLength = sunEvents.dayLength,
                 currentSunAltitude = currentSunPosition.altitude,

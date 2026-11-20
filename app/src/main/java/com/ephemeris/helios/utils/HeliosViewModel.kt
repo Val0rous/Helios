@@ -21,8 +21,11 @@ import com.ephemeris.helios.utils.location.MapboxElevationEngine
 import com.ephemeris.helios.utils.location.NativeGeocodingEngine
 import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import com.ephemeris.helios.utils.network.TimeApiClient
+import androidx.compose.runtime.snapshots.Snapshot
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -58,6 +61,9 @@ class HeliosViewModel(
         private set
     var moonChartArrays by mutableStateOf<ChartArrays?>(null)
         private set
+
+    private var dayDataJob: Job? = null
+    private var liveUpdateJob: Job? = null
 
     init {
         startClockTicker()
@@ -140,18 +146,18 @@ class HeliosViewModel(
 
     // Triggered manually when location or date changes
     fun updateDayData(coordinates: Coordinates) {
-        viewModelScope.launch(Dispatchers.Default) {
-            dayData = getDailyEphemerisData(currentTime, coordinates)
+        val targetTime = currentTime
+        dayDataJob?.cancel()
+        dayDataJob = viewModelScope.launch(Dispatchers.Default) {
+            val newDayData = getDailyEphemerisData(targetTime, coordinates)
+            ensureActive()
 
-            // Isolate the 480-iteration math loop
+            // Isolate the 1441-iteration math loop
             val hoursCalc = DoubleArray(X_SIZE) { it / 60.0 }
             val hours = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
 
-//            val xDataMap = mutableMapOf<Charts, FloatArray>()
-//            val yDataMap = mutableMapOf<Charts, FloatArray>()
-
-            val tzOffset = currentTime.offset.totalSeconds / 3600.0
-            val localDate = currentTime.toLocalDate()
+            val tzOffset = targetTime.offset.totalSeconds / 3600.0
+            val localDate = targetTime.toLocalDate()
 
             val dailyOzone = estimateHistoricalOzone(
                 latitude = coordinates.latitude,
@@ -159,10 +165,18 @@ class HeliosViewModel(
             )
 
             val (xSun, ySun) = generateSunData(localDate, hoursCalc, coordinates, tzOffset, dailyOzone)
-            sunChartArrays = ChartArrays(hours, xSun, ySun)
+            ensureActive()
+            val newSunChartArrays = ChartArrays(hours, xSun, ySun)
 
-            val (xMoon, yMoon) = generateMoonData(localDate, hoursCalc, coordinates, tzOffset, currentTime)
-            moonChartArrays = ChartArrays(hours, xMoon, yMoon)
+            val (xMoon, yMoon) = generateMoonData(localDate, hoursCalc, coordinates, tzOffset, targetTime)
+            ensureActive()
+            val newMoonChartArrays = ChartArrays(hours, xMoon, yMoon)
+
+            Snapshot.withMutableSnapshot {
+                dayData = newDayData
+                sunChartArrays = newSunChartArrays
+                moonChartArrays = newMoonChartArrays
+            }
 
             // Todo Planets
         }
@@ -170,12 +184,16 @@ class HeliosViewModel(
 
     // Ticker 2: Live UI Updates
     fun startLiveUpdatesTicker(coordinates: Coordinates) {
-        viewModelScope.launch(Dispatchers.Default) {
-            liveData = if (isAutoUpdateEnabled) {
-                getLiveUpdates(ZonedDateTime.now(currentZoneId), coordinates)
-            } else {
-                getLiveUpdates(currentTime, coordinates)
-            }
+        val targetTime = if (isAutoUpdateEnabled) {
+            ZonedDateTime.now(currentZoneId)
+        } else {
+            currentTime
+        }
+        liveUpdateJob?.cancel()
+        liveUpdateJob = viewModelScope.launch(Dispatchers.Default) {
+            val updated = getLiveUpdates(targetTime, coordinates)
+            ensureActive()
+            liveData = updated
         }
     }
 

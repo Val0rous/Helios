@@ -2,9 +2,9 @@ package com.ephemeris.helios.utils.charts
 
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.location.Coordinates
+import java.time.ZonedDateTime
 import kotlin.math.log10
 import kotlin.math.max
-import kotlin.math.roundToInt
 import kotlin.math.sin
 
 
@@ -106,4 +106,28 @@ fun getZeroYPixel(
 //            Charts.Sun.Daily.AirMass -> mapY(1f)
 //            Charts.Sun.Daily.AirMass -> mapY(0f)
     return mapY(0f)
+}
+
+fun ZonedDateTime.toDecimalHour(): Float =
+    hour.toFloat() + minute / 60f + second / 3600f
+
+/**
+ * O(1) linear interpolation on a uniformly sampled 24-hour array (00:00..24:00).
+ * Keeps chart icons glued directly to the rendered curve without async lag or linear scans.
+ */
+fun interpolateYAtHour(yValues: FloatArray, hour: Float): Float {
+    if (yValues.isEmpty()) return Float.NaN
+    val maxIdx = yValues.lastIndex
+    val exactIdx = ((hour / 24f) * maxIdx).coerceIn(0f, maxIdx.toFloat())
+    val i0 = exactIdx.toInt()
+    val i1 = (i0 + 1).coerceAtMost(maxIdx)
+    val y0 = yValues[i0]
+    val y1 = yValues[i1]
+    val fraction = exactIdx - i0
+    return when {
+        !y0.isNaN() && !y1.isNaN() -> y0 + fraction * (y1 - y0)
+        !y0.isNaN() -> y0
+        !y1.isNaN() -> y1
+        else -> Float.NaN
+    }
 }

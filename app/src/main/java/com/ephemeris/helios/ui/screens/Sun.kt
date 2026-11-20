@@ -57,7 +57,8 @@ fun Sun(
     liveMetrics: SunMetrics.SunMetricsResult,
     seasonalEvents: SeasonalEphemeris.SeasonalEvents,
     seasonalDailyEvents: SeasonalEphemeris.SeasonalDailyEvents,
-    sunChartArrays: ChartArrays?
+    sunChartArrays: ChartArrays?,
+    liveTime: ZonedDateTime = currentTime,
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -66,6 +67,7 @@ fun Sun(
         item {
             DailyPathCard(
                 currentTime = currentTime,
+                liveTime = liveTime,
                 coordinates = coordinates,
                 dayLength = events.dayLength,
                 currentAltitude = currentSolarPosition.altitude,
