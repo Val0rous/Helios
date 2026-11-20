@@ -203,7 +203,7 @@ fun TimeMachine(
                                     else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                                 },
                                 border = ButtonDefaults.outlinedButtonBorder(),
-                                colors = ToggleButtonDefaults.toggleButtonColors(
+                                colors = ToggleButtonDefaults.colors(
                                     checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                                     checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
                                 ),

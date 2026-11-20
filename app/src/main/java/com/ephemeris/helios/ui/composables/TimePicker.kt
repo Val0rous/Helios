@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
+import androidx.compose.material3.TimeInputDefaults
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberTimePickerState
@@ -54,8 +55,15 @@ fun TimePicker(
             periodSelectorBorderColor = MaterialTheme.colorScheme.outline,
             periodSelectorSelectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
             periodSelectorSelectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-            periodSelectorUnselectedContainerColor = Color.Transparent,
-            periodSelectorUnselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            periodSelectorContainerColor = Color.Transparent,
+            periodSelectorContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        val expressiveInputColors = TimeInputDefaults.colors(
+            periodSelectorBorderColor = MaterialTheme.colorScheme.outline,
+            periodSelectorSelectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+            periodSelectorSelectedContentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            periodSelectorContainerColor = Color.Transparent,
+            periodSelectorContentColor = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         AlertDialog(
@@ -68,7 +76,7 @@ fun TimePicker(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     if (showTimeInput) {
-                        TimeInput(state = timePickerState, colors = expressiveToggleColors)
+                        TimeInput(state = timePickerState, colors = expressiveInputColors)
                     } else {
                         TimePicker(state = timePickerState, colors = expressiveToggleColors)
                     }
