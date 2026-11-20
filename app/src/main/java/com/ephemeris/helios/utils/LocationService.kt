@@ -11,13 +11,7 @@ import android.os.Looper
 import android.provider.Settings
 import android.widget.Toast
 import androidx.annotation.RequiresPermission
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
-import com.ephemeris.helios.utils.location.AltitudeCorrector
-import com.ephemeris.helios.utils.location.Coordinates
-import com.google.android.gms.location.CurrentLocationRequest
 import com.google.android.gms.location.Granularity
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -25,40 +19,38 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 enum class MonitoringStatus { Monitoring, Paused, NotMonitoring }
 
 enum class StartMonitoringResult { Started, GPSDisabled, PermissionDenied }
 
+sealed interface GpsEvent {
+    data class Fix(val location: Location) : GpsEvent
+    data object Failed : GpsEvent
+}
+
 class LocationService(
     private val context: Context,
-    private val altitudeCorrector: AltitudeCorrector,
 ) {
-    private var monitoringStatus by mutableStateOf(MonitoringStatus.NotMonitoring)
-    var coordinates: Coordinates? by mutableStateOf(null)
-        private set
+    private var monitoringStatus = MonitoringStatus.NotMonitoring
+
+    private val _gpsEvents = MutableSharedFlow<GpsEvent>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val gpsEvents: SharedFlow<GpsEvent> = _gpsEvents.asSharedFlow()
 
     private val fusedLocationProviderClient = LocationServices
         .getFusedLocationProviderClient(context)
 
-    private val locationRequest = LocationRequest
-        .Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000)
-        .apply { setGranularity(Granularity.GRANULARITY_PERMISSION_LEVEL) }
-        .build()
-
-    private var isTracking = false
     private var currentIntervalMillis = 10000L
 
-    // --- HELPER TO PREVENT CODE DUPLICATION ---
     private fun dispatchLocation(location: Location) {
-        val realAltitude = altitudeCorrector.getRealAltitude(location)
-        val roundedAltitude = kotlin.math.round(realAltitude * 10.0) / 10.0
-
-        coordinates = Coordinates(
-            location.latitude,
-            location.longitude,
-            roundedAltitude,
-        )
+        _gpsEvents.tryEmit(GpsEvent.Fix(location))
     }
 
     private val locationCallback = object : LocationCallback() {
@@ -84,10 +76,14 @@ class LocationService(
         if (!isLocationEnabled) return StartMonitoringResult.GPSDisabled
 
         // Check if permission is granted
-        val finePermissionGranted = ContextCompat.checkSelfPermission(context,
-            Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        val coarsePermissionGranted = ContextCompat.checkSelfPermission(context,
-            Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val finePermissionGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        val coarsePermissionGranted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
         if (!(finePermissionGranted || coarsePermissionGranted)) return StartMonitoringResult.PermissionDenied
 
         return null // All good
@@ -96,7 +92,10 @@ class LocationService(
     // One-Off Fast Request (Hybrid Waterfall Approach)
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     fun requestCurrentLocation(): StartMonitoringResult {
-        checkPrerequisites()?.let { return it }
+        checkPrerequisites()?.let {
+            _gpsEvents.tryEmit(GpsEvent.Failed)
+            return it
+        }
 
         // Step 1: Try the blazing-fast Fused Location API first
         val cancellationTokenSource = CancellationTokenSource()
@@ -140,9 +139,7 @@ class LocationService(
                 if (location != null) {
                     dispatchLocation(location)
                 } else {
-                    // Absolute worst-case scenario: Offline AND indoors.
-                    // The hardware physically cannot see the satellites.
-                    // You could trigger a UI toast here in the future!
+                    _gpsEvents.tryEmit(GpsEvent.Failed)
                     Handler(Looper.getMainLooper()).post {
                         Toast.makeText(context, "GPS Failed. Are you indoors?", Toast.LENGTH_LONG).show()
                     }
@@ -167,7 +164,10 @@ class LocationService(
     // Continuous Tracking
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     fun startLocationTracking(intervalMillis: Long = 10000L): StartMonitoringResult {
-        checkPrerequisites()?.let { return it }
+        checkPrerequisites()?.let {
+            _gpsEvents.tryEmit(GpsEvent.Failed)
+            return it
+        }
 
         currentIntervalMillis = intervalMillis
         val request = LocationRequest
@@ -176,7 +176,6 @@ class LocationService(
             .build()
 
         fusedLocationProviderClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
-        isTracking = true
         monitoringStatus = MonitoringStatus.Monitoring
         return StartMonitoringResult.Started
     }

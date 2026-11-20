@@ -52,7 +52,6 @@ import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.MapCard
 import com.ephemeris.helios.ui.composables.entries.TextEntryLocation
-import com.ephemeris.helios.utils.LocationStatus
 import com.ephemeris.helios.utils.formatLatitude
 import com.ephemeris.helios.utils.formatLongitude
 import com.ephemeris.helios.utils.location.Coordinates
@@ -67,7 +66,6 @@ fun LocationBottomSheet(
     currentTime: ZonedDateTime,
     coordinates: Coordinates,
     onSaveCoordinates: (Coordinates, Boolean) -> Unit,
-    onLocationStatusChange: (LocationStatus) -> Unit,
     showBottomSheet: Boolean,
     onShowBottomSheetChange: (Boolean) -> Unit,
     isTracking: Boolean,
@@ -167,8 +165,7 @@ fun LocationBottomSheet(
                                     onClick = {
                                         // Trigger the save callback
                                         // We know these aren't null because the button is enabled
-                                        onLocationStatusChange(LocationStatus.DISABLED)
-                                        onSaveCoordinates(Coordinates(latDouble!!, lonDouble!!, altDouble!!,), false)   // false because it's not from GPS
+                                        onSaveCoordinates(Coordinates(latDouble!!, lonDouble!!, altDouble!!), false)   // false because it's not from GPS
                                         // Return to view mode
                                         isEditing = false
                                     },

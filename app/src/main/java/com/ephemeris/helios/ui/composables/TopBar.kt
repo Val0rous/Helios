@@ -23,7 +23,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,17 +35,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
-import com.ephemeris.helios.utils.LocationService
 import com.ephemeris.helios.utils.LocationStatus
 import com.ephemeris.helios.utils.formatShortLatitude
 import com.ephemeris.helios.utils.formatShortLongitude
 import com.ephemeris.helios.utils.location.Coordinates
-import org.koin.compose.koinInject
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
-import kotlin.math.max
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,36 +50,12 @@ import kotlin.math.roundToInt
 fun TopBar(
     currentTime: ZonedDateTime,
     coordinates: Coordinates?,
+    locationStatus: LocationStatus,
     onSaveCoordinates: (Coordinates, Boolean) -> Unit,
     onLocationClick: () -> Unit,
     isTracking: Boolean,
     onToggleTracking: (Boolean) -> Unit,
-    locationService: LocationService = koinInject()
 ) {
-    var locationStatus by remember { mutableStateOf(LocationStatus.DISABLED) } // Todo: make it store user setting
-
-    LaunchedEffect(key1 = locationService.coordinates) {
-        if (locationService.coordinates != null) {
-            val location = locationService.coordinates?.let {
-                Coordinates(
-                    latitude = it.latitude,
-                    longitude = it.longitude,
-                    altitude = it.altitude,
-                )
-            }
-            if (location != null) {
-                locationStatus = LocationStatus.CURRENT
-                onSaveCoordinates(location, true)   // True makes ViewModel skip Mapbox altitude fetch and trust the GPS altitude
-            }
-        }
-    }
-
-    // Force icon state if continuous tracking gets enabled elsewhere
-    LaunchedEffect(isTracking) {
-        if (isTracking && locationStatus != LocationStatus.CURRENT) {
-            locationStatus = LocationStatus.SEARCHING
-        }
-    }
 
     var showBottomSheet by remember { mutableStateOf(false) }
     val color = if (locationStatus != LocationStatus.DISABLED || isTracking) {
@@ -202,10 +174,7 @@ fun TopBar(
                     )
                 }
                 IconButton(
-                    onClick = {
-                        locationStatus = LocationStatus.SEARCHING
-                        onLocationClick()
-                    }
+                    onClick = onLocationClick
                 ) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -236,7 +205,6 @@ fun TopBar(
             currentTime = currentTime,
             coordinates = coordinates,
             onSaveCoordinates = onSaveCoordinates,
-            onLocationStatusChange = { locationStatus = it },
             showBottomSheet = showBottomSheet,
             onShowBottomSheetChange = { showBottomSheet = it },
             isTracking = isTracking,

@@ -16,6 +16,7 @@ import com.ephemeris.helios.utils.calc.LiveUpdatesData
 import com.ephemeris.helios.utils.calc.getDailyEphemerisData
 import com.ephemeris.helios.utils.calc.getLiveUpdates
 import com.ephemeris.helios.utils.datastore.LocationDataStore
+import com.ephemeris.helios.utils.location.AltitudeCorrector
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.location.MapboxElevationEngine
 import com.ephemeris.helios.utils.location.NativeGeocodingEngine
@@ -35,6 +36,8 @@ import java.time.ZonedDateTime
 class HeliosViewModel(
     private val locationDataStore: LocationDataStore,
     private val geocodingEngine: NativeGeocodingEngine,
+    private val locationService: LocationService,
+    private val altitudeCorrector: AltitudeCorrector,
 ) : ViewModel() {
     // DataStore Flow converted to a StateFlow for Compose
     val coordinatesState = locationDataStore.coordinatesFlow.stateIn(
@@ -57,6 +60,11 @@ class HeliosViewModel(
     var isDataStoreLoaded by mutableStateOf(false)
         private set
 
+    var locationStatus by mutableStateOf(LocationStatus.DISABLED)
+        private set
+    var isContinuousGPSTrackingEnabled by mutableStateOf(false)
+        private set
+
     var sunChartArrays by mutableStateOf<ChartArrays?>(null)
         private set
     var moonChartArrays by mutableStateOf<ChartArrays?>(null)
@@ -67,6 +75,28 @@ class HeliosViewModel(
 
     init {
         startClockTicker()
+
+        // Collect GPS hardware fixes off the Main thread (also keeps Geoid fallback off the Main thread)
+        viewModelScope.launch(Dispatchers.IO) {
+            locationService.gpsEvents.collect { event ->
+                when (event) {
+                    is GpsEvent.Fix -> {
+                        val realAltitude = altitudeCorrector.getRealAltitude(event.location)
+                        val roundedAltitude = kotlin.math.round(realAltitude * 10.0) / 10.0
+                        val gpsCoords = Coordinates(
+                            latitude = event.location.latitude,
+                            longitude = event.location.longitude,
+                            altitude = roundedAltitude,
+                        )
+                        locationStatus = LocationStatus.CURRENT
+                        saveCoordinates(gpsCoords, isFromGPS = true)
+                    }
+                    GpsEvent.Failed -> {
+                        onLocationRequestFailed()
+                    }
+                }
+            }
+        }
 
         // Listen for the very first DataStore emission
         viewModelScope.launch {
@@ -98,7 +128,27 @@ class HeliosViewModel(
         }
     }
 
+    fun onLocationRequestStarted() {
+        locationStatus = LocationStatus.SEARCHING
+    }
+
+    fun onLocationRequestFailed() {
+        if (locationStatus == LocationStatus.SEARCHING) {
+            locationStatus = LocationStatus.DISABLED
+        }
+    }
+
+    fun setContinuousTracking(enabled: Boolean) {
+        isContinuousGPSTrackingEnabled = enabled
+        if (enabled && locationStatus != LocationStatus.CURRENT) {
+            locationStatus = LocationStatus.SEARCHING
+        }
+    }
+
     fun saveCoordinates(newCoordinates: Coordinates, isFromGPS: Boolean = false) {
+        if (!isFromGPS) {
+            locationStatus = LocationStatus.DISABLED
+        }
         // Run on IO Dispatcher so the geocoder doesn't block the UI
         viewModelScope.launch(Dispatchers.IO) {
             var finalCoords = newCoordinates

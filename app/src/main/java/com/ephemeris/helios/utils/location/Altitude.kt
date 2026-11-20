@@ -3,37 +3,43 @@ package com.ephemeris.helios.utils.location
 import Geoid
 import android.content.Context
 import android.location.Location
+import android.os.Build
 import java.io.File
 
 class AltitudeCorrector(context: Context) {
 
-    private var geoid: Geoid? = null
+    // Hold only the Application Context so this singleton can never leak an Activity
+    private val appContext: Context = context.applicationContext
 
-    init {
-        // CRITICAL: Grab the Application Context to prevent memory leaks
-        val appContext = context.applicationContext
+    // Lazily copied and loaded on first fallback use (completely skipped on Android 14+ when MSL is available)
+    private val geoid: Geoid? by lazy { loadGeoid() }
 
+    private fun loadGeoid(): Geoid? = try {
         // 1. Define where the file will live on the phone's internal storage
         val geoidDir = File(appContext.filesDir, "geoids")
         if (!geoidDir.exists()) geoidDir.mkdirs()
 
         val geoidFile = File(geoidDir, "egm96-5.pgm")
 
-        // 2. If the file isn't there yet, copy it from the bundled APK assets
+        // 2. If the file isn't there yet, copy it atomically from the bundled APK assets
         if (!geoidFile.exists()) {
-            context.assets.open("geoids/egm96-5.pgm").use { inputStream ->
-                geoidFile.outputStream().use { outputStream ->
+            val tempFile = File(geoidDir, "egm96-5.pgm.tmp")
+            appContext.assets.open("geoids/egm96-5.pgm").use { inputStream ->
+                tempFile.outputStream().use { outputStream ->
                     inputStream.copyTo(outputStream)
                 }
+            }
+            if (!tempFile.renameTo(geoidFile)) {
+                tempFile.copyTo(geoidFile, overwrite = true)
+                tempFile.delete()
             }
         }
 
         // 3. Initialize the GeographicLib Geoid engine with the copied file
-        try {
-            geoid = Geoid("egm96-5", geoidDir.absolutePath, true, false)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        Geoid("egm96-5", geoidDir.absolutePath, true, false)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
     }
 
     fun getTrueSeaLevelAltitude(lat: Double, lon: Double, gpsAltitude: Double): Double {
@@ -45,13 +51,13 @@ class AltitudeCorrector(context: Context) {
     }
 
     fun getRealAltitude(location: Location): Double {
-    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE
-        && location.hasMslAltitude()) {
-        // 1. Android 14+ natively calculates the Geoid correction for you
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
+            location.hasMslAltitude()
+        ) {
+            // 1. Android 14+ natively calculates the Geoid correction for you
             return location.mslAltitudeMeters
-    }
-        // 2. Fallback for older Android versions
-//        val ellipsoidAltitude = location.altitude
+        }
+        // 2. Fallback for older Android versions (or fixes missing native MSL altitude)
         return getTrueSeaLevelAltitude(location.latitude, location.longitude, location.altitude)
     }
 }

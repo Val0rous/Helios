@@ -61,7 +61,6 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             var startDestination by remember { mutableStateOf(initialStartDestination) }
             val coordinates by vm.coordinatesState.collectAsState()
-            var isContinuousGPSTrackingEnabled by remember { mutableStateOf(false) }
 
             val snackbarHostState = remember { SnackbarHostState() }
 
@@ -89,30 +88,33 @@ class MainActivity : ComponentActivity() {
                 // Wrapper handles all dialogs and lifecycle automatically
                 LocationPermissionWrapper(
                     snackbarHostState = snackbarHostState,
-                    isContinuousGPSTrackingEnabled = isContinuousGPSTrackingEnabled
+                    onLocationRequestFailed = { vm.onLocationRequestFailed() },
                 ) { requestOneOffLocation, startContinuousTracking, stopTracking ->
 
                     Scaffold(
                         //modifier
                         topBar = {
-                            coordinates.let { currentCoords ->
-                                TopBar(
-                                    currentTime = vm.currentTime,
-                                    coordinates = currentCoords,
-                                    onSaveCoordinates = { coords, isFromGPS ->
-                                        vm.saveCoordinates(coords, isFromGPS) },
-                                    onLocationClick = { requestOneOffLocation() },
-                                    isTracking = isContinuousGPSTrackingEnabled,
-                                    onToggleTracking = { enableTracking ->
-                                        isContinuousGPSTrackingEnabled = enableTracking
-                                        if (enableTracking) {
-                                            startContinuousTracking(10000L)
-                                        } else {
-                                            stopTracking()
-                                        }
-                                    },
-                                )
-                            }
+                            TopBar(
+                                currentTime = vm.currentTime,
+                                coordinates = coordinates,
+                                locationStatus = vm.locationStatus,
+                                onSaveCoordinates = { coords, isFromGPS ->
+                                    vm.saveCoordinates(coords, isFromGPS)
+                                },
+                                onLocationClick = {
+                                    vm.onLocationRequestStarted()
+                                    requestOneOffLocation()
+                                },
+                                isTracking = vm.isContinuousGPSTrackingEnabled,
+                                onToggleTracking = { enableTracking ->
+                                    vm.setContinuousTracking(enableTracking)
+                                    if (enableTracking) {
+                                        startContinuousTracking(10000L)
+                                    } else {
+                                        stopTracking()
+                                    }
+                                },
+                            )
                         },
                         bottomBar = {
                             Column(modifier = Modifier.fillMaxWidth()) {

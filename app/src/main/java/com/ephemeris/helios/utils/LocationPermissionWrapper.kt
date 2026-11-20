@@ -26,7 +26,7 @@ import org.koin.compose.koinInject
 @Composable
 fun LocationPermissionWrapper(
     snackbarHostState: SnackbarHostState,
-    isContinuousGPSTrackingEnabled: Boolean,
+    onLocationRequestFailed: () -> Unit = {},
     locationService: LocationService = koinInject(),
     content: @Composable (
         requestOneOffLocation: () -> Unit,
@@ -56,8 +56,14 @@ fun LocationPermissionWrapper(
                 val res = locationService.requestCurrentLocation()
                 showLocationDisabledAlert.value = res == StartMonitoringResult.GPSDisabled
             }
-            PermissionStatus.Denied -> showPermissionDeniedAlert.value = true
-            PermissionStatus.PermanentlyDenied -> showPermissionPermanentlyDeniedSnackbar.value = true
+            PermissionStatus.Denied -> {
+                showPermissionDeniedAlert.value = true
+                onLocationRequestFailed()
+            }
+            PermissionStatus.PermanentlyDenied -> {
+                showPermissionPermanentlyDeniedSnackbar.value = true
+                onLocationRequestFailed()
+            }
             PermissionStatus.Unknown -> {}
         }
     }
