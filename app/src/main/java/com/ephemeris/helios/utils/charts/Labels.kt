@@ -12,6 +12,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import com.ephemeris.helios.ui.theme.ChartAlphas
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.formatHour
 import com.ephemeris.helios.utils.formatNumber
@@ -54,7 +55,7 @@ fun Density.prepareYLabels(
 ): PreparedYLabels {
     val dashPx = 2.dp.toPx()
     val horizontalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(dashPx, dashPx), 0f)
-    val horizontalGridlineColor = materialTheme.outline.copy(alpha = 0.3f)
+    val horizontalGridlineColor = materialTheme.outline.copy(alpha = ChartAlphas.GRID_HORIZONTAL)
     val strokeWidthPx = 1.dp.toPx()
     val leftPaddingPx = 4.dp.toPx()
     val className = chartType.javaClass.simpleName
@@ -197,7 +198,7 @@ fun Density.prepareXLabels(
     isShiftTrajectory: Boolean = false,
 ): PreparedXLabels {
     val verticalGridDashEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 0.dp.toPx()), 0f)
-    val verticalGridlineColor = materialTheme.outlineVariant.copy(alpha = 0.15f)
+    val verticalGridlineColor = materialTheme.outlineVariant.copy(alpha = ChartAlphas.GRID_VERTICAL)
     val strokeWidthPx = 1.dp.toPx()
     val bottomPaddingPx = 2.dp.toPx()
     val className = chartType.javaClass.simpleName

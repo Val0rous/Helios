@@ -42,7 +42,7 @@ fun ColorTemperature(
             tempF <= 4000f -> lerp(customColors.ct3000, customColors.ct4000, (tempF - 3000f) / 1000f)
             tempF < 5500f -> lerp(customColors.ct4000, customColors.ct5500, (tempF - 4000f) / 1500f)
             else -> customColors.ct5500
-        }.copy(alpha = 1f)
+        }
     }
 
     // The upgraded description scale

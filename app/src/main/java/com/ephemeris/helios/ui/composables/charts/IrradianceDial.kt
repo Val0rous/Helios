@@ -47,7 +47,7 @@ fun IrradianceDial(
 //        else -> lerp(colors.irrMid, colors.irrHigh, (fraction - 0.5f) * 2f)
         else -> lerp(colors.irrMid, colors.irrHigh, fraction)
     }
-    val trackColor = colors.irrLow
+    val trackColor = colors.irrLow.copy(alpha = 0.35f)
 
     Box(
         modifier = modifier,

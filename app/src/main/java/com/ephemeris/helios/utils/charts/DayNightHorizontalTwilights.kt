@@ -18,11 +18,12 @@ fun DrawScope.drawDayNightHorizontalTwilights(
     chartType: Charts,
     isApparentElevation: Boolean = false
 ) {
-    val dayFill = colors.dayBackground
-    val civilTwilightFill = colors.civilTwilight
-    val nauticalTwilightFill = colors.nauticalTwilight
-    val astroTwilightFill = colors.astronomicalTwilight
-    val nightFill = colors.nightBackground // TODO: add "night" for moon and planets
+    val fills = colors.fills
+    val dayFill = fills.dayBackground
+    val civilTwilightFill = fills.civilTwilight
+    val nauticalTwilightFill = fills.nauticalTwilight
+    val astroTwilightFill = fills.astronomicalTwilight
+    val nightFill = fills.nightBackground // TODO: add "night" for moon and planets
 
     val className = chartType.javaClass.simpleName
     val isElevationOrTrajectory = className.contains("Elevation") || className.contains("Trajectory")

@@ -21,7 +21,6 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
-import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.ChartData
 import com.ephemeris.helios.utils.charts.IS_APPARENT_ELEVATION_DEFAULT
@@ -83,20 +82,20 @@ fun DailyChart(
     val drawChartIcon = rememberChartIconDrawer(chartType)
     val colors = LocalCustomColors.current
     val colorScheme = MaterialTheme.colorScheme
-    val dayFill = colors.dayBackground
-
+    val fills = colors.fills
+    val dayFill = fills.dayBackground
     val elapsedDayFill = when (chartType) {
-        Charts.Sun.Daily.Elevation -> colors.elapsedDay
-        else -> MaterialColors.Gray400.copy(alpha = 0.4f)
+        Charts.Sun.Daily.Elevation -> fills.elapsedDay
+        else -> fills.elapsedOther
     }
-    val elapsedNightFill = colors.elapsedNight
+    val elapsedNightFill = fills.elapsedNight
 
     val context = LocalContext.current
     // Text Measurer and styling for the legends
     val textMeasurer = rememberTextMeasurer(cacheSize = 32)
-    val labelStyle = remember(colorScheme.onSurfaceVariant) {
+    val labelStyle = remember(colors.chartLabel) {
         TextStyle(
-            color = colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            color = colors.chartLabel,
             fontSize = (9.5).sp,
             fontFamily = FontFamily.Monospace
         )
@@ -294,10 +293,10 @@ fun DailyChart(
                                 params.yValues.getOrNull(i + 5) == 0f
                             )
                             if (isNight) {
-                                colors.amHorizon
+                                fills.amHorizon
                             } else {
                                 val fraction = ((value.coerceIn(1f, 10f) - 1f) / 9f)
-                                lerp(colors.amZenith, colors.amHorizon, fraction)
+                                lerp(fills.amZenith, fills.amHorizon, fraction)
                             }
                         }, params)
                     }
@@ -311,10 +310,10 @@ fun DailyChart(
                                 params.yValues.getOrNull(i + 5) == 0f
                             )
                             if (isNight) {
-                                colors.shadowLong
+                                fills.shadowLong
                             } else {
                                 val fraction = (value.coerceIn(0f, 10f) / 10f)
-                                lerp(colors.shadowShort, colors.shadowLong, fraction)
+                                lerp(fills.shadowShort, fills.shadowLong, fraction)
                             }
                         }, params)
                     }
@@ -322,8 +321,8 @@ fun DailyChart(
                     Charts.Sun.Daily.Illuminance, Charts.Moon.Daily.Illuminance -> {
                         val absoluteMaxLux = if (chartType == Charts.Moon.Daily.Illuminance) 1.0f else 100000f
                         Brush.verticalGradient(
-                            0.0f to colors.luxBright,
-                            1.0f to colors.luxDim,
+                            0.0f to fills.luxBright,
+                            1.0f to fills.luxDim,
                             startY = mapY(absoluteMaxLux),
                             endY = zeroYPixel
                         )
@@ -334,8 +333,8 @@ fun DailyChart(
                             val absoluteMaxIrr = 950f
                             val fraction = (value / absoluteMaxIrr).coerceIn(0f, 1f)
                             when {
-                                fraction <= 0.5f -> lerp(colors.irrLow, colors.irrMid, fraction * 2f)
-                                else -> lerp(colors.irrMid, colors.irrHigh, (fraction - 0.5f) * 2f)
+                                fraction <= 0.5f -> lerp(fills.irrLow, fills.irrMid, fraction * 2f)
+                                else -> lerp(fills.irrMid, fills.irrHigh, (fraction - 0.5f) * 2f)
                             }
                         }, params)
                     }
@@ -443,7 +442,7 @@ fun DailyChart(
                 }
 
                 // Full unclipped curve line
-                drawCurvePath(primaryCurvePath, colorScheme)
+                drawCurvePath(primaryCurvePath, colors)
 
                 if (staticData.isTrajectory) {
                     drawElapsedPath(cachedElapsedLinePath!!, colors, chartType)

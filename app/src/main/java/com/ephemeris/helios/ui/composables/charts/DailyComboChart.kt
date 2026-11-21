@@ -64,9 +64,9 @@ fun DailyComboChart(
     val context = LocalContext.current
 
     val textMeasurer = rememberTextMeasurer(cacheSize = 32)
-    val labelStyle = remember(colorScheme.onSurfaceVariant) {
+    val labelStyle = remember(colors.chartLabel) {
         TextStyle(
-            color = colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            color = colors.chartLabel,
             fontSize = (9.5).sp,
             fontFamily = FontFamily.Monospace
         )
@@ -317,10 +317,12 @@ fun DailyComboChart(
                         staticData.shouldTransform
                     )
                 } else {
+                    val fills = colors.fills
+
                     clipPath(sunFillPath) {
                         // Base Day Fill
                         clipRect(bottom = zeroYPixel) {
-                            drawRect(color = colors.dayBackground, topLeft = Offset(0f, 0f), size = Size(params.width, zeroYPixel))
+                            drawRect(color = fills.dayBackground, topLeft = Offset(0f, 0f), size = Size(params.width, zeroYPixel))
                         }
 
                         // Draw precomputed Vertical Twilights (~5-9 rects)
@@ -333,11 +335,11 @@ fun DailyComboChart(
                         clipRect(right = currentSunXPx) {
                             clipRect(bottom = zeroYPixel) {
                                 // Yellow Sun elapsed fill above the horizon
-                                drawPath(path = sunFillPath, color = colors.elapsedDay)
+                                drawPath(path = sunFillPath, color = fills.elapsedDay)
                             }
                             clipRect(top = zeroYPixel) {
                                 // Dimmer Sun elapsed fill below the horizon
-                                drawPath(path = sunFillPath, color = colors.elapsedNight)
+                                drawPath(path = sunFillPath, color = fills.elapsedNight)
                             }
                         }
                     }
@@ -345,17 +347,17 @@ fun DailyComboChart(
                     clipPath(moonFillPath) {
                         clipRect(right = currentMoonXPx) {
                             clipRect(bottom = zeroYPixel) {
-                                drawPath(path = moonFillPath, color = colors.elapsedNight)
+                                drawPath(path = moonFillPath, color = fills.elapsedNight)
                             }
                             clipRect(top = zeroYPixel) {
-                                drawPath(path = moonFillPath, color = colors.elapsedNight)
+                                drawPath(path = moonFillPath, color = fills.elapsedNight)
                             }
                         }
                     }
                 }
 
                 // --- 2. MOON LAYER (Drawn First so it sits behind the Sun) ---
-                drawCurvePath(moonCurvePath, colorScheme)
+                drawCurvePath(moonCurvePath, colors)
                 if (staticData.isTrajectory) {
                     drawElapsedPath(cachedMoonElapsedPath!!, colors, Charts.Moon.Daily.Trajectory)
                 } else {
@@ -363,7 +365,7 @@ fun DailyComboChart(
                 }
 
                 // --- 3. SUN LAYER (Drawn on Top) ---
-                drawCurvePath(sunCurvePath, colorScheme)
+                drawCurvePath(sunCurvePath, colors)
                 if (staticData.isTrajectory) {
                     drawElapsedPath(cachedSunElapsedPath!!, colors, Charts.Sun.Daily.Trajectory)
                 } else {

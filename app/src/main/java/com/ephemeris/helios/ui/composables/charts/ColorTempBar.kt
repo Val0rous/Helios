@@ -41,11 +41,11 @@ fun ColorTempBar(
     // Mathematically tie the gradient stops to your GradientHelper's exact Kelvin values!
     // This perfectly mirrors the verticalGradient logic found in GradientHelper.kt
     val gradientBrush = Brush.horizontalGradient(
-        0.0f to customColors.ct2000.copy(alpha = 1f),
-        (3000f - minK) / rangeK to customColors.ct3000.copy(alpha = 1f),
-        (4000f - minK) / rangeK to customColors.ct4000.copy(alpha = 1f),
-        (5500f - minK) / rangeK to customColors.ct5500.copy(alpha = 1f),
-        1.0f to customColors.ct5500.copy(alpha = 1f) // Cap at ct5500 for the 5800K peak, as in your helper
+        0.0f to customColors.ct2000,
+        (3000f - minK) / rangeK to customColors.ct3000,
+        (4000f - minK) / rangeK to customColors.ct4000,
+        (5500f - minK) / rangeK to customColors.ct5500,
+        1.0f to customColors.ct5500 // Cap at ct5500 for the 5800K peak, as in your helper
     )
 
     Canvas(modifier = modifier.fillMaxSize()) {

@@ -56,7 +56,7 @@ fun UvIntensity(
         currentUvIntensity < 10f -> colors.uvRed
         currentUvIntensity < 11f -> colors.uvDarkRed
         else -> colors.uvPurple
-    }.copy(alpha = 1f)
+    }
 
     // --- ACCESSIBILITY TRANSFORM ---
     // If we are in light mode, check the mathematical brightness of the hue.

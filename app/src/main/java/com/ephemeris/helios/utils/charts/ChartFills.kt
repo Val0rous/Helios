@@ -53,11 +53,11 @@ fun DrawScope.drawDayNightAreaFill(
 
 fun DrawScope.drawCurvePath(
     curvePath: Path,
-    materialTheme: ColorScheme
+    localCustomColors: CustomColorScheme
 ) {
     drawPath(
         path = curvePath,
-        color = materialTheme.onSurfaceVariant,
+        color = localCustomColors.chartCurve,
         style = Stroke(width = (1.5).dp.toPx())
     )
 }

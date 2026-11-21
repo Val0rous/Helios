@@ -13,6 +13,7 @@ fun buildUVSliceBands(
     mapX: (Float) -> Float,
     colors: CustomColorScheme,
 ): List<HorizontalColorBand> {
+    val fills = colors.fills
     return buildHorizontalColorBands(
         xValues = params.xValues,
         yValues = params.yValues,
@@ -21,14 +22,14 @@ fun buildUVSliceBands(
     ) { uv ->
         when {
             uv < 0.01f -> Color.Transparent // Nighttime/Zero UV
-            uv < 2f -> colors.uvDarkGreen
-            uv < 3f -> colors.uvGreen
-            uv < 5f -> colors.uvYellow
-            uv < 6f -> colors.uvAmber
-            uv < 8f -> colors.uvOrange
-            uv < 10f -> colors.uvRed
-            uv < 11f -> colors.uvDarkRed
-            else -> colors.uvPurple
+            uv < 2f -> fills.uvDarkGreen
+            uv < 3f -> fills.uvGreen
+            uv < 5f -> fills.uvYellow
+            uv < 6f -> fills.uvAmber
+            uv < 8f -> fills.uvOrange
+            uv < 10f -> fills.uvRed
+            uv < 11f -> fills.uvDarkRed
+            else -> fills.uvPurple
         }
     }
 }

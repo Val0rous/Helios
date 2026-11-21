@@ -43,7 +43,7 @@ fun AirMassPill(
     val fillColor = if (isNight) {
         colorScheme.onSurfaceVariant
     } else {
-        lerp(colors.amZenith, colors.amHorizon, fraction).copy(alpha = 1f)
+        lerp(colors.amZenith, colors.amHorizon, fraction)
     }
 
     // --- DYNAMIC TRACK COLOR (Matches UvDial) ---

@@ -134,10 +134,11 @@ fun buildNightVerticalTwilightBands(
     val t12 = if (shouldTransform) transformApparentElevation(-12f) else -12f
     val t18 = if (shouldTransform) transformApparentElevation(-18f) else -18f
 
-    val civilTwilightFill = colors.civilTwilight
-    val nauticalTwilightFill = colors.nauticalTwilight
-    val astroTwilightFill = colors.astronomicalTwilight
-    val nightFill = colors.nightBackground
+    val fills = colors.fills
+    val civilTwilightFill = fills.civilTwilight
+    val nauticalTwilightFill = fills.nauticalTwilight
+    val astroTwilightFill = fills.astronomicalTwilight
+    val nightFill = fills.nightBackground
 
     return buildHorizontalColorBands(
         xValues = params.xValues,

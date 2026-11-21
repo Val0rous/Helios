@@ -75,7 +75,9 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
+import com.ephemeris.helios.ui.theme.ColorSchemeVariant
 import com.ephemeris.helios.ui.theme.MaterialColors
+import com.ephemeris.helios.ui.theme.rememberSeedColorScheme
 import com.ephemeris.helios.utils.LightPhasePreferences
 import com.ephemeris.helios.utils.TimeMachineFilter
 import com.ephemeris.helios.utils.calc.SolarEphemeris
@@ -275,17 +277,25 @@ fun TimeMachine(
                 val triangleIndicatorTop = MaterialTheme.colorScheme.surfaceContainerLow
                 val triangleIndicatorBottom = MaterialTheme.colorScheme.surfaceContainerLow
 
-                // Use bright white for the colored gradients, no more standard text color for the flat Year view
-                val tickAndTextColor = //if (selectedFilterType == TimeMachineFilter.Year) {
-                    //MaterialTheme.colorScheme.onSurface
-                //} else {
-                    MaterialColors.Gray50
-                //}
-                val textStyle = TextStyle(
-                    color = tickAndTextColor,
-                    fontSize = 11.sp,   // was 10.dp
-                    fontWeight = FontWeight.SemiBold
+                // Derive H/D/Y slider ticks & labels from the Light-mode seed via MaterialColorEngine:
+                // Light keeps crisp surfaceBright (tone 98) over the solar gradient; Dark steps down to
+                // glare-free onSurface (tone 90) for labels/major ticks and onSurfaceVariant (tone 80) for minor ticks.
+                val tickScheme = rememberSeedColorScheme(
+                    seedColor = MaterialColors.Gray50,
+                    isDark = isDark,
+                    variant = ColorSchemeVariant.NEUTRAL,
+                    harmonizeWith = primary,
                 )
+                val tickLabelColor = if (isDark) tickScheme.onSurface else tickScheme.surfaceBright
+                val majorTickColor = tickLabelColor
+                val minorTickColor = if (isDark) tickScheme.onSurfaceVariant else tickScheme.surfaceContainerLow
+                val textStyle = remember(tickLabelColor) {
+                    TextStyle(
+                        color = tickLabelColor,
+                        fontSize = 11.sp,   // was 10.dp
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
 
                 val scope = rememberCoroutineScope()
                 val haptic = LocalHapticFeedback.current
@@ -534,14 +544,15 @@ fun TimeMachine(
 
                                 // Draw Top and Bottom ticks
                                 val tickLen = if (isMajor) majorTickLen else minorTickLen
+                                val tickColor = if (isMajor) majorTickColor else minorTickColor
                                 drawLine(
-                                    tickAndTextColor,
+                                    tickColor,
                                     Offset(x, 0f),
                                     Offset(x, tickLen),
                                     strokeWidth = 1.dp.toPx()
                                 )
                                 drawLine(
-                                    tickAndTextColor,
+                                    tickColor,
                                     Offset(x, h),
                                     Offset(x, h - tickLen),
                                     strokeWidth = 1.dp.toPx()
@@ -579,8 +590,8 @@ fun TimeMachine(
                                 val offsetMillis = Duration.between(time, currentTick).toMillis()
                                 val x = center + (offsetMillis / millisPerPixel)
 
-                                drawLine(tickAndTextColor, Offset(x, 0f), Offset(x, majorTickLen), strokeWidth = 1.dp.toPx())
-                                drawLine(tickAndTextColor, Offset(x, h), Offset(x, h - majorTickLen), strokeWidth = 1.dp.toPx())
+                                drawLine(majorTickColor, Offset(x, 0f), Offset(x, majorTickLen), strokeWidth = 1.dp.toPx())
+                                drawLine(majorTickColor, Offset(x, h), Offset(x, h - majorTickLen), strokeWidth = 1.dp.toPx())
 
                                 val labelInterval = if (is24Hour) 2 else 3
                                 if (currentTick.hour % labelInterval == 0) {
@@ -605,13 +616,13 @@ fun TimeMachine(
                                 val x = center + (offsetMillis / millisPerPixel)
 
                                 drawLine(
-                                    tickAndTextColor,
+                                    majorTickColor,
                                     Offset(x, 0f),
                                     Offset(x, majorTickLen),
                                     strokeWidth = 1.dp.toPx()
                                 )
                                 drawLine(
-                                    tickAndTextColor,
+                                    majorTickColor,
                                     Offset(x, h),
                                     Offset(x, h - majorTickLen),
                                     strokeWidth = 1.dp.toPx()

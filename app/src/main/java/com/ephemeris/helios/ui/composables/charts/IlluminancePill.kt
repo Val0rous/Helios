@@ -42,7 +42,7 @@ fun IlluminancePill(
     val fillColor = if (isNight) {
         colorScheme.onSurfaceVariant
     } else {
-        lerp(colors.luxDim, colors.luxBright, fraction).copy(alpha = 1f)
+        lerp(colors.luxDim, colors.luxBright, fraction)
     }
 
     // --- DYNAMIC TRACK COLOR (Matches UvDial) ---

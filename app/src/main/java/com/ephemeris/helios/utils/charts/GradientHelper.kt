@@ -49,12 +49,13 @@ fun getColorTemperatureBrushGradient(
     params: ChartData,
     colors: CustomColorScheme
 ): Brush {
+    val fills = colors.fills
     return if (!isGradientHorizontal) {
         Brush.verticalGradient(
-            0.0f to colors.ct5500,
-            ((5500f - 4000f) / 3500f) to colors.ct4000, // ~0.42f
-            ((5500f - 3000f) / 3500f) to colors.ct3000, // ~0.71f
-            1.0f to colors.ct2000,
+            0.0f to fills.ct5500,
+            ((5500f - 4000f) / 3500f) to fills.ct4000, // ~0.42f
+            ((5500f - 3000f) / 3500f) to fills.ct3000, // ~0.71f
+            1.0f to fills.ct2000,
             startY = mapY(5500f),
             endY = mapY(2000f)
         )
@@ -62,11 +63,11 @@ fun getColorTemperatureBrushGradient(
         // Helper to interpolate exact Kelvin to our defined colors
         fun getCtColor(temp: Float): Color {
             return when {
-                temp <= 2000f -> colors.ct2000
-                temp <= 3000f -> lerp(colors.ct2000, colors.ct3000, (temp - 2000f) / 1000f)
-                temp <= 4000f -> lerp(colors.ct3000, colors.ct4000, (temp - 3000f) / 1000f)
-                temp < 5500f -> lerp(colors.ct4000, colors.ct5500, (temp - 4000f) / 1500f)
-                else -> colors.ct5500
+                temp <= 2000f -> fills.ct2000
+                temp <= 3000f -> lerp(fills.ct2000, fills.ct3000, (temp - 2000f) / 1000f)
+                temp <= 4000f -> lerp(fills.ct3000, fills.ct4000, (temp - 3000f) / 1000f)
+                temp < 5500f -> lerp(fills.ct4000, fills.ct5500, (temp - 4000f) / 1500f)
+                else -> fills.ct5500
             }
         }
 
