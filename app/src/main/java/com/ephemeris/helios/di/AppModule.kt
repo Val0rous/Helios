@@ -3,6 +3,7 @@ package com.ephemeris.helios.di
 import com.ephemeris.helios.data.EphemerisRepository
 import com.ephemeris.helios.data.LocationRepository
 import com.ephemeris.helios.data.TimeRepository
+import com.ephemeris.helios.ui.theme.MaterialColorEngine
 import com.ephemeris.helios.ui.viewmodels.HomeViewModel
 import com.ephemeris.helios.ui.viewmodels.MainViewModel
 import com.ephemeris.helios.ui.viewmodels.MapsViewModel
@@ -22,6 +23,7 @@ val appModule = module {
     singleOf(::NativeGeocodingEngine)
     singleOf(::LocationService)
     singleOf(::AltitudeCorrector)
+    singleOf(::MaterialColorEngine)
 
     // Shared app-wide singleton repositories
     singleOf(::LocationRepository)
