@@ -1,10 +1,14 @@
 package com.ephemeris.helios.utils.calc
 
 import com.ephemeris.helios.utils.location.Coordinates
+import java.time.LocalDate
 import java.time.ZonedDateTime
 import kotlin.math.*
 
 object MoonMetrics {
+
+    private const val ATMOSPHERE_SCALE_HEIGHT = 8434.0
+    private const val AIR_MASS_AT_ZERO = 1.0 / (0.50572 * 0.0521265083015075) // 6.07995^-1.6364 ≈ 0.0521265 -> AM ≈ 37.92
 
     enum class LunarPhase(val displayName: String) {
         NEW_MOON("New Moon"),
@@ -30,12 +34,80 @@ object MoonMetrics {
         val colorTempKelvin: Double
     )
 
+    private data class LunarPhaseGeometry(
+        val normalizedElongationDeg: Double,
+        val signedPhaseAngleDeg: Double,
+    )
+
+    private fun calculatePhaseGeometry(t: Double): LunarPhaseGeometry {
+        // Core Lunar Arguments (Meeus Chapter 47)
+        var dDeg = (297.8501921 + 445267.1114034 * t) % 360.0
+        if (dDeg < 0.0) dDeg += 360.0
+        val dRad = Math.toRadians(dDeg)
+
+        val mDeg = (357.5291092 + 35999.0502909 * t) % 360.0
+        val mRad = Math.toRadians(mDeg)
+
+        val mPrimeDeg = (134.9633964 + 477198.8675055 * t) % 360.0
+        val mPrimeRad = Math.toRadians(mPrimeDeg)
+
+        // Phase Angle (Meeus Chapter 48): angle Sun-Moon-Earth, signed around 0° (Full Moon)
+        val signedPhaseAngleDeg = 180.0 - dDeg -
+            6.289 * sin(mPrimeRad) +
+            2.100 * sin(mRad) -
+            1.274 * sin(2 * dRad - mPrimeRad) -
+            0.658 * sin(2 * dRad) -
+            0.214 * sin(2 * mPrimeRad) -
+            0.110 * sin(dRad)
+
+        return LunarPhaseGeometry(
+            normalizedElongationDeg = dDeg,
+            signedPhaseAngleDeg = signedPhaseAngleDeg,
+        )
+    }
+
+    private fun foldPhaseAngleToAlpha(signedPhaseAngleDeg: Double): Double {
+        var alpha = abs(signedPhaseAngleDeg) % 360.0
+        if (alpha > 180.0) alpha = 360.0 - alpha
+        return alpha
+    }
+
+    private fun computeAirMass(altitudeDeg: Double, elevationModifier: Double): Double {
+        val relativeAirMass = if (altitudeDeg >= 0.0) {
+            val sinAlt = sin(Math.toRadians(altitudeDeg))
+            val amDenominator = sinAlt + 0.50572 * (altitudeDeg + 6.07995).pow(-1.6364)
+            1.0 / amDenominator
+        } else {
+            val absElev = abs(altitudeDeg)
+            AIR_MASS_AT_ZERO + (10.0 * absElev) + (5.0 * absElev * absElev)
+        }
+        return relativeAirMass * elevationModifier
+    }
+
+    private fun computeIlluminanceLux(alphaDeg: Double, distanceKm: Double, actualAirMass: Double): Double {
+        // 1. Exo-atmospheric visual magnitude (V) with opposition surge polynomial
+        var visualMagnitude = -12.73 + 0.026 * alphaDeg + (4.0e-9) * alphaDeg.pow(4)
+
+        // 2. Adjust magnitude for current Earth-Moon distance (closer moon = brighter)
+        visualMagnitude += 5.0 * log10(distanceKm / 384400.0)
+
+        // 3. Convert Magnitude to Lux: E = 10^((-m_V - 14.18) / 2.5)
+        val exoAtmosphericLux = 10.0.pow((-visualMagnitude - 14.18) / 2.5)
+
+        // 4. Attenuate light through the atmosphere using Air Mass (0.74 clear-sky transmittance)
+        return exoAtmosphericLux * 0.74.pow(actualAirMass)
+    }
+
+    private fun computeColorTempKelvin(actualAirMass: Double): Double {
+        // Smooth exponential Rayleigh reddening (matches SunMetrics' physical model):
+        // 4100K baseline at zenith (AM=1), smoothly approaching 1800K at moonrise/moonset.
+        return 1800.0 + 2300.0 * exp(-0.1 * (actualAirMass - 1.0))
+    }
+
     fun calculateMetrics(
         time: ZonedDateTime,
         coordinates: Coordinates
     ): LunarMetricsResult {
-        // 1. Fetch exact positional geometry from the Ephemeris engine and Convert to Julian Centuries (T) for Phase Math
-        // We reuse your existing Julian Date logic, adjusted for UTC
         val position = LunarEphemeris.calculatePosition(
             time = time,
             coordinates = coordinates
@@ -44,41 +116,15 @@ object MoonMetrics {
         val tzOffsetHours = time.offset.totalSeconds / 3600.0
         val t = calculateJulianCentury(time.year, time.monthValue, time.dayOfMonth, decimalHour, tzOffsetHours)
 
-        // 2. Core Lunar Arguments (Meeus Chapter 47)
-        // D: Moon's mean elongation (Angle between Sun and Moon)
-        val dDeg = (297.8501921 + 445267.1114034 * t) % 360.0
-        val dRad = Math.toRadians(dDeg)
+        val (normalizedD, signedPhaseAngleDeg) = calculatePhaseGeometry(t)
+        val alphaDeg = foldPhaseAngleToAlpha(signedPhaseAngleDeg)
 
-        // M: Sun's mean anomaly
-        val mDeg = (357.5291092 + 35999.0502909 * t) % 360.0
-        val mRad = Math.toRadians(mDeg)
-
-        // M': Moon's mean anomaly
-        val mPrimeDeg = (134.9633964 + 477198.8675055 * t) % 360.0
-        val mPrimeRad = Math.toRadians(mPrimeDeg)
-
-        // 3. Phase Angle and Illumination (Meeus Chapter 48)
-        // The phase angle (i) is the angle Sun-Moon-Earth.
-        val phaseAngleDeg = 180.0 - dDeg -
-                6.289 * sin(mPrimeRad) +
-                2.100 * sin(mRad) -
-                1.274 * sin(2 * dRad - mPrimeRad) -
-                0.658 * sin(2 * dRad) -
-                0.214 * sin(2 * mPrimeRad) -
-                0.110 * sin(dRad)
-
-        val phaseAngleRad = Math.toRadians(phaseAngleDeg)
-        val illuminationFraction = (1.0 + cos(phaseAngleRad)) / 2.0
+        val illuminationFraction = (1.0 + cos(Math.toRadians(alphaDeg))) / 2.0
         val illuminationPercent = illuminationFraction * 100.0
 
-        // 4. Moon Age (Synodic Month)
-        // A full lunar cycle is exactly 29.530588853 days.
-        // We normalize the elongation (D) to find exactly where we are in that cycle.
-        var normalizedD = dDeg
-        if (normalizedD < 0) normalizedD += 360.0
+        // Moon Age (Synodic Month = 29.530588853 days)
         val ageDays = (normalizedD / 360.0) * 29.530588853
 
-        // 5. Lunar Phase Categorization
         val phase = when (normalizedD) {
             in 0.0..<6.0, in 354.0..360.0 -> LunarPhase.NEW_MOON
             in 6.0..<84.0 -> LunarPhase.WAXING_CRESCENT
@@ -91,65 +137,25 @@ object MoonMetrics {
             else -> LunarPhase.NEW_MOON
         }
 
-        // 7. Angular Diameter, using Ephemeris Distance (Relative Visual Size in the sky)
-        // Measured in degrees. Usually ranges from 0.49 (Apogee) to 0.55 (Perigee)
+        // Apparent angular diameter in degrees (~0.49° at apogee to ~0.55° at perigee)
         val angularDiameterDegrees = Math.toDegrees(2.0 * asin(1737.4 / position.distanceKm))
 
-        // 8. Supermoon Calculation
-        // A supermoon occurs when a Full Moon coincides with the Moon being at or near its closest
-        // approach to Earth (Perigee). The astronomical standard is within 360,000 km.
+        // Supermoon: Full Moon within 360,000 km perigee threshold
         val isSupermoon = (phase == LunarPhase.FULL_MOON || illuminationPercent >= 98.0) && (position.distanceKm <= 360000.0)
 
-        // Light and Atmosphere Metrics
         var actualAirMass = 0.0
         var illuminanceLux = 0.0
         var shadowRatio = 0.0
-        var colorTempKelvin = 4100.0 // Physical baseline of reflected moonlight
+        var colorTempKelvin = Double.NaN
 
-        // Only calculate light if the moon is above the apparent horizon
         if (position.altitude > coordinates.moonApparentHorizonAlt) {
-            val altRad = Math.toRadians(position.altitude)
-            val sinAlt = sin(altRad)
+            val amElevationModifier = exp(-coordinates.altitude / ATMOSPHERE_SCALE_HEIGHT)
+            actualAirMass = computeAirMass(position.altitude, amElevationModifier)
+            illuminanceLux = computeIlluminanceLux(alphaDeg, position.distanceKm, actualAirMass)
 
-            // A. Air Mass (Kasten-Young with Sub-Zero Projection)
-            val relativeAirMass = if (position.altitude >= 0.0) {
-                val amDenominator = sinAlt + 0.50572 * (position.altitude + 6.07995).pow(-1.6364)
-                1.0 / amDenominator
-            } else {
-                val amZero = 1.0 / (0.50572 * 6.07995.pow(-1.6364)) // ~37.92
-                val absElev = abs(position.altitude)
-                amZero + (10.0 * absElev) + (5.0 * absElev.pow(2))
-            }
-            // Apply elevation modifier (thinner atmosphere at high altitudes)
-            val amElevationModifier = exp(-coordinates.altitude / 8434.0)
-            actualAirMass = relativeAirMass * amElevationModifier
-
-            // B. Visual Magnitude & Illuminance (Lux)
-            // 1. Calculate the Moon's Visual Magnitude (V) outside the atmosphere.
-            // Using the standard polynomial based on phase angle (alpha).
-            // Notice the "Opposition Surge" (the Moon reflects light non-linearly) is accounted for here.
-            val alpha = abs(phaseAngleDeg)
-            var visualMagnitude = -12.73 + 0.026 * alpha + (4.0 * 10.0.pow(-9)) * alpha.pow(4)
-
-            // 2. Adjust magnitude for current distance (closer moon = brighter)
-            visualMagnitude += 5.0 * log10(position.distanceKm / 384400.0)
-
-            // 3. Convert Magnitude to Lux (Standard Astronomical Formula)
-            val exoAtmosphericLux = 10.0.pow((-visualMagnitude - 14.18) / -2.5)
-
-            // 4. Attenuate light through the atmosphere using Air Mass
-            // 0.74 is the standard clear-sky atmospheric transmittance coefficient for moonlight
-            illuminanceLux = exoAtmosphericLux * 0.74.pow(actualAirMass)
-
-            // C. Shadow Ratio (Clamped to prevent negative moonlight shadows)
             val safeShadowElevRad = Math.toRadians(max(0.01, position.altitude))
             shadowRatio = 1.0 / tan(safeShadowElevRad)
-
-            // D. Color Temperature (Atmospheric Reddening)
-            // Moonlight starts at ~4100K. As Air Mass increases, Rayleigh scattering
-            // strips away blue light, dropping the temperature just like a sunset.
-            val safeAirMass = max(1.0, actualAirMass)
-            colorTempKelvin = max(2000.0, 4100.0 - (safeAirMass - 1.0) * 250.0)
+            colorTempKelvin = computeColorTempKelvin(actualAirMass)
         }
 
         return LunarMetricsResult(
@@ -164,6 +170,58 @@ object MoonMetrics {
             airMass = actualAirMass,
             colorTempKelvin = colorTempKelvin
         )
+    }
+
+    /**
+     * Single-pass batch metrics calculator for 1,441-point daily lunar charts (mirrors [SunMetrics]).
+     */
+    fun calculateMetrics(
+        date: LocalDate,
+        hoursCalc: DoubleArray,
+        tzOffsetHours: Double,
+        moonElevationsDeg: FloatArray,
+        distancesKm: DoubleArray,
+        observerAltitudeMeters: Double,
+        horizonAltDeg: Double,
+        outIlluminance: FloatArray,
+        outShadowRatio: FloatArray,
+        outColorTemp: FloatArray,
+        outAirMass: FloatArray,
+    ) {
+        val size = moonElevationsDeg.size
+        val amElevationModifier = exp(-observerAltitudeMeters / ATMOSPHERE_SCALE_HEIGHT)
+
+        // Signed phase angle changes smoothly (~-12°/day), so interpolating its unwrapped value
+        // between 00:00 and 24:00 accurately captures Full Moon (0°) and New Moon (180°) crossings.
+        val t0 = calculateJulianCentury(date.year, date.monthValue, date.dayOfMonth, 0.0, tzOffsetHours)
+        val t24 = calculateJulianCentury(date.year, date.monthValue, date.dayOfMonth, 24.0, tzOffsetHours)
+        val signedPhase0 = calculatePhaseGeometry(t0).signedPhaseAngleDeg
+        var deltaPhase = calculatePhaseGeometry(t24).signedPhaseAngleDeg - signedPhase0
+        while (deltaPhase > 180.0) deltaPhase -= 360.0
+        while (deltaPhase < -180.0) deltaPhase += 360.0
+
+        for (i in 0 until size) {
+            val moonElevDeg = moonElevationsDeg[i].toDouble()
+            if (moonElevDeg <= horizonAltDeg) {
+                outAirMass[i] = 0f
+                outIlluminance[i] = 0f
+                outShadowRatio[i] = 0f
+                outColorTemp[i] = Float.NaN
+                continue
+            }
+
+            val actualAirMass = computeAirMass(moonElevDeg, amElevationModifier)
+            outAirMass[i] = actualAirMass.toFloat()
+
+            val frac = hoursCalc[i] / 24.0
+            val alphaDeg = foldPhaseAngleToAlpha(signedPhase0 + frac * deltaPhase)
+            outIlluminance[i] = computeIlluminanceLux(alphaDeg, distancesKm[i], actualAirMass).toFloat()
+
+            val safeShadowElevRad = Math.toRadians(max(0.01, moonElevDeg))
+            outShadowRatio[i] = (1.0 / tan(safeShadowElevRad)).toFloat()
+
+            outColorTemp[i] = computeColorTempKelvin(actualAirMass).toFloat()
+        }
     }
 
     /**
@@ -205,10 +263,6 @@ object MoonMetrics {
         )
     }
 
-    /**
-     * Helper to calculate Julian Centuries from J2000.0.
-     * You can extract this to a shared `TimeUtils` file later since SolarEphemeris uses it too!
-     */
     private fun calculateJulianCentury(year: Int, month: Int, day: Int, decimalHour: Double, tzOffsetHours: Double): Double {
         var y = year
         var m = month
@@ -222,9 +276,8 @@ object MoonMetrics {
         val jdMidnight = floor(365.25 * (y + 4716)) + floor(30.6001 * (m + 1)) + day + b - 1524.5
         val utcDecimalHour = decimalHour - tzOffsetHours
         val jdExact = jdMidnight + (utcDecimalHour / 24.0)
-        // Fetch Delta T from your SolarEphemeris (or a shared Utils file)
         val deltaTSeconds = calculateDeltaT(year, month)
-        val ttJdExact = jdExact + (deltaTSeconds / 86400.0) // Convert seconds to days and add
+        val ttJdExact = jdExact + (deltaTSeconds / 86400.0)
         return (ttJdExact - 2451545.0) / 36525.0
     }
 }

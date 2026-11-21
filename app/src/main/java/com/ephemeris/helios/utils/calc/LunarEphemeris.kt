@@ -36,7 +36,8 @@ object LunarEphemeris {
         val moonset: Double?,
         val moonsetAzimuth: Double?,
         val isMoonUpAllDay: Boolean,
-        val isMoonDownAllDay: Boolean
+        val isMoonDownAllDay: Boolean,
+        val moonDuration: Double, // Total hours above apparent horizon within the 24h calendar day
     )
 
     // Format: [D, M, M', F, Longitude_Amplitude, Distance_Amplitude]
@@ -325,11 +326,13 @@ object LunarEphemeris {
 
         /**
          * Zero-allocation batch curve generator for 1,441-point daily lunar charts.
+         * Optionally fills [outDistancesKm] alongside elevation & azimuth from the same 49 knots.
          */
         fun fillDailyCurve(
             hoursCalc: DoubleArray,
             outElevation: FloatArray,
             outAzimuth: FloatArray,
+            outDistancesKm: DoubleArray? = null,
         ) {
             val maxKnot = raRadKnots.size - 2
             for (i in hoursCalc.indices) {
@@ -341,6 +344,9 @@ object LunarEphemeris {
                 val raRad = raRadKnots[k0] + frac * (raRadKnots[k0 + 1] - raRadKnots[k0])
                 val decRad = decRadKnots[k0] + frac * (decRadKnots[k0 + 1] - decRadKnots[k0])
                 val sinPi = sinPiKnots[k0] + frac * (sinPiKnots[k0 + 1] - sinPiKnots[k0])
+                if (outDistancesKm != null) {
+                    outDistancesKm[i] = distanceKmKnots[k0] + frac * (distanceKmKnots[k0 + 1] - distanceKmKnots[k0])
+                }
 
                 val lstRad = lstRad0 + decimalHour * SIDEREAL_RAD_PER_HOUR
                 val hRad = lstRad - raRad
@@ -391,6 +397,10 @@ object LunarEphemeris {
             var peakHour = 0.0
 
             val dynamicHorizonAlt = coordinates.moonApparentHorizonAlt
+            var isCurrentlyAbove = prevAlt >= dynamicHorizonAlt
+            var aboveStartHour = if (isCurrentlyAbove) 0.0 else Double.NaN
+            var totalAboveHours = 0.0
+
             for (minute in 30..1440 step 30) {
                 val currentHour = minute / 60.0
                 val pos = evaluateAtHour(currentHour)
@@ -405,15 +415,30 @@ object LunarEphemeris {
                 }
 
                 if (prevAlt < dynamicHorizonAlt && pos.altitude >= dynamicHorizonAlt) {
-                    riseHour = refineEvent(prevHour, currentHour, isRising = true, targetAlt = dynamicHorizonAlt)
+                    val refinedRise = refineEvent(prevHour, currentHour, isRising = true, targetAlt = dynamicHorizonAlt)
+                    riseHour = refinedRise
+                    if (!isCurrentlyAbove) {
+                        aboveStartHour = refinedRise
+                        isCurrentlyAbove = true
+                    }
                 } else if (prevAlt > dynamicHorizonAlt && pos.altitude <= dynamicHorizonAlt) {
-                    setHour = refineEvent(prevHour, currentHour, isRising = false, targetAlt = dynamicHorizonAlt)
+                    val refinedSet = refineEvent(prevHour, currentHour, isRising = false, targetAlt = dynamicHorizonAlt)
+                    setHour = refinedSet
+                    if (isCurrentlyAbove) {
+                        totalAboveHours += (refinedSet - aboveStartHour).coerceAtLeast(0.0)
+                        isCurrentlyAbove = false
+                    }
                 }
 
                 prevAlt = pos.altitude
                 prevHA = pos.topocentricHourAngle
                 prevHour = currentHour
             }
+
+            if (isCurrentlyAbove) {
+                totalAboveHours += (24.0 - aboveStartHour).coerceAtLeast(0.0)
+            }
+            val moonDuration = totalAboveHours.coerceIn(0.0, 24.0)
 
             val culminationHour = refineCulmination(max(0.0, peakHour - 1.0), min(24.0, peakHour + 1.0))
             val peakPos = evaluateAtHour(culminationHour)
@@ -438,6 +463,7 @@ object LunarEphemeris {
                 moonsetAzimuth = setAz,
                 isMoonUpAllDay = isUpAllDay,
                 isMoonDownAllDay = isDownAllDay,
+                moonDuration = moonDuration,
             )
         }
 

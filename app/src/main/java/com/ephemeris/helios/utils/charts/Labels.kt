@@ -72,6 +72,7 @@ fun Density.prepareYLabels(
         }
         className.contains("Irradiance") -> (0 until ((params.maxY / 100.0).roundToInt() * 100 + 1) step 100).map { it.toFloat() }
         className.contains("UvIntensity") -> (0 until (params.maxY.roundToInt() + 1) step floor(params.maxY / 10f).toInt().coerceAtLeast(1)).map { it.toFloat() }
+        chartType == Charts.Moon.Daily.Illuminance -> listOf(0f, 0.001f, 0.003f, 0.01f, 0.03f, 0.1f, 0.3f, 1f).filter { it <= params.maxY }
         className.contains("Illuminance") -> listOf(0f) + (0..5).flatMap {
             val base = 10.0.pow(it.toDouble()).toFloat()
             listOf(base, base * 3f)
@@ -101,6 +102,7 @@ fun Density.prepareYLabels(
             isElevationOrTrajectory -> "${yVal.toInt()}°"
             className.contains("Irradiance") -> "${formatNumber(yVal.toDouble())} W/m²"
             className.contains("ColorTemperature") -> "${formatNumber(yVal.toDouble())}K"
+            chartType == Charts.Moon.Daily.Illuminance -> "${formatNumber((yVal * 1000.0).roundToInt().toDouble())} mlx"
             className.contains("Illuminance") -> "${formatNumber(yVal.toDouble())} lx"
             className.contains("Shadows") || className.contains("AirMass") -> yVal.toDouble().printRounded(2)
             else -> "${yVal.toInt()}"

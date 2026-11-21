@@ -197,40 +197,41 @@ fun DailyChart(
                 primaryCurvePath = buildDynPath(0, staticData.drawXValues.size - 1, false)
                 primaryFillPath = buildDynPath(0, staticData.drawXValues.size - 1, true)
             } else {
-                // Only draw the continuous curve when values are valid (skipping NaNs)
+                // Only draw continuous curves when values are valid, breaking cleanly across NaN gaps
+                // (e.g. Moon ColorTemperature when the Moon has two separate above-horizon arcs in one day)
                 primaryCurvePath = Path().apply {
-                    var isFirst = true
+                    var inSegment = false
                     for (i in xValues.indices) {
                         val y = staticData.drawYValues[i]
                         if (!y.isNaN()) {
-                            if (isFirst) {
+                            if (!inSegment) {
                                 moveTo(mapX(xValues[i]), mapY(y))
-                                isFirst = false
+                                inSegment = true
                             } else {
                                 lineTo(mapX(xValues[i]), mapY(y))
                             }
+                        } else {
+                            inSegment = false
                         }
                     }
                 }
-                // Seal the fill area safely around the valid day-band
+                // Seal each contiguous non-NaN segment cleanly down to the baseline
                 primaryFillPath = Path().apply {
-                    var firstValidIndex = -1
-                    var lastValidIndex = -1
-                    for (i in xValues.indices) {
-                        if (!staticData.drawYValues[i].isNaN()) {
-                            if (firstValidIndex == -1) firstValidIndex = i
-                            lastValidIndex = i
+                    var i = 0
+                    val n = xValues.size
+                    while (i < n) {
+                        while (i < n && staticData.drawYValues[i].isNaN()) i++
+                        if (i >= n) break
+                        val segStart = i
+                        while (i < n && !staticData.drawYValues[i].isNaN()) i++
+                        val segEnd = i - 1
+
+                        moveTo(mapX(xValues[segStart]), zeroYPixel)
+                        lineTo(mapX(xValues[segStart]), mapY(staticData.drawYValues[segStart]))
+                        for (k in segStart + 1..segEnd) {
+                            lineTo(mapX(xValues[k]), mapY(staticData.drawYValues[k]))
                         }
-                    }
-                    if (firstValidIndex != -1) {
-                        moveTo(mapX(xValues[firstValidIndex]), zeroYPixel)
-                        lineTo(mapX(xValues[firstValidIndex]), mapY(staticData.drawYValues[firstValidIndex]))
-                        for (i in firstValidIndex + 1..lastValidIndex) {
-                            if (!staticData.drawYValues[i].isNaN()) {
-                                lineTo(mapX(xValues[i]), mapY(staticData.drawYValues[i]))
-                            }
-                        }
-                        lineTo(mapX(xValues[lastValidIndex]), zeroYPixel)
+                        lineTo(mapX(xValues[segEnd]), zeroYPixel)
                         close()
                     }
                 }
@@ -280,11 +281,11 @@ fun DailyChart(
                 null
             } else {
                 when (chartType) {
-                    Charts.Sun.Daily.ColorTemperature -> {
+                    Charts.Sun.Daily.ColorTemperature, Charts.Moon.Daily.ColorTemperature -> {
                         getColorTemperatureBrushGradient(false, ::mapY, params, colors)
                     }
 
-                    Charts.Sun.Daily.AirMass -> {
+                    Charts.Sun.Daily.AirMass, Charts.Moon.Daily.AirMass -> {
                         createHorizontalBrush({ i, value ->
                             val isNight = value == 0f && (
                                 i == 0 ||
@@ -301,7 +302,7 @@ fun DailyChart(
                         }, params)
                     }
 
-                    Charts.Sun.Daily.Shadows -> {
+                    Charts.Sun.Daily.Shadows, Charts.Moon.Daily.Shadows -> {
                         createHorizontalBrush({ i, value ->
                             val isNight = value == 0f && (
                                 i == 0 ||
@@ -318,8 +319,8 @@ fun DailyChart(
                         }, params)
                     }
 
-                    Charts.Sun.Daily.Illuminance -> {
-                        val absoluteMaxLux = 100000f
+                    Charts.Sun.Daily.Illuminance, Charts.Moon.Daily.Illuminance -> {
+                        val absoluteMaxLux = if (chartType == Charts.Moon.Daily.Illuminance) 1.0f else 100000f
                         Brush.verticalGradient(
                             0.0f to colors.luxBright,
                             1.0f to colors.luxDim,

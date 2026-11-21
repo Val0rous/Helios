@@ -242,7 +242,13 @@ class EphemerisRepository(
                                     dailyEvents = lunarEvents,
                                 )
                                 currentCoroutineContext().ensureActive()
-                                val (xMoon, yMoon) = generateMoonData(lunarModel, hoursCalc)
+                                val (xMoon, yMoon) = generateMoonData(
+                                    lunarModel = lunarModel,
+                                    localDate = localDate,
+                                    hoursCalc = hoursCalc,
+                                    coordinates = coords,
+                                    tzOffset = tzOffset,
+                                )
                                 MoonDailyData(
                                     events = lunarEvents,
                                     dailyPeakMetrics = lunarPeakMetrics,

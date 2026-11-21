@@ -35,7 +35,7 @@ fun Moon(
                 currentTime = ui.currentTime,
                 liveTime = moon.timestamp,
                 coordinates = ui.coordinates,
-                dayLength = 0.0,
+                dayLength = moon.events.moonDuration,
                 currentAltitude = moon.altitude,
                 currentAzimuth = moon.azimuth,
                 phase = moon.phase,

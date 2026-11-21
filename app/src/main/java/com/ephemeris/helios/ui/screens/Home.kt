@@ -32,6 +32,7 @@ fun Home(
                 liveTime = sun.timestamp,
                 coordinates = ui.coordinates,
                 dayLength = sun.events.dayLength,
+                moonDuration = moon.events.moonDuration,
                 currentSunAltitude = sun.altitude,
                 currentSunAzimuth = sun.azimuth,
                 sunPhase = sun.phase,

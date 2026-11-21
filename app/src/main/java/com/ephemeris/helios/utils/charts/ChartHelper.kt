@@ -25,14 +25,17 @@ fun getMapY(
 ): Float {
     val drawHeight = (params.height - (2 * params.verticalPaddingPx)).coerceAtLeast(1f)
     val isLogScale = when (chartType) {
-        Charts.Sun.Daily.Illuminance, Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass -> true
+        Charts.Sun.Daily.Illuminance, Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass,
+        Charts.Moon.Daily.Illuminance, Charts.Moon.Daily.Shadows, Charts.Moon.Daily.AirMass -> true
         else -> false
     }
     return if (isLogScale) {
-        // log10(y + 1) safely handles 0 values without throwing negative infinity
-        val logY = log10(y.coerceAtLeast(0f) + 1f)
-        val logMin = log10(params.minY.coerceAtLeast(0f) + 1f)
-        val logMax = log10(params.maxY.coerceAtLeast(0f) + 1f)
+        // Scale sub-lux lunar illuminance into millilux so log10(y * scale + 1)
+        // spreads 0.001..1.0 lx evenly across 3 decades instead of flattening near 0
+        val logScale = if (chartType == Charts.Moon.Daily.Illuminance) 1000f else 1f
+        val logY = log10(y.coerceAtLeast(0f) * logScale + 1f)
+        val logMin = log10(params.minY.coerceAtLeast(0f) * logScale + 1f)
+        val logMax = log10(params.maxY.coerceAtLeast(0f) * logScale + 1f)
 
         val fraction = if (logMax == logMin) 0f else (logY - logMin) / (logMax - logMin)
         params.height - params.verticalPaddingPx - (fraction * drawHeight)
@@ -70,9 +73,15 @@ fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
     if (className.contains("Trajectory")) return 90f
     if (className.contains("Irradiance")) return max(300f, maxY)
     if (className.contains("UvIntensity")) return max(3f, maxY)
-    if (className.contains("Illuminance")) return max(100000f, maxY)
+    if (className.contains("Illuminance")) {
+        val floorMax = if (chartType == Charts.Moon.Daily.Illuminance) 1.0f else 100000f
+        return max(floorMax, maxY)
+    }
     if (className.contains("Shadows")) return max(10f, 5f * (validY.filter { it > 0 }.minOrNull() ?: 0f))
-    if (className.contains("ColorTemperature")) return max(5500f, maxY)    // TODO: Edit
+    if (className.contains("ColorTemperature")) {
+        val floorMax = if (chartType == Charts.Moon.Daily.ColorTemperature) 4500f else 5500f
+        return max(floorMax, maxY)
+    }
     if (className.contains("AirMass")) return max(10f, 5f * (validY.filter { it > 0 }.minOrNull() ?: 0f)) // or 15f
     return 90f // Todo: Change
 }

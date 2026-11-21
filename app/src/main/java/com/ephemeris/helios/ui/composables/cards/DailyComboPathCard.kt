@@ -41,6 +41,7 @@ fun DailyComboPathCard(
     currentTime: ZonedDateTime,
     coordinates: Coordinates,
     dayLength: Double,
+    moonDuration: Double,
     currentSunAltitude: Double,
     currentSunAzimuth: Double,
     sunPhase: String,
@@ -192,7 +193,7 @@ fun DailyComboPathCard(
             ) {
                 CustomColumn(
                     header = "${stringResource(R.string.moon)} ${stringResource(R.string.duration)}",
-                    value = 0.0.formatDuration(true)
+                    value = moonDuration.formatDuration(true)
                 )
                 CustomVerticalDivider()
                 CustomColumn(

@@ -350,21 +350,50 @@ internal fun generateSunData(
 
 internal fun generateMoonData(
     lunarModel: LunarEphemeris.LunarDayModel,
+    localDate: LocalDate,
     hoursCalc: DoubleArray,
+    coordinates: Coordinates,
+    tzOffset: Double,
 ): Pair<Map<Charts, FloatArray>, Map<Charts, FloatArray>> {
     val elevation = FloatArray(X_SIZE)
     val azimuthsCalc = FloatArray(X_SIZE)
+    val distancesKm = DoubleArray(X_SIZE)
     lunarModel.fillDailyCurve(
         hoursCalc = hoursCalc,
         outElevation = elevation,
         outAzimuth = azimuthsCalc,
+        outDistancesKm = distancesKm,
     )
+
+    val illuminance = FloatArray(X_SIZE)
+    val shadowRatio = FloatArray(X_SIZE)
+    val colorTemp = FloatArray(X_SIZE)
+    val airMass = FloatArray(X_SIZE)
+
+    MoonMetrics.calculateMetrics(
+        date = localDate,
+        hoursCalc = hoursCalc,
+        tzOffsetHours = tzOffset,
+        moonElevationsDeg = elevation,
+        distancesKm = distancesKm,
+        observerAltitudeMeters = coordinates.altitude,
+        horizonAltDeg = coordinates.moonApparentHorizonAlt,
+        outIlluminance = illuminance,
+        outShadowRatio = shadowRatio,
+        outColorTemp = colorTemp,
+        outAirMass = airMass,
+    )
+
     val xMap = mutableMapOf<Charts, FloatArray>()
     val yMap = mutableMapOf<Charts, FloatArray>()
 
     yMap[Charts.Moon.Daily.Elevation] = elevation
     yMap[Charts.Moon.Daily.Trajectory] = elevation
+    yMap[Charts.Moon.Daily.Illuminance] = illuminance
+    yMap[Charts.Moon.Daily.Shadows] = shadowRatio
+    yMap[Charts.Moon.Daily.ColorTemperature] = colorTemp
+    yMap[Charts.Moon.Daily.AirMass] = airMass
+
     xMap[Charts.Moon.Daily.Trajectory] = azimuthsCalc
-    // Todo: add Moon metric charts (illuminance, shadow ratio, color temp, air mass)
     return xMap to yMap
 }
