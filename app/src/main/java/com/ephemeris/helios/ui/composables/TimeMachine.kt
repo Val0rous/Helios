@@ -1,5 +1,6 @@
 package com.ephemeris.helios.ui.composables
 
+import android.graphics.Bitmap
 import android.text.format.DateFormat
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.animateDecay
@@ -47,8 +48,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -63,6 +70,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
@@ -79,6 +88,11 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.time.temporal.ChronoUnit
+import kotlin.math.PI
+import kotlin.math.asin
+import kotlin.math.ceil
+import kotlin.math.cos
+import kotlin.math.sin
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -281,6 +295,7 @@ fun TimeMachine(
                 var timeAtDragStart by remember { mutableStateOf(latestTime) }
                 var accumulatedDrag by remember { mutableFloatStateOf(0f) }
                 val currentFilter by rememberUpdatedState(selectedFilterType)
+                val yearRibbonCache = remember { YearRibbonCache() }
 
                 val draggableState = rememberDraggableState { dragAmount ->
                     accumulatedDrag += dragAmount
@@ -424,54 +439,81 @@ fun TimeMachine(
 
                     // Draw Background Gradient
                     if (coordinates != null) {
-                        // Determine the step size based on zoom level to ensure smooth gradients
-                        // Hour mode: 2 min (~30 stops). Day mode: 15 min (~96 stops). Year mode: 4 days (~92 stops).
-                        val stepMillis = when (selectedFilterType) {
-                            TimeMachineFilter.Hour -> Duration.ofMinutes(2).toMillis()
-                            TimeMachineFilter.Day -> Duration.ofMinutes(15).toMillis()
-                            TimeMachineFilter.Year -> Duration.ofDays(4).toMillis()
-                        }
-                        val stops = mutableListOf<Pair<Float, Color>>()
+                        if (selectedFilterType == TimeMachineFilter.Year) {
+                            // Centered 2D Daylight Ribbon: each vertical column is a compressed
+                            // 24-hour solar profile (midnight at top & bottom, solar noon at center).
+                            val startEpoch = startTime.toInstant().toEpochMilli()
+                            val endEpoch = endTime.toInstant().toEpochMilli()
+                            val stepMillis = YearRibbonCache.STEP_MILLIS
+                            val anchorStartMillis = Math.floorDiv(startEpoch, stepMillis) * stepMillis
+                            val anchorEndMillis = Math.floorDiv(endEpoch, stepMillis) * stepMillis + stepMillis
+                            val cols = (((anchorEndMillis - anchorStartMillis) / stepMillis).toInt() + 1).coerceAtLeast(2)
 
-                        // 1. Calculate a "rounded" absolute start time.
-                        // This is the magic that stops the jitter. By snapping to an absolute 15-min clock interval,
-                        // the color anchors are physically glued to the timeline and move with your finger.
-                        val anchorStartMillis = (startTime.toInstant().toEpochMilli() / stepMillis) * stepMillis
-                        var currentAnchor = Instant.ofEpochMilli(anchorStartMillis).atZone(time.zone)
-
-                        // Expand bounds slightly to ensure the gradient paints past the visible edges
-                        val stopTime = endTime.plus(stepMillis, ChronoUnit.MILLIS)
-
-                        while (!currentAnchor.isAfter(stopTime)) {
-                            // Calculate where this specific absolute time falls on the physical screen (0.0 to 1.0)
-                            val offsetMillis = Duration.between(startTime, currentAnchor).toMillis()
-                            val fraction = offsetMillis.toFloat() / (halfWidthMillis * 2)
-
-                            // For Year mode, compute peak solar noon altitude directly in 1 lightweight call
-                            val altitude = if (selectedFilterType == TimeMachineFilter.Year) {
-                                SolarEphemeris.calculateSolarNoonAltitude(currentAnchor, coordinates)
-                            } else {
-                                SolarEphemeris.calculatePosition(currentAnchor, coordinates).altitude
-                            }
-
-                            // Calculate the exact solar altitude at this specific time anchor
-//                            val pos = SolarEphemeris.calculatePosition(currentAnchor, coordinates)
-                            val color = SolarColorMap.getColorForAltitude(altitude, coordinates.sunApparentHorizonAlt)
-
-                            // Compose brushes require strictly ascending fractions
-                            if (stops.isEmpty() || fraction > stops.last().first) {
-                                stops.add(fraction to color)
-                            }
-
-                            currentAnchor = currentAnchor.plus(stepMillis, ChronoUnit.MILLIS)
-                        }
-
-                        // Safety check: A gradient needs at least 2 stops to render without crashing
-                        if (stops.size >= 2) {
-                            drawRect(
-                                brush = Brush.horizontalGradient(colorStops = stops.toTypedArray()),
-                                size = size
+                            val ribbonBitmap = yearRibbonCache.getOrBuild(
+                                anchorStartMillis = anchorStartMillis,
+                                cols = cols,
+                                latitudeDeg = coordinates.latitude,
+                                horizonAlt = coordinates.sunApparentHorizonAlt,
                             )
+
+                            val colWidthPx = stepMillis.toFloat() / millisPerPixel
+                            val x0 = (anchorStartMillis - startEpoch).toFloat() / millisPerPixel
+                            val dstLeft = x0 - colWidthPx * 0.5f
+                            val dstWidthPx = ceil(cols * colWidthPx).toInt().coerceAtLeast(1)
+                            val dstHeightPx = ceil(h).toInt().coerceAtLeast(1)
+
+                            clipRect {
+                                translate(left = dstLeft) {
+                                    drawImage(
+                                        image = ribbonBitmap,
+                                        dstOffset = IntOffset.Zero,
+                                        dstSize = IntSize(dstWidthPx, dstHeightPx),
+                                        filterQuality = FilterQuality.Medium,
+                                    )
+                                }
+                            }
+                        } else {
+                            // Determine the step size based on zoom level to ensure smooth gradients
+                            // Hour mode: 2 min (~30 stops). Day mode: 15 min (~96 stops).
+                            val stepMillis = when (selectedFilterType) {
+                                TimeMachineFilter.Hour -> Duration.ofMinutes(2).toMillis()
+                                else -> Duration.ofMinutes(15).toMillis()
+                            }
+                            val stops = mutableListOf<Pair<Float, Color>>()
+
+                            // 1. Calculate a "rounded" absolute start time.
+                            // This is the magic that stops the jitter. By snapping to an absolute interval,
+                            // the color anchors are physically glued to the timeline and move with your finger.
+                            val anchorStartMillis = (startTime.toInstant().toEpochMilli() / stepMillis) * stepMillis
+                            var currentAnchor = Instant.ofEpochMilli(anchorStartMillis).atZone(time.zone)
+
+                            // Expand bounds slightly to ensure the gradient paints past the visible edges
+                            val stopTime = endTime.plus(stepMillis, ChronoUnit.MILLIS)
+
+                            while (!currentAnchor.isAfter(stopTime)) {
+                                // Calculate where this specific absolute time falls on the physical screen (0.0 to 1.0)
+                                val offsetMillis = Duration.between(startTime, currentAnchor).toMillis()
+                                val fraction = offsetMillis.toFloat() / (halfWidthMillis * 2)
+
+                                // Calculate the exact solar altitude at this specific time anchor
+                                val altitude = SolarEphemeris.calculatePosition(currentAnchor, coordinates).altitude
+                                val color = SolarColorMap.getColorForAltitude(altitude, coordinates.sunApparentHorizonAlt)
+
+                                // Compose brushes require strictly ascending fractions
+                                if (stops.isEmpty() || fraction > stops.last().first) {
+                                    stops.add(fraction to color)
+                                }
+
+                                currentAnchor = currentAnchor.plus(stepMillis, ChronoUnit.MILLIS)
+                            }
+
+                            // Safety check: A gradient needs at least 2 stops to render without crashing
+                            if (stops.size >= 2) {
+                                drawRect(
+                                    brush = Brush.horizontalGradient(colorStops = stops.toTypedArray()),
+                                    size = size
+                                )
+                            }
                         }
                     } else {
                         // Fallback if coordinates aren't loaded yet
@@ -677,9 +719,13 @@ object SolarColorMap {
     private const val DAYLIGHT = 10.50
     private const val MIDDAY = 90.0
 
+    private const val LUT_SCALE = 10.0 // 0.1° resolution across -18°..+90°
+    private const val LUT_SIZE = 1081
+
     private var cachedHorizonAlt: Double = Double.NaN
     private var cachedAlts: DoubleArray = DoubleArray(0)
     private var cachedColors: Array<Color> = emptyArray()
+    private var cachedArgbLut: IntArray = IntArray(0)
 
     private fun ensureNodesCached(horizonAlt: Double) {
         if (horizonAlt == cachedHorizonAlt && cachedAlts.isNotEmpty()) return
@@ -723,10 +769,13 @@ object SolarColorMap {
         cachedAlts = DoubleArray(nodes.size) { nodes[it].first }
         cachedColors = Array(nodes.size) { nodes[it].second }
         cachedHorizonAlt = horizonAlt
+        cachedArgbLut = IntArray(LUT_SIZE) { i ->
+            val alt = NIGHT + (i / LUT_SCALE)
+            sampleColorFromCachedNodes(alt).toArgb()
+        }
     }
 
-    fun getColorForAltitude(altitude: Double, horizonAlt: Double): Color {
-        ensureNodesCached(horizonAlt)
+    private fun sampleColorFromCachedNodes(altitude: Double): Color {
         val alt = altitude.coerceIn(NIGHT, MIDDAY)
         val alts = cachedAlts
         val colors = cachedColors
@@ -743,6 +792,21 @@ object SolarColorMap {
         return colors[colors.lastIndex]
     }
 
+    fun getColorForAltitude(altitude: Double, horizonAlt: Double): Color {
+        ensureNodesCached(horizonAlt)
+        return sampleColorFromCachedNodes(altitude)
+    }
+
+    fun getArgbLut(horizonAlt: Double): IntArray {
+        ensureNodesCached(horizonAlt)
+        return cachedArgbLut
+    }
+
+    fun lookupArgb(lut: IntArray, altitudeDeg: Double): Int {
+        val idx = ((altitudeDeg - NIGHT) * LUT_SCALE + 0.5).toInt().coerceIn(0, LUT_SIZE - 1)
+        return lut[idx]
+    }
+
     private fun calculateLerp(
         currentAlt: Double,
         lowerAlt: Double,
@@ -754,5 +818,78 @@ object SolarColorMap {
         if (upperAlt <= lowerAlt) return upperColor
         val fraction = ((currentAlt - lowerAlt) / (upperAlt - lowerAlt)).toFloat().coerceIn(0f, 1f)
         return lerp(lowerColor, upperColor, fraction)
+    }
+}
+
+/**
+ * Caches the 2D Year Daylight Ribbon bitmap (3-day columns × 65 symmetric diurnal rows).
+ * Recomputes only when the 3-day anchor shifts or observer latitude/horizon changes,
+ * letting smooth day-by-day scrubbing glide at 0ms recompute cost on 2 of every 3 days.
+ */
+private class YearRibbonCache {
+    private var cachedAnchorStartMillis: Long = Long.MIN_VALUE
+    private var cachedCols: Int = 0
+    private var cachedLat: Double = Double.NaN
+    private var cachedHorizonAlt: Double = Double.NaN
+    private var pixels: IntArray = IntArray(0)
+    private var cachedImage: ImageBitmap? = null
+
+    fun getOrBuild(
+        anchorStartMillis: Long,
+        cols: Int,
+        latitudeDeg: Double,
+        horizonAlt: Double,
+    ): ImageBitmap {
+        val existing = cachedImage
+        if (existing != null &&
+            anchorStartMillis == cachedAnchorStartMillis &&
+            cols == cachedCols &&
+            latitudeDeg == cachedLat &&
+            horizonAlt == cachedHorizonAlt
+        ) {
+            return existing
+        }
+
+        val totalPixels = cols * ROWS
+        if (pixels.size != totalPixels) {
+            pixels = IntArray(totalPixels)
+        }
+
+        val latRad = Math.toRadians(latitudeDeg)
+        val sinLat = sin(latRad)
+        val cosLat = cos(latRad)
+        val lut = SolarColorMap.getArgbLut(horizonAlt)
+
+        for (col in 0 until cols) {
+            val colMillis = anchorStartMillis + col * STEP_MILLIS
+            val decRad = SolarEphemeris.calculateSolarDeclinationRad(colMillis)
+            val sinLatSinDec = sinLat * sin(decRad)
+            val cosLatCosDec = cosLat * cos(decRad)
+
+            for (r in 0..HALF_ROWS) {
+                val sinAlt = (sinLatSinDec + cosLatCosDec * COS_H[r]).coerceIn(-1.0, 1.0)
+                val altDeg = Math.toDegrees(asin(sinAlt))
+                val argb = SolarColorMap.lookupArgb(lut, altDeg)
+                pixels[(HALF_ROWS - r) * cols + col] = argb
+                if (r > 0) {
+                    pixels[(HALF_ROWS + r) * cols + col] = argb
+                }
+            }
+        }
+
+        val image = Bitmap.createBitmap(pixels, cols, ROWS, Bitmap.Config.ARGB_8888).asImageBitmap()
+        cachedAnchorStartMillis = anchorStartMillis
+        cachedCols = cols
+        cachedLat = latitudeDeg
+        cachedHorizonAlt = horizonAlt
+        cachedImage = image
+        return image
+    }
+
+    companion object {
+        const val STEP_MILLIS: Long = 3L * 86_400_000L // 3 days per column (~124 columns/year)
+        private const val HALF_ROWS = 32
+        private const val ROWS = HALF_ROWS * 2 + 1 // 65 rows: midnight (top) → noon (center) → midnight (bottom)
+        private val COS_H = DoubleArray(HALF_ROWS + 1) { r -> cos(PI * r / HALF_ROWS) }
     }
 }

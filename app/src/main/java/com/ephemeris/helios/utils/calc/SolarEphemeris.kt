@@ -462,6 +462,16 @@ object SolarEphemeris {
     }
 
     /**
+     * Zero-allocation solar declination (radians) at a given UTC epoch millisecond.
+     * Used by the Year TimeMachine 2D daylight ribbon to render the full 24h diurnal profile per day.
+     */
+    fun calculateSolarDeclinationRad(epochMillis: Long): Double {
+        val jdUtc = epochMillis / 86_400_000.0 + 2440587.5
+        val t = (jdUtc - 2451545.0) / 36525.0
+        return calculateSolarParams(t).declinationRad
+    }
+
+    /**
      * Calculates the current position of the Sun.
      */
     fun calculatePosition(
