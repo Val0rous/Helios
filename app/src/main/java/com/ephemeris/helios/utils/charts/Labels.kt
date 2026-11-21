@@ -15,7 +15,6 @@ import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.formatHour
 import com.ephemeris.helios.utils.formatNumber
-import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -69,19 +68,43 @@ fun Density.prepareYLabels(
                 (-90 until 91 step 15).map { it.toFloat() }
             }
         }
-        className.contains("Irradiance") -> (0 until ((params.maxY / 100.0).roundToInt() * 100 + 1) step 100).map { it.toFloat() }
-        className.contains("UvIntensity") -> (0 until (params.maxY.roundToInt() + 1) step floor(params.maxY / 10f).toInt().coerceAtLeast(1)).map { it.toFloat() }
+        className.contains("Irradiance") -> {
+            val step = when {
+                params.maxY <= 10f -> 1
+                params.maxY <= 22f -> 2
+                params.maxY <= 55f -> 5
+                params.maxY <= 110f -> 10
+                params.maxY <= 260f -> 25
+                params.maxY <= 520f -> 50
+                params.maxY <= 1050f -> 100
+                else -> 200
+            }
+            (0..params.maxY.toInt() step step).map { it.toFloat() }
+        }
+        className.contains("UvIntensity") -> {
+            val stepTenths = when {
+                params.maxY <= 1.0f -> 1  // 0.1
+                params.maxY <= 2.2f -> 2  // 0.2
+                params.maxY <= 5.2f -> 5  // 0.5
+                params.maxY <= 10.5f -> 10 // 1
+                else -> 20                 // 2
+            }
+            val maxTenths = (params.maxY * 10f + 1e-3f).toInt()
+            (0..maxTenths step stepTenths).map { it / 10f }
+        }
         chartType == Charts.Moon.Daily.Illuminance -> listOf(0f, 0.001f, 0.003f, 0.01f, 0.03f, 0.1f, 0.3f, 1f).filter { it <= params.maxY }
         className.contains("Illuminance") -> listOf(0f) + (0..5).flatMap {
             val base = 10.0.pow(it.toDouble()).toFloat()
             listOf(base, base * 3f)
         }.filter { it <= params.maxY }
         className.contains("Shadows") -> {
-            if (params.maxY <= 60f) {
-                listOf(0f, 0.1f, 0.25f, 0.5f, 1f, 2f, 5f, 10f, 20f, 50f).filter { it <= params.maxY }
-            } else {
-                listOf(0f, 0.25f, 1f, 3f, 10f, 30f, 100f, 300f, 1000f, 5000f).filter { it <= params.maxY }
+            val ticks = when {
+                params.maxY <= 80f -> listOf(0f, 0.1f, 0.25f, 0.5f, 1f, 2f, 5f, 10f, 20f, 50f)
+                params.maxY <= 250f -> listOf(0f, 0.25f, 1f, 2f, 5f, 10f, 20f, 50f, 100f, 200f)
+                params.maxY <= 550f -> listOf(0f, 0.25f, 1f, 5f, 10f, 20f, 50f, 100f, 200f, 500f)
+                else -> listOf(0f, 0.25f, 1f, 5f, 20f, 100f, 500f, 2000f, 5000f)
             }
+            ticks.filter { it <= params.maxY }
         }
         className.contains("AirMass") -> listOf(0f, 0.5f, 1f, 2f, 5f, 10f, 20f, 50f, 100f).filter { it <= params.maxY }
         className.contains("ColorTemperature") -> (2000 until (params.maxY.roundToInt() + 1) step 500).map { it.toFloat() }
@@ -110,7 +133,7 @@ fun Density.prepareYLabels(
             className.contains("ColorTemperature") -> "${formatNumber(yVal.toDouble())}K"
             chartType == Charts.Moon.Daily.Illuminance -> "${formatNumber((yVal * 1000.0).roundToInt().toDouble())} mlx"
             className.contains("Illuminance") -> "${formatNumber(yVal.toDouble())} lx"
-            className.contains("Shadows") || className.contains("AirMass") -> formatNumber(yVal.toDouble())
+            className.contains("Shadows") || className.contains("AirMass") || className.contains("UvIntensity") -> formatNumber(yVal.toDouble())
             else -> "${yVal.toInt()}"
         }
         val textLayout = textMeasurer.measure(text, labelStyle)

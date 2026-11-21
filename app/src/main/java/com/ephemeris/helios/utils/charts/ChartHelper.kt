@@ -80,8 +80,8 @@ fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
 
     if (className.contains("Elevation")) return 90f
     if (className.contains("Trajectory")) return 90f
-    if (className.contains("Irradiance")) return max(300f, maxY)
-    if (className.contains("UvIntensity")) return max(3f, maxY)
+    if (className.contains("Irradiance")) return max(10f, maxY)
+    if (className.contains("UvIntensity")) return max(1f, maxY)
     if (className.contains("Illuminance")) {
         val floorMax = if (chartType == Charts.Moon.Daily.Illuminance) 1.0f else 100000f
         return max(floorMax, maxY)

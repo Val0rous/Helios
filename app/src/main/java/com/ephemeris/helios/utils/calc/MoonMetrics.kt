@@ -36,6 +36,58 @@ object MoonMetrics {
         val perceivedColorTempKelvin: Double,
     )
 
+    /**
+     * Advisories for when the Moon is above the horizon (so metrics are still computed),
+     * yet too dim in practice for a human observer to notice shadows or lunar color temperature.
+     */
+    data class LunarMetricNoticeability(
+        val shouldWarnUnnoticeableShadows: Boolean,
+        val shadowsOnlyFaint: Boolean,
+        val shouldWarnUnnoticeableColorTemp: Boolean,
+    )
+
+    private const val SHADOW_UNNOTICEABLE_MAX_LUX = 0.005 // 5 mlx (starlight/airglow floor ~1–2 mlx)
+    private const val SHADOW_FAINT_MAX_LUX = 0.025        // 25 mlx (~Quarter Moon for crisp shadows)
+    private const val COLOR_TEMP_UNNOTICEABLE_MAX_ILLUM_PERCENT = 1.0
+    private const val COLOR_TEMP_UNNOTICEABLE_MAX_LUX = 0.0005 // 0.5 mlx
+    private const val CIVIL_TWILIGHT_ALT_DEG = -6.0
+
+    /**
+     * Decides when to inform the user that lunar shadows or lunar color temperature
+     * are not realistically noticeable (e.g., near New Moon, ultra-thin crescent, or
+     * optionally when daylight/civil twilight overwhelms moonlight).
+     *
+     * Returns all-false when the Moon is below the horizon, since the UI already displays
+     * an off/infinite state there.
+     */
+    @Suppress("unused")
+    fun evaluateMetricNoticeability(
+        metrics: LunarMetricsResult,
+        sunElevationDeg: Double? = null,
+    ): LunarMetricNoticeability {
+        val isMoonUp = metrics.illuminanceLux > 0.0 && !metrics.colorTempKelvin.isNaN()
+        if (!isMoonUp) {
+            return LunarMetricNoticeability(
+                shouldWarnUnnoticeableShadows = false,
+                shadowsOnlyFaint = false,
+                shouldWarnUnnoticeableColorTemp = false,
+            )
+        }
+
+        val drownedOutBySun = sunElevationDeg != null && sunElevationDeg > CIVIL_TWILIGHT_ALT_DEG
+        val shadowsUnnoticeable = drownedOutBySun || metrics.illuminanceLux < SHADOW_UNNOTICEABLE_MAX_LUX
+        val shadowsFaint = !shadowsUnnoticeable && metrics.illuminanceLux < SHADOW_FAINT_MAX_LUX
+        val colorTempUnnoticeable = drownedOutBySun ||
+            metrics.illuminationPercent < COLOR_TEMP_UNNOTICEABLE_MAX_ILLUM_PERCENT ||
+            metrics.illuminanceLux < COLOR_TEMP_UNNOTICEABLE_MAX_LUX
+
+        return LunarMetricNoticeability(
+            shouldWarnUnnoticeableShadows = shadowsUnnoticeable,
+            shadowsOnlyFaint = shadowsFaint,
+            shouldWarnUnnoticeableColorTemp = colorTempUnnoticeable,
+        )
+    }
+
     private data class LunarPhaseGeometry(
         val normalizedElongationDeg: Double,
         val signedPhaseAngleDeg: Double,
