@@ -8,6 +8,7 @@ import kotlin.math.*
 object MoonMetrics {
 
     private const val ATMOSPHERE_SCALE_HEIGHT = 8434.0
+    private const val MOON_SEMI_DIAMETER_DEG = 0.258
     private const val AIR_MASS_AT_ZERO = 1.0 / (0.50572 * 0.0521265083015075) // 6.07995^-1.6364 ≈ 0.0521265 -> AM ≈ 37.92
 
     enum class LunarPhase(val displayName: String) {
@@ -187,8 +188,11 @@ object MoonMetrics {
             actualAirMass = computeAirMass(position.altitude, amElevationModifier)
             illuminanceLux = computeIlluminanceLux(alphaDeg, position.distanceKm, actualAirMass)
 
-            val safeShadowElevRad = Math.toRadians(max(0.01, position.altitude))
-            shadowRatio = 1.0 / tan(safeShadowElevRad)
+            shadowRatio = computeShadowRatio(
+                geometricAltDeg = position.altitude,
+                horizonAltDeg = coordinates.moonApparentHorizonAlt,
+                semiDiameterDeg = MOON_SEMI_DIAMETER_DEG,
+            )
             colorTempKelvin = computeColorTempKelvin(actualAirMass)
             perceivedColorTempKelvin = computePerceivedColorTempKelvin(colorTempKelvin, illuminanceLux)
         }
@@ -253,8 +257,11 @@ object MoonMetrics {
             val alphaDeg = foldPhaseAngleToAlpha(signedPhase0 + frac * deltaPhase)
             outIlluminance[i] = computeIlluminanceLux(alphaDeg, distancesKm[i], actualAirMass).toFloat()
 
-            val safeShadowElevRad = Math.toRadians(max(0.01, moonElevDeg))
-            outShadowRatio[i] = (1.0 / tan(safeShadowElevRad)).toFloat()
+            outShadowRatio[i] = computeShadowRatio(
+                geometricAltDeg = moonElevDeg,
+                horizonAltDeg = horizonAltDeg,
+                semiDiameterDeg = MOON_SEMI_DIAMETER_DEG,
+            ).toFloat()
 
             outColorTemp[i] = computeColorTempKelvin(actualAirMass).toFloat()
         }

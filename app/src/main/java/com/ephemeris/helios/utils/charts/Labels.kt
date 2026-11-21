@@ -15,7 +15,6 @@ import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.formatHour
 import com.ephemeris.helios.utils.formatNumber
-import com.ephemeris.helios.utils.printRounded
 import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -77,7 +76,13 @@ fun Density.prepareYLabels(
             val base = 10.0.pow(it.toDouble()).toFloat()
             listOf(base, base * 3f)
         }.filter { it <= params.maxY }
-        className.contains("Shadows") -> listOf(0f, 0.1f, 0.25f, 0.5f, 1f, 2f, 5f, 10f, 20f, 50f, 100f, 200f).filter { it <= params.maxY }
+        className.contains("Shadows") -> {
+            if (params.maxY <= 60f) {
+                listOf(0f, 0.1f, 0.25f, 0.5f, 1f, 2f, 5f, 10f, 20f, 50f).filter { it <= params.maxY }
+            } else {
+                listOf(0f, 0.25f, 1f, 3f, 10f, 30f, 100f, 300f, 1000f, 5000f).filter { it <= params.maxY }
+            }
+        }
         className.contains("AirMass") -> listOf(0f, 0.5f, 1f, 2f, 5f, 10f, 20f, 50f, 100f).filter { it <= params.maxY }
         className.contains("ColorTemperature") -> (2000 until (params.maxY.roundToInt() + 1) step 500).map { it.toFloat() }
         else -> emptyList()
@@ -105,7 +110,7 @@ fun Density.prepareYLabels(
             className.contains("ColorTemperature") -> "${formatNumber(yVal.toDouble())}K"
             chartType == Charts.Moon.Daily.Illuminance -> "${formatNumber((yVal * 1000.0).roundToInt().toDouble())} mlx"
             className.contains("Illuminance") -> "${formatNumber(yVal.toDouble())} lx"
-            className.contains("Shadows") || className.contains("AirMass") -> yVal.toDouble().printRounded(2)
+            className.contains("Shadows") || className.contains("AirMass") -> formatNumber(yVal.toDouble())
             else -> "${yVal.toInt()}"
         }
         val textLayout = textMeasurer.measure(text, labelStyle)

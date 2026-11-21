@@ -8,6 +8,7 @@ object SunMetrics {
     private const val LUMINOUS_EFFICACY = 105.0
     private const val DEFAULT_OZONE_DU = 300.0
     private const val ATMOSPHERE_SCALE_HEIGHT = 8434.0
+    private const val SUN_SEMI_DIAMETER_DEG = 0.266
     private const val DIRECT_BEAM_IRRADIANCE_CONSTANT = 1
     private const val GLOBAL_HORIZONTAL_IRRADIANCE_CONSTANT = 1.125 // +10-15%
     // Todo: let users choose their preferred irradiance calc, default is 1 (direct) for solar panels and 1.125 for photography/cinematic purposes
@@ -171,11 +172,12 @@ object SunMetrics {
             val baseUv = (12.5 * distanceModifier) * max(0.0, sinElev).pow(2.42)
             outUvi[i] = (baseUv * combinedUvModifier).toFloat()
 
-            // 5. Shadow Ratio (Cotangent)
-            // We use 1.0 / tan(x) instead of a custom cotangent function to save a method call
-            // Clamp to 0.01 to prevent negative shadows and Infinity/NaN crashes in the UI
-            val safeShadowElevRad = Math.toRadians(max(0.01, sunElevDeg))
-            outShadowRatio[i] = (1.0 / tan(safeShadowElevRad)).toFloat()
+            // 5. Shadow Ratio (Refracted apparent elevation with smooth partial-disk rise/set)
+            outShadowRatio[i] = computeShadowRatio(
+                geometricAltDeg = sunElevDeg,
+                horizonAltDeg = horizonAltDeg,
+                semiDiameterDeg = SUN_SEMI_DIAMETER_DEG,
+            ).toFloat()
 
             // 6. Color Temperature (Kelvin)
             // No clamp! Allowing Air Mass to drop below 1.0 at altitude mathematically

@@ -114,7 +114,6 @@ fun Sun(
                     ShadowRatio(
                         currentShadowRatio = sun.metrics.shadowRatio,
                         peakShadowRatio = sun.dailyPeakMetrics.shadowRatio,
-                        sunAltitude = sun.altitude,
                     )
                 }
             )

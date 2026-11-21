@@ -1,5 +1,7 @@
 package com.ephemeris.helios.utils.calc
 
+import kotlin.math.atan
+import kotlin.math.max
 import kotlin.math.tan
 
 /**
@@ -88,4 +90,35 @@ fun Double.applyAtmosphericRefraction(): Double {
 
     // Convert arcminutes to decimal degrees and add it to the physical altitude
     return this + (rArcMinutes / 60.0)
+}
+
+const val MAX_SHADOW_RATIO = 5000.0
+private val MIN_SHADOW_ALT_DEG = Math.toDegrees(atan(1.0 / MAX_SHADOW_RATIO)) // ~0.01146°
+
+/**
+ * Computes physical shadow ratio (shadow length / object height) using atmospheric refraction
+ * and partial-disk visibility between apparent rise/set ([horizonAltDeg]) and full disk clearance.
+ *
+ * Returns 0.0 when below [horizonAltDeg] and caps smoothly at [MAX_SHADOW_RATIO] (5,000:1)
+ * right as the upper limb grazes the horizon.
+ */
+fun computeShadowRatio(
+    geometricAltDeg: Double,
+    horizonAltDeg: Double,
+    semiDiameterDeg: Double,
+): Double {
+    if (geometricAltDeg <= horizonAltDeg) return 0.0
+
+    val apparentCenterAlt = geometricAltDeg.applyAtmosphericRefraction()
+    val effectiveAltDeg = if (apparentCenterAlt >= semiDiameterDeg) {
+        apparentCenterAlt
+    } else {
+        val horizonApparentCenter = horizonAltDeg.applyAtmosphericRefraction()
+        val span = (semiDiameterDeg - horizonApparentCenter).coerceAtLeast(1e-6)
+        val fractionRisen = ((apparentCenterAlt - horizonApparentCenter) / span).coerceIn(0.0, 1.0)
+        semiDiameterDeg * fractionRisen
+    }
+
+    val safeElevRad = Math.toRadians(max(MIN_SHADOW_ALT_DEG, effectiveAltDeg))
+    return (1.0 / tan(safeElevRad)).coerceAtMost(MAX_SHADOW_RATIO)
 }

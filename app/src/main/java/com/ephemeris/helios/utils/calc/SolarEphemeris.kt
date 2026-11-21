@@ -529,10 +529,11 @@ object SolarEphemeris {
         // 5. Adjust for morning vs. afternoon
         val azimuthDeg = if (hourAngleDeg > 0) 360.0 - rawAzimuthDeg else rawAzimuthDeg
 
-        // Return rounded to 2 decimal places
+        // Keep full unrounded precision for downstream physics (shadows, air mass, charts);
+        // display formatting rounds at the UI boundary.
         return SolarPosition(
-            altitude = Math.toDegrees(altitudeRad).round(2),
-            azimuth = azimuthDeg.round(2),
+            altitude = Math.toDegrees(altitudeRad),
+            azimuth = azimuthDeg,
             distanceAu = params.distanceAu,
             declination = Math.toDegrees(params.declinationRad),
             eotMinutes = params.eotMinutes,

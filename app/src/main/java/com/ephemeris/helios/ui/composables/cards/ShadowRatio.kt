@@ -14,7 +14,7 @@ import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.charts.ShadowDial
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
 import com.ephemeris.helios.ui.composables.entries.TextEntry
-import com.ephemeris.helios.utils.printRounded
+import com.ephemeris.helios.utils.calc.MAX_SHADOW_RATIO
 import com.ephemeris.helios.utils.printSignificant
 import com.ephemeris.helios.utils.roundToSignificant
 
@@ -22,16 +22,15 @@ import com.ephemeris.helios.utils.roundToSignificant
 fun ShadowRatio(
     currentShadowRatio: Double,
     peakShadowRatio: Double,
-    sunAltitude: Double,
 ) {
-    val isNight = sunAltitude <= 0.0
+    val isNight = currentShadowRatio <= 0.0
+    val isInfinite = isNight || currentShadowRatio >= MAX_SHADOW_RATIO
 
-    // If the shadow ratio is higher than or infinite, we display the infinity symbol
-    // No longer clipping >10 to ∞. If it's 35.6, we show 35.6!
-    val displayValue = if (isNight) "∞" else currentShadowRatio.printSignificant()
+    // Display ∞ when below the apparent horizon or at the 5,000:1 horizon-graze limit
+    val displayValue = if (isInfinite) "∞" else currentShadowRatio.printSignificant()
 
     val description = when {
-        isNight -> "Infinite"
+        isInfinite -> "Infinite"
         currentShadowRatio < 0.001 -> "None"
         currentShadowRatio < 0.25 -> "Minimal"
         currentShadowRatio < 0.5 -> "Very Short"
@@ -84,8 +83,13 @@ fun ShadowRatio(
     }
     CustomHorizontalDivider()
     Row(Modifier.padding(horizontal = 12.dp)) {
+        val peakText = if (peakShadowRatio <= 0.0 || peakShadowRatio >= MAX_SHADOW_RATIO) {
+            "∞"
+        } else {
+            "${peakShadowRatio.roundToSignificant()} : 1"
+        }
         TextEntry(
-            text = "${peakShadowRatio.roundToSignificant()} : 1",
+            text = peakText,
             icon = R.drawable.ic_ev_shadow,
             desc = "Peak Shadow Ratio"
         )

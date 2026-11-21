@@ -1,6 +1,7 @@
 package com.ephemeris.helios.utils.charts
 
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.calc.MAX_SHADOW_RATIO
 import com.ephemeris.helios.utils.location.Coordinates
 import java.time.ZonedDateTime
 import kotlin.math.log10
@@ -85,7 +86,12 @@ fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
         val floorMax = if (chartType == Charts.Moon.Daily.Illuminance) 1.0f else 100000f
         return max(floorMax, maxY)
     }
-    if (className.contains("Shadows")) return max(50f, 5f * (validY.filter { it > 0 }.minOrNull() ?: 0f))
+    if (className.contains("Shadows")) {
+        val maxShadow = MAX_SHADOW_RATIO.toFloat()
+        val minPositive = validY.asSequence().filter { it > 0f }.minOrNull()
+            ?: return maxShadow // Polar night (never rises): display full maximum scale
+        return max(50f, 5f * minPositive).coerceAtMost(maxShadow)
+    }
     if (className.contains("ColorTemperature")) {
         val floorMax = if (chartType == Charts.Moon.Daily.ColorTemperature) 4500f else 5500f
         return max(floorMax, maxY)

@@ -32,6 +32,7 @@ import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.formatDecimalHours
+import com.ephemeris.helios.utils.round
 
 @Composable
 fun InfoPager(
@@ -84,10 +85,10 @@ fun InfoPager(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = "${currentSunPosition.altitude}°",
+                                    text = "${currentSunPosition.altitude.round()}°",
                                     style = textStyle)
                                 Text(
-                                    text = "@ ${currentSunPosition.azimuth}°",
+                                    text = "@ ${currentSunPosition.azimuth.round()}°",
                                     style = textStyle
                                 )
                             }
@@ -105,7 +106,7 @@ fun InfoPager(
                                     style = textStyle
                                 )
                                 Text(
-                                    text = "@ ${sunEvents.sunriseAzimuth}°",
+                                    text = "@ ${sunEvents.sunriseAzimuth.round()}°",
                                     style = textStyle
                                 )
                             }
@@ -123,7 +124,7 @@ fun InfoPager(
                                     style = textStyle
                                 )
                                 Text(
-                                    text = "@ ${sunEvents.sunsetAzimuth}°",
+                                    text = "@ ${sunEvents.sunsetAzimuth.round()}°",
                                     style = textStyle
                                 )
                             }
@@ -158,11 +159,11 @@ fun InfoPager(
                                     color = MaterialTheme.colorScheme.primary
                                 )
                                 Text(
-                                    text = "${currentMoonPosition.altitude}°",
+                                    text = "${currentMoonPosition.altitude.round()}°",
                                     style = textStyle
                                 )
                                 Text(
-                                    text = "@ ${currentMoonPosition.azimuth}°",
+                                    text = "@ ${currentMoonPosition.azimuth.round()}°",
                                     style = textStyle
                                 )
                             }
@@ -180,7 +181,7 @@ fun InfoPager(
                                     style = textStyle
                                 )
                                 Text(
-                                    text = "@ ${moonEvents.moonriseAzimuth}°",
+                                    text = "@ ${moonEvents.moonriseAzimuth?.round()}°",
                                     style = textStyle
                                 )
                             }
@@ -198,7 +199,7 @@ fun InfoPager(
                                     style = textStyle
                                 )
                                 Text(
-                                    text = "@ ${moonEvents.moonsetAzimuth}°",
+                                    text = "@ ${moonEvents.moonsetAzimuth?.round()}°",
                                     style = textStyle
                                 )
                             }
