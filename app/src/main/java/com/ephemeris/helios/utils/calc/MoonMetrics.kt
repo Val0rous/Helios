@@ -31,7 +31,8 @@ object MoonMetrics {
         val illuminanceLux: Double,
         val shadowRatio: Double,
         val airMass: Double,
-        val colorTempKelvin: Double
+        val colorTempKelvin: Double,
+        val perceivedColorTempKelvin: Double,
     )
 
     private data class LunarPhaseGeometry(
@@ -104,6 +105,38 @@ object MoonMetrics {
         return 1800.0 + 2300.0 * exp(-0.1 * (actualAirMass - 1.0))
     }
 
+    /**
+     * Estimates human-perceived moonlight color temperature accounting for the Purkinje effect
+     * (CIE 191:2010 mesopic-to-scotopic rod dominance blended in perceptually uniform mireds).
+     *
+     * Direct moonlight is physically ~4100K at zenith, yet appears cool silvery-blue (~6900K–8000K)
+     * to dark-adapted eyes because rods peak near 498 nm. Near the horizon, Rayleigh scattering
+     * removes blue-green wavelengths so rising/setting Moons retain their warm amber/orange hue.
+     */
+    fun computePerceivedColorTempKelvin(
+        physicalColorTempKelvin: Double,
+        illuminanceLux: Double,
+    ): Double {
+        if (physicalColorTempKelvin.isNaN() || illuminanceLux <= 0.0) return Double.NaN
+
+        // Convert horizontal illuminance (lx) to typical landscape luminance (cd/m², 18% reflectance)
+        // and map across the CIE mesopic transition range [0.005 cd/m² (scotopic), 5.0 cd/m² (photopic)]
+        val landscapeLuminance = illuminanceLux * (0.18 / PI)
+        val clampedLuminance = landscapeLuminance.coerceIn(0.005, 5.0)
+        val rodFactor = ((log10(5.0) - log10(clampedLuminance)) / 3.0).coerceIn(0.0, 1.0)
+
+        // Short-wavelength availability for rod stimulation (drops sharply near the horizon)
+        val normalizedBlue = ((physicalColorTempKelvin - 1800.0) / 2300.0).coerceIn(0.0, 1.0)
+        val blueAvailability = normalizedBlue * normalizedBlue
+
+        val scotopicTargetK = 8000.0
+        val shiftWeight = rodFactor * blueAvailability
+        val physicalMired = 1_000_000.0 / physicalColorTempKelvin
+        val targetMired = 1_000_000.0 / scotopicTargetK
+        val perceivedMired = physicalMired + shiftWeight * (targetMired - physicalMired)
+        return 1_000_000.0 / perceivedMired
+    }
+
     fun calculateMetrics(
         time: ZonedDateTime,
         coordinates: Coordinates
@@ -147,6 +180,7 @@ object MoonMetrics {
         var illuminanceLux = 0.0
         var shadowRatio = 0.0
         var colorTempKelvin = Double.NaN
+        var perceivedColorTempKelvin = Double.NaN
 
         if (position.altitude > coordinates.moonApparentHorizonAlt) {
             val amElevationModifier = exp(-coordinates.altitude / ATMOSPHERE_SCALE_HEIGHT)
@@ -156,6 +190,7 @@ object MoonMetrics {
             val safeShadowElevRad = Math.toRadians(max(0.01, position.altitude))
             shadowRatio = 1.0 / tan(safeShadowElevRad)
             colorTempKelvin = computeColorTempKelvin(actualAirMass)
+            perceivedColorTempKelvin = computePerceivedColorTempKelvin(colorTempKelvin, illuminanceLux)
         }
 
         return LunarMetricsResult(
@@ -168,7 +203,8 @@ object MoonMetrics {
             illuminanceLux = illuminanceLux,
             shadowRatio = shadowRatio,
             airMass = actualAirMass,
-            colorTempKelvin = colorTempKelvin
+            colorTempKelvin = colorTempKelvin,
+            perceivedColorTempKelvin = perceivedColorTempKelvin,
         )
     }
 

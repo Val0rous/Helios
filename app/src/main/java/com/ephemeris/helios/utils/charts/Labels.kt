@@ -77,7 +77,8 @@ fun Density.prepareYLabels(
             val base = 10.0.pow(it.toDouble()).toFloat()
             listOf(base, base * 3f)
         }.filter { it <= params.maxY }
-        className.contains("Shadows") || className.contains("AirMass") -> listOf(0f, 0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f, 5f, 6f, 7f, 10f)
+        className.contains("Shadows") -> listOf(0f, 0.1f, 0.25f, 0.5f, 1f, 2f, 5f, 10f, 20f, 50f, 100f, 200f).filter { it <= params.maxY }
+        className.contains("AirMass") -> listOf(0f, 0.5f, 1f, 2f, 5f, 10f, 20f, 50f, 100f).filter { it <= params.maxY }
         className.contains("ColorTemperature") -> (2000 until (params.maxY.roundToInt() + 1) step 500).map { it.toFloat() }
         else -> emptyList()
     }

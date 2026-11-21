@@ -30,9 +30,17 @@ fun getMapY(
         else -> false
     }
     return if (isLogScale) {
-        // Scale sub-lux lunar illuminance into millilux so log10(y * scale + 1)
-        // spreads 0.001..1.0 lx evenly across 3 decades instead of flattening near 0
-        val logScale = if (chartType == Charts.Moon.Daily.Illuminance) 1000f else 1f
+        // Scale low-range log charts so sub-1 and sub-2 values get clear vertical resolution
+        // instead of flattening near 0 in log10(y + 1):
+        //  - Moon Illuminance (0..1 lx): ×1000 (millilux)
+        //  - Shadows (0..50+): ×10 (gives ~39% height to 0..1 and ~49% to 0..2)
+        //  - Air Mass (0..50): ×4 (gives ~30% height to 0..1 and ~41% to 0..2)
+        val logScale = when (chartType) {
+            Charts.Moon.Daily.Illuminance -> 1000f
+            Charts.Sun.Daily.Shadows, Charts.Moon.Daily.Shadows -> 10f
+            Charts.Sun.Daily.AirMass, Charts.Moon.Daily.AirMass -> 4f
+            else -> 1f
+        }
         val logY = log10(y.coerceAtLeast(0f) * logScale + 1f)
         val logMin = log10(params.minY.coerceAtLeast(0f) * logScale + 1f)
         val logMax = log10(params.maxY.coerceAtLeast(0f) * logScale + 1f)
@@ -77,12 +85,12 @@ fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
         val floorMax = if (chartType == Charts.Moon.Daily.Illuminance) 1.0f else 100000f
         return max(floorMax, maxY)
     }
-    if (className.contains("Shadows")) return max(10f, 5f * (validY.filter { it > 0 }.minOrNull() ?: 0f))
+    if (className.contains("Shadows")) return max(50f, 5f * (validY.filter { it > 0 }.minOrNull() ?: 0f))
     if (className.contains("ColorTemperature")) {
         val floorMax = if (chartType == Charts.Moon.Daily.ColorTemperature) 4500f else 5500f
         return max(floorMax, maxY)
     }
-    if (className.contains("AirMass")) return max(10f, 5f * (validY.filter { it > 0 }.minOrNull() ?: 0f)) // or 15f
+    if (className.contains("AirMass")) return max(50f, maxY)
     return 90f // Todo: Change
 }
 
