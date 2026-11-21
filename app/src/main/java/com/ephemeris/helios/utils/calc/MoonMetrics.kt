@@ -173,16 +173,17 @@ object MoonMetrics {
      */
     fun calculatePeakMetrics(
         time: ZonedDateTime, // Pass any time during the target day
-        coordinates: Coordinates
+        coordinates: Coordinates,
+        dailyEvents: LunarEphemeris.LunarDailyEvents? = null,
     ): LunarMetricsResult? {
-        // 1. Fetch the daily events to find the exact time of Culmination
-        val dailyEvents = LunarEphemeris.calculateDailyEvents(
+        // 1. Reuse precomputed daily events when available to avoid scanning the day twice
+        val resolvedEvents = dailyEvents ?: LunarEphemeris.calculateDailyEvents(
             time = time,
             coordinates = coordinates
         )
 
         // If the moon does not culminate today (due to the 24h 50m lunar cycle), there is no peak.
-        val culminationDecimalHour = dailyEvents.culmination ?: return null
+        val culminationDecimalHour = resolvedEvents.culmination ?: return null
 
         // 2. Convert the decimal hour back into strict hours, minutes, and seconds
         val hour = culminationDecimalHour.toInt().coerceIn(0, 23)

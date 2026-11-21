@@ -2,11 +2,10 @@ package com.ephemeris.helios.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ephemeris.helios.data.DailyEphemerisBundle
 import com.ephemeris.helios.data.EphemerisRepository
 import com.ephemeris.helios.data.LocationRepository
-import com.ephemeris.helios.data.MoonDailyData
 import com.ephemeris.helios.data.MoonUiData
-import com.ephemeris.helios.data.SunDailyData
 import com.ephemeris.helios.data.SunUiData
 import com.ephemeris.helios.data.TimeRepository
 import com.ephemeris.helios.utils.calc.LiveUpdatesData
@@ -34,19 +33,17 @@ class HomeViewModel(
     val uiState: StateFlow<HomeUiState?> = combine(
         timeRepository.currentTime,
         locationRepository.coordinates,
-        ephemerisRepository.sunDaily,
-        ephemerisRepository.moonDaily,
+        ephemerisRepository.dailyData,
         ephemerisRepository.liveUpdates,
-    ) { time, coords, sunDaily, moonDaily, live ->
-        buildState(time, coords, sunDaily, moonDaily, live)
+    ) { time, coords, daily, live ->
+        buildState(time, coords, daily, live)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = buildState(
             time = timeRepository.currentTime.value,
             coords = locationRepository.coordinates.value,
-            sunDaily = ephemerisRepository.sunDaily.value,
-            moonDaily = ephemerisRepository.moonDaily.value,
+            daily = ephemerisRepository.dailyData.value,
             live = ephemerisRepository.liveUpdates.value,
         ),
     )
@@ -54,22 +51,21 @@ class HomeViewModel(
     private fun buildState(
         time: ZonedDateTime,
         coords: Coordinates?,
-        sunDaily: SunDailyData?,
-        moonDaily: MoonDailyData?,
+        daily: DailyEphemerisBundle?,
         live: LiveUpdatesData?,
     ): HomeUiState? {
-        if (coords == null || sunDaily == null || moonDaily == null || live == null) return null
+        if (coords == null || daily == null || live == null) return null
         return HomeUiState(
             currentTime = time,
             coordinates = coords,
             sun = SunUiData(
                 live = live.sun,
-                daily = sunDaily,
+                daily = daily.sun,
                 phase = getSunPhase(live.sun.position.altitude, coords.sunApparentHorizonAlt).desc,
             ),
             moon = MoonUiData(
                 live = live.moon,
-                daily = moonDaily,
+                daily = daily.moon,
             ),
         )
     }

@@ -71,6 +71,7 @@ import com.ephemeris.helios.utils.LightPhasePreferences
 import com.ephemeris.helios.utils.TimeMachineFilter
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.location.Coordinates
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.Instant
@@ -87,6 +88,7 @@ fun TimeMachine(
     isAutoUpdate: Boolean,
     onTimeChange: (ZonedDateTime) -> Unit,
     onAutoUpdateChange: (Boolean) -> Unit,
+    onResetToNow: () -> Unit = { onAutoUpdateChange(true) },
 ) {
     val context = LocalContext.current
     val is24Hour = DateFormat.is24HourFormat(context)
@@ -103,6 +105,9 @@ fun TimeMachine(
     // Picker states
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+
+    // Track active fling animation so Reset / Tap / Drag / Filter switch cancels it immediately
+    var flingJob by remember { mutableStateOf<Job?>(null) }
 
     val textMeasurer = rememberTextMeasurer()
     val latestTime by rememberUpdatedState(time)
@@ -154,7 +159,11 @@ fun TimeMachine(
                     modifier = Modifier.weight(1f)
                 ) {
                     TextButton(
-                        onClick = { showDatePicker = true },
+                        onClick = {
+                            flingJob?.cancel()
+                            flingJob = null
+                            showDatePicker = true
+                        },
                     ) {
                         Text(
                             text = dateString,
@@ -171,7 +180,11 @@ fun TimeMachine(
                     modifier = Modifier.weight(1f)
                 ) {
                     TextButton(
-                        onClick = { showTimePicker = true },
+                        onClick = {
+                            flingJob?.cancel()
+                            flingJob = null
+                            showTimePicker = true
+                        },
                     ) {
                         Text(
                             text = timeString,
@@ -196,7 +209,11 @@ fun TimeMachine(
                         TimeMachineFilter.entries.forEachIndexed { index, filter ->
                             OutlinedToggleButton(
                                 checked = filter == selectedFilterType,
-                                onCheckedChange = { selectedFilterType = filter },
+                                onCheckedChange = {
+                                    flingJob?.cancel()
+                                    flingJob = null
+                                    selectedFilterType = filter
+                                },
                                 shapes = when (index) {
                                     0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
                                     TimeMachineFilter.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
@@ -318,6 +335,8 @@ fun TimeMachine(
                                         return@detectTapGestures
                                     }
 
+                                    flingJob?.cancel()
+                                    flingJob = null
                                     onAutoUpdateChange(false)   // Pause live updating on interaction
 
                                     // Check if the tap was on the left half or right half
@@ -342,13 +361,16 @@ fun TimeMachine(
                             state = draggableState,
                             orientation = Orientation.Horizontal,
                             onDragStarted = {
+                                flingJob?.cancel()
+                                flingJob = null
                                 onAutoUpdateChange(false)
                                 timeAtDragStart = latestTime
                                 accumulatedDrag = 0f
                             },
                             onDragStopped = { velocity ->
-                                // Physics-based fling deceleration
-                                scope.launch {
+                                // Physics-based fling deceleration (tracked so Reset cancels it instantly)
+                                flingJob?.cancel()
+                                flingJob = scope.launch {
                                     draggableState.drag { // suspends until the decay animation finishes
                                         var lastValue = 0f
                                         AnimationState(initialValue = 0f, initialVelocity = velocity)
@@ -391,11 +413,11 @@ fun TimeMachine(
                     // Draw Background Gradient
                     if (coordinates != null) {
                         // Determine the step size based on zoom level to ensure smooth gradients
-                        // Hour mode: Anchor every 2 minutes. Day mode: 15 minutes. Year mode: 1 day.
+                        // Hour mode: 2 min (~30 stops). Day mode: 15 min (~96 stops). Year mode: 4 days (~92 stops).
                         val stepMillis = when (selectedFilterType) {
                             TimeMachineFilter.Hour -> Duration.ofMinutes(2).toMillis()
                             TimeMachineFilter.Day -> Duration.ofMinutes(15).toMillis()
-                            TimeMachineFilter.Year -> Duration.ofDays(1).toMillis()
+                            TimeMachineFilter.Year -> Duration.ofDays(4).toMillis()
                         }
                         val stops = mutableListOf<Pair<Float, Color>>()
 
@@ -413,12 +435,11 @@ fun TimeMachine(
                             val offsetMillis = Duration.between(startTime, currentAnchor).toMillis()
                             val fraction = offsetMillis.toFloat() / (halfWidthMillis * 2)
 
-                            //For Year mode, sample peak solar altitude at true solar noon
+                            // For Year mode, compute peak solar noon altitude directly in 1 lightweight call
                             val altitude = if (selectedFilterType == TimeMachineFilter.Year) {
-                                SolarEphemeris.calculateDailyEvents(currentAnchor, coordinates).solarNoonAltitude
+                                SolarEphemeris.calculateSolarNoonAltitude(currentAnchor, coordinates)
                             } else {
                                 SolarEphemeris.calculatePosition(currentAnchor, coordinates).altitude
-//                                currentAnchor
                             }
 
                             // Calculate the exact solar altitude at this specific time anchor
@@ -600,7 +621,11 @@ fun TimeMachine(
 
                 if (!isAutoUpdate) {
                     OutlinedIconButton(
-                        onClick = { onAutoUpdateChange(true) },
+                        onClick = {
+                            flingJob?.cancel()
+                            flingJob = null
+                            onResetToNow()
+                        },
                         modifier = Modifier
                             .align(Alignment.CenterStart)
                             .padding(start = 8.dp),

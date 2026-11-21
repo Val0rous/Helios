@@ -6,6 +6,11 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import kotlin.math.max
 
+data class SeasonalBundle(
+    val seasonalEvents: SeasonalEphemeris.SeasonalEvents,
+    val seasonalDailyEvents: SeasonalEphemeris.SeasonalDailyEvents,
+)
+
 data class DayEphemerisData(
     val events: SolarEphemeris.DailyEvents,
     val durations: SolarEphemeris.DailyDurations,
@@ -39,28 +44,16 @@ data class LiveUpdatesData(
     val liveMoonMetrics: MoonMetrics.LunarMetricsResult get() = moon.metrics
 }
 
-fun getDailyEphemerisData(
-    currentTime: ZonedDateTime,
+/**
+ * Computes yearly equinoxes/solstices and their daylight/sun-angle metrics.
+ * Depends only on (year, zoneId, coordinates), so callers can cache this across all 365 days of a year.
+ */
+fun getSeasonalEphemerisData(
+    year: Int,
+    zoneId: ZoneId,
     coordinates: Coordinates,
-): DayEphemerisData {
-    val events = SolarEphemeris.calculateDailyEvents(currentTime, coordinates)
-    val durations = SolarEphemeris.calculateDailyDurations(events, coordinates)
-    val dailyOzone = estimateHistoricalOzone(
-        latitude = coordinates.latitude,
-        date = currentTime.toLocalDate()
-    )
-
-    val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
-
-    val dailyPeakMetrics = SunMetrics.calculateMetrics(
-        sunElevationDeg = events.solarNoonAltitude,
-        observerAltitudeMeters = coordinates.altitude,
-        distanceAu = events.distanceAu,
-        ozoneDU = dailyOzone,
-        horizonAltDeg = dynamicSunriseSunsetAlt
-    )
-
-    val seasonalEvents = SeasonalEphemeris.getSeasonalEvents(currentTime.year, ZoneId.systemDefault())
+): SeasonalBundle {
+    val seasonalEvents = SeasonalEphemeris.getSeasonalEvents(year, zoneId)
     val mEq = SeasonalEphemeris.getDaily(seasonalEvents.marchEquinox, coordinates)
     val jSo = SeasonalEphemeris.getDaily(seasonalEvents.juneSolstice, coordinates)
     val sEq = SeasonalEphemeris.getDaily(seasonalEvents.septemberEquinox, coordinates)
@@ -74,13 +67,51 @@ fun getDailyEphemerisData(
         marchEquinoxSunAngle = mEq.solarNoonAltitude,
         juneSolsticeSunAngle = jSo.solarNoonAltitude,
         septemberEquinoxSunAngle = sEq.solarNoonAltitude,
-        decemberSolsticeSunAngle = dSo.solarNoonAltitude
+        decemberSolsticeSunAngle = dSo.solarNoonAltitude,
+    )
+    return SeasonalBundle(seasonalEvents, seasonalDailyEvents)
+}
+
+fun getDailyEphemerisData(
+    currentTime: ZonedDateTime,
+    coordinates: Coordinates,
+    cachedSeasonal: SeasonalBundle? = null,
+): DayEphemerisData {
+    val events = SolarEphemeris.calculateDailyEvents(currentTime, coordinates)
+    val durations = SolarEphemeris.calculateDailyDurations(events, coordinates)
+    val dailyOzone = estimateHistoricalOzone(
+        latitude = coordinates.latitude,
+        date = currentTime.toLocalDate(),
+    )
+
+    val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
+
+    val dailyPeakMetrics = SunMetrics.calculateMetrics(
+        sunElevationDeg = events.solarNoonAltitude,
+        observerAltitudeMeters = coordinates.altitude,
+        distanceAu = events.distanceAu,
+        ozoneDU = dailyOzone,
+        horizonAltDeg = dynamicSunriseSunsetAlt,
+    )
+
+    val seasonal = cachedSeasonal ?: getSeasonalEphemerisData(
+        year = currentTime.year,
+        zoneId = currentTime.zone,
+        coordinates = coordinates,
     )
 
     val lunarEvents = LunarEphemeris.calculateDailyEvents(currentTime, coordinates)
     val lunarDailyPeakMetrics = MoonMetrics.calculatePeakMetrics(currentTime, coordinates)
 
-    return DayEphemerisData(events, durations, dailyPeakMetrics, seasonalEvents, seasonalDailyEvents, lunarEvents, lunarDailyPeakMetrics)
+    return DayEphemerisData(
+        events = events,
+        durations = durations,
+        dailyPeakMetrics = dailyPeakMetrics,
+        seasonalEvents = seasonal.seasonalEvents,
+        seasonalDailyEvents = seasonal.seasonalDailyEvents,
+        lunarEvents = lunarEvents,
+        lunarDailyPeakMetrics = lunarDailyPeakMetrics,
+    )
 }
 
 fun getSunLiveSnapshot(
@@ -90,7 +121,7 @@ fun getSunLiveSnapshot(
     val pos = SolarEphemeris.calculatePosition(currentTime, coordinates)
     val dailyOzone = estimateHistoricalOzone(
         latitude = coordinates.latitude,
-        date = currentTime.toLocalDate()
+        date = currentTime.toLocalDate(),
     )
 
     // Calculate the dynamic horizon specifically for the live observer
@@ -104,7 +135,7 @@ fun getSunLiveSnapshot(
         distanceAu = pos.distanceAu,
         ozoneDU = dailyOzone,
         solarSpeed = pos.solarSpeedDegPerMin,
-        horizonAltDeg = dynamicSunriseSunsetAlt
+        horizonAltDeg = dynamicSunriseSunsetAlt,
     )
 
     return SunLiveSnapshot(

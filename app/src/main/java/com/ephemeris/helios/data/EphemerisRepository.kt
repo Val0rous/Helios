@@ -8,17 +8,21 @@ import com.ephemeris.helios.utils.calc.LiveUpdatesData
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.MoonLiveSnapshot
 import com.ephemeris.helios.utils.calc.MoonMetrics
+import com.ephemeris.helios.utils.calc.SeasonalBundle
 import com.ephemeris.helios.utils.calc.SeasonalEphemeris
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.calc.SunLiveSnapshot
 import com.ephemeris.helios.utils.calc.SunMetrics
-import com.ephemeris.helios.utils.calc.getDailyEphemerisData
 import com.ephemeris.helios.utils.calc.getLiveUpdates
+import com.ephemeris.helios.utils.calc.getSeasonalEphemerisData
+import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -28,6 +32,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
@@ -35,6 +40,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import kotlin.time.Duration.Companion.seconds
 
@@ -51,6 +58,14 @@ data class MoonDailyData(
     val events: LunarEphemeris.LunarDailyEvents,
     val dailyPeakMetrics: MoonMetrics.LunarMetricsResult?,
     val chartArrays: ChartArrays,
+)
+
+/**
+ * Atomic Sun + Moon daily bundle so combo charts & maps always update both curves in a single frame.
+ */
+data class DailyEphemerisBundle(
+    val sun: SunDailyData,
+    val moon: MoonDailyData,
 )
 
 /**
@@ -92,10 +107,28 @@ data class MoonUiData(
     val chartArrays: ChartArrays get() = daily.chartArrays
 }
 
+private data class SeasonalCacheKey(
+    val year: Int,
+    val zoneId: ZoneId,
+    val latitude: Double,
+    val longitude: Double,
+    val altitude: Double,
+)
+
+private data class DailyCacheKey(
+    val coords: Coordinates,
+    val date: LocalDate,
+    val zoneId: ZoneId,
+)
+
 /**
  * Reactive ephemeris engine shared across all screens.
- * Automatically recomputes daily arrays when location/date/zone change,
- * and live snapshots on every manual TimeMachine scrub or 12-second live tick.
+ *
+ * Uses `resetGeneration.collectLatest { ... .conflate().collect { ... } }`:
+ * - During rapid multi-day TimeMachine flings (`resetGeneration` unchanged), `.conflate().collect`
+ *   finishes each calculation & publishes smoothly without starvation.
+ * - When the user taps "Reset to now" (`resetGeneration` increments), `collectLatest` immediately
+ *   cancels any in-flight past/future calculation and jumps straight to computing `now`.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class EphemerisRepository(
@@ -104,21 +137,26 @@ class EphemerisRepository(
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private val _sunDaily = MutableStateFlow<SunDailyData?>(null)
-    val sunDaily: StateFlow<SunDailyData?> = _sunDaily.asStateFlow()
+    // Constant 00:00..24:00 sampling axes reused across every day calculation
+    private val hoursCalc = DoubleArray(X_SIZE) { it / 60.0 }
+    private val hoursFloat = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
 
-    private val _moonDaily = MutableStateFlow<MoonDailyData?>(null)
-    val moonDaily: StateFlow<MoonDailyData?> = _moonDaily.asStateFlow()
+    // Cache yearly equinox/solstice calculations (4 full solar days) so scrubbing across days skips them
+    @Volatile private var cachedSeasonalKey: SeasonalCacheKey? = null
+    @Volatile private var cachedSeasonalBundle: SeasonalBundle? = null
+    @Volatile private var lastPublishedDailyKey: DailyCacheKey? = null
+
+    private val _dailyData = MutableStateFlow<DailyEphemerisBundle?>(null)
+    val dailyData: StateFlow<DailyEphemerisBundle?> = _dailyData.asStateFlow()
 
     private val _liveUpdates = MutableStateFlow<LiveUpdatesData?>(null)
     val liveUpdates: StateFlow<LiveUpdatesData?> = _liveUpdates.asStateFlow()
 
     val isReady: StateFlow<Boolean> = combine(
-        _sunDaily,
-        _moonDaily,
+        _dailyData,
         _liveUpdates,
-    ) { sun, moon, live ->
-        sun != null && moon != null && live != null
+    ) { daily, live ->
+        (daily != null) && (live != null)
     }.stateIn(
         scope = scope,
         started = SharingStarted.Eagerly,
@@ -126,79 +164,133 @@ class EphemerisRepository(
     )
 
     init {
-        // 1. Heavy daily ephemeris & 1441-point chart arrays: only runs when location, date, or zone changes.
-        //    collectLatest automatically cancels stale calculations during fast date scrubbing.
+        // 1. Daily ephemeris & 1441-point chart arrays:
         scope.launch {
-            combine(
-                locationRepository.coordinates.filterNotNull(),
-                timeRepository.currentTime,
-            ) { coords, time -> coords to time }
-                .distinctUntilChanged { old, new ->
-                    old.first == new.first &&
-                        old.second.toLocalDate() == new.second.toLocalDate() &&
-                        old.second.zone == new.second.zone
-                }
-                .collectLatest { (coords, targetTime) ->
-                    val newDayData = getDailyEphemerisData(targetTime, coords)
-                    currentCoroutineContext().ensureActive()
+            timeRepository.resetGeneration.collectLatest {
+                combine(
+                    locationRepository.coordinates.filterNotNull(),
+                    timeRepository.currentTime,
+                ) { coords, time -> coords to time }
+                    .distinctUntilChanged { (oldCoords, oldTime), (newCoords, newTime) ->
+                        oldCoords == newCoords &&
+                            oldTime.toLocalDate() == newTime.toLocalDate() &&
+                            oldTime.zone == newTime.zone
+                    }
+                    .conflate()
+                    .collect { (coords, targetTime) ->
+                        val localDate = targetTime.toLocalDate()
+                        val dailyKey = DailyCacheKey(coords, localDate, targetTime.zone)
+                        if (dailyKey == lastPublishedDailyKey && _dailyData.value != null) {
+                            return@collect
+                        }
 
-                    val hoursCalc = DoubleArray(X_SIZE) { it / 60.0 }
-                    val hours = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
-                    val tzOffset = targetTime.offset.totalSeconds / 3600.0
-                    val localDate = targetTime.toLocalDate()
-                    val dailyOzone = estimateHistoricalOzone(
-                        latitude = coords.latitude,
-                        date = localDate,
-                    )
+                        val tzOffset = targetTime.offset.totalSeconds / 3600.0
+                        val dailyOzone = estimateHistoricalOzone(
+                            latitude = coords.latitude,
+                            date = localDate,
+                        )
 
-                    val (xSun, ySun) = generateSunData(localDate, hoursCalc, coords, tzOffset, dailyOzone)
-                    currentCoroutineContext().ensureActive()
-                    val newSunDaily = SunDailyData(
-                        events = newDayData.events,
-                        durations = newDayData.durations,
-                        dailyPeakMetrics = newDayData.dailyPeakMetrics,
-                        seasonalEvents = newDayData.seasonalEvents,
-                        seasonalDailyEvents = newDayData.seasonalDailyEvents,
-                        chartArrays = ChartArrays(hours, xSun, ySun),
-                    )
-
-                    val (xMoon, yMoon) = generateMoonData(localDate, hoursCalc, coords, tzOffset, targetTime)
-                    currentCoroutineContext().ensureActive()
-                    val newMoonDaily = MoonDailyData(
-                        events = newDayData.lunarEvents,
-                        dailyPeakMetrics = newDayData.lunarDailyPeakMetrics,
-                        chartArrays = ChartArrays(hours, xMoon, yMoon),
-                    )
-
-                    _sunDaily.value = newSunDaily
-                    _moonDaily.value = newMoonDaily
-                }
-        }
-
-        // 2. Live ephemeris snapshots: ticks every 12s in auto mode, or reacts immediately to manual scrubbing.
-        scope.launch {
-            combine(
-                locationRepository.coordinates.filterNotNull(),
-                timeRepository.isAutoUpdateEnabled,
-                timeRepository.currentZoneId,
-            ) { coords, isAuto, zoneId -> Triple(coords, isAuto, zoneId) }
-                .flatMapLatest { (coords, isAuto, zoneId) ->
-                    if (isAuto) {
-                        flow {
-                            while (true) {
-                                emit(coords to ZonedDateTime.now(zoneId))
-                                delay(12.seconds)
+                        val seasonalKey = SeasonalCacheKey(
+                            year = targetTime.year,
+                            zoneId = targetTime.zone,
+                            latitude = coords.latitude,
+                            longitude = coords.longitude,
+                            altitude = coords.altitude,
+                        )
+                        val seasonal = if (seasonalKey == cachedSeasonalKey && cachedSeasonalBundle != null) {
+                            cachedSeasonalBundle!!
+                        } else {
+                            getSeasonalEphemerisData(targetTime.year, targetTime.zone, coords).also {
+                                cachedSeasonalKey = seasonalKey
+                                cachedSeasonalBundle = it
                             }
                         }
-                    } else {
-                        timeRepository.currentTime.map { time -> coords to time }
+
+                        currentCoroutineContext().ensureActive()
+
+                        // Run Sun and Moon daily math in parallel across CPU cores
+                        val bundle = coroutineScope {
+                            val sunDeferred = async {
+                                val events = SolarEphemeris.calculateDailyEvents(targetTime, coords)
+                                val durations = SolarEphemeris.calculateDailyDurations(events, coords)
+                                val peakMetrics = SunMetrics.calculateMetrics(
+                                    sunElevationDeg = events.solarNoonAltitude,
+                                    observerAltitudeMeters = coords.altitude,
+                                    distanceAu = events.distanceAu,
+                                    ozoneDU = dailyOzone,
+                                    horizonAltDeg = coords.sunApparentHorizonAlt,
+                                )
+                                currentCoroutineContext().ensureActive()
+                                val (xSun, ySun) = generateSunData(localDate, hoursCalc, coords, tzOffset, dailyOzone)
+                                SunDailyData(
+                                    events = events,
+                                    durations = durations,
+                                    dailyPeakMetrics = peakMetrics,
+                                    seasonalEvents = seasonal.seasonalEvents,
+                                    seasonalDailyEvents = seasonal.seasonalDailyEvents,
+                                    chartArrays = ChartArrays(hoursFloat, xSun, ySun),
+                                )
+                            }
+
+                            val moonDeferred = async {
+                                val lunarModel = LunarEphemeris.createDailyModel(localDate, coords, tzOffset)
+                                currentCoroutineContext().ensureActive()
+                                val lunarEvents = lunarModel.calculateDailyEvents()
+                                val lunarPeakMetrics = MoonMetrics.calculatePeakMetrics(
+                                    time = targetTime,
+                                    coordinates = coords,
+                                    dailyEvents = lunarEvents,
+                                )
+                                currentCoroutineContext().ensureActive()
+                                val (xMoon, yMoon) = generateMoonData(lunarModel, hoursCalc)
+                                MoonDailyData(
+                                    events = lunarEvents,
+                                    dailyPeakMetrics = lunarPeakMetrics,
+                                    chartArrays = ChartArrays(hoursFloat, xMoon, yMoon),
+                                )
+                            }
+
+                            DailyEphemerisBundle(
+                                sun = sunDeferred.await(),
+                                moon = moonDeferred.await(),
+                            )
+                        }
+
+                        currentCoroutineContext().ensureActive()
+                        _dailyData.value = bundle
+                        lastPublishedDailyKey = dailyKey
                     }
-                }
-                .collectLatest { (coords, targetTime) ->
-                    val updated = getLiveUpdates(targetTime, coords)
-                    currentCoroutineContext().ensureActive()
-                    _liveUpdates.value = updated
-                }
+            }
+        }
+
+        // 2. Live ephemeris snapshots: ticks every 12s in auto mode, or reacts smoothly to manual scrubbing.
+        //    Wrapped in resetGeneration.collectLatest so Reset cancels any in-flight past/future calculation immediately.
+        scope.launch {
+            timeRepository.resetGeneration.collectLatest {
+                combine(
+                    locationRepository.coordinates.filterNotNull(),
+                    timeRepository.isAutoUpdateEnabled,
+                    timeRepository.currentZoneId,
+                ) { coords, isAuto, zoneId -> Triple(coords, isAuto, zoneId) }
+                    .flatMapLatest { (coords, isAuto, zoneId) ->
+                        if (isAuto) {
+                            flow {
+                                while (true) {
+                                    emit(coords to ZonedDateTime.now(zoneId))
+                                    delay(12.seconds)
+                                }
+                            }
+                        } else {
+                            timeRepository.currentTime.map { time -> coords to time }
+                        }
+                    }
+                    .conflate()
+                    .collect { (coords, targetTime) ->
+                        val live = getLiveUpdates(targetTime, coords)
+                        currentCoroutineContext().ensureActive()
+                        _liveUpdates.value = live
+                    }
+            }
         }
     }
 }

@@ -2,11 +2,10 @@ package com.ephemeris.helios.ui.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ephemeris.helios.data.DailyEphemerisBundle
 import com.ephemeris.helios.data.EphemerisRepository
 import com.ephemeris.helios.data.LocationRepository
-import com.ephemeris.helios.data.MoonDailyData
 import com.ephemeris.helios.data.MoonUiData
-import com.ephemeris.helios.data.SunDailyData
 import com.ephemeris.helios.data.SunUiData
 import com.ephemeris.helios.utils.calc.LiveUpdatesData
 import com.ephemeris.helios.utils.getSunPhase
@@ -29,18 +28,16 @@ class MapsViewModel(
 
     val uiState: StateFlow<MapsUiState?> = combine(
         locationRepository.coordinates,
-        ephemerisRepository.sunDaily,
-        ephemerisRepository.moonDaily,
+        ephemerisRepository.dailyData,
         ephemerisRepository.liveUpdates,
-    ) { coords, sunDaily, moonDaily, live ->
-        buildState(coords, sunDaily, moonDaily, live)
+    ) { coords, daily, live ->
+        buildState(coords, daily, live)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = buildState(
             coords = locationRepository.coordinates.value,
-            sunDaily = ephemerisRepository.sunDaily.value,
-            moonDaily = ephemerisRepository.moonDaily.value,
+            daily = ephemerisRepository.dailyData.value,
             live = ephemerisRepository.liveUpdates.value,
         ),
     )
@@ -51,21 +48,20 @@ class MapsViewModel(
 
     private fun buildState(
         coords: Coordinates?,
-        sunDaily: SunDailyData?,
-        moonDaily: MoonDailyData?,
+        daily: DailyEphemerisBundle?,
         live: LiveUpdatesData?,
     ): MapsUiState? {
-        if (coords == null || sunDaily == null || moonDaily == null || live == null) return null
+        if (coords == null || daily == null || live == null) return null
         return MapsUiState(
             coordinates = coords,
             sun = SunUiData(
                 live = live.sun,
-                daily = sunDaily,
+                daily = daily.sun,
                 phase = getSunPhase(live.sun.position.altitude, coords.sunApparentHorizonAlt).desc,
             ),
             moon = MoonUiData(
                 live = live.moon,
-                daily = moonDaily,
+                daily = daily.moon,
             ),
         )
     }

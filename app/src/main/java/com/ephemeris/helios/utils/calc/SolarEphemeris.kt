@@ -444,6 +444,24 @@ object SolarEphemeris {
     }
 
     /**
+     * Lightweight solar-noon peak altitude for fast multi-day/year gradient rendering.
+     * Uses a single [calculateSolarParams] evaluation instead of full daily event root-finding.
+     */
+    fun calculateSolarNoonAltitude(
+        time: ZonedDateTime,
+        coordinates: Coordinates,
+    ): Double {
+        val date = time.toLocalDate()
+        val tzOffsetHours = time.offset.totalSeconds / 3600.0
+        val approxNoon = 12.0 - (coordinates.longitude / 15.0) + tzOffsetHours
+        val t = calculateJulianCentury(date, approxNoon, tzOffsetHours)
+        val params = calculateSolarParams(t)
+        val latRad = Math.toRadians(coordinates.latitude)
+        val sinAlt = sin(latRad) * sin(params.declinationRad) + cos(latRad) * cos(params.declinationRad)
+        return Math.toDegrees(asin(sinAlt.coerceIn(-1.0, 1.0))).round(2)
+    }
+
+    /**
      * Calculates the current position of the Sun.
      */
     fun calculatePosition(

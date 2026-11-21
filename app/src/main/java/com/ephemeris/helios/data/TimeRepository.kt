@@ -30,6 +30,11 @@ class TimeRepository(
     private val _isAutoUpdateEnabled = MutableStateFlow(true)
     val isAutoUpdateEnabled: StateFlow<Boolean> = _isAutoUpdateEnabled.asStateFlow()
 
+    // Monotonically increments whenever the user explicitly resets TimeMachine to "now" so
+    // downstream repositories immediately cancel any in-flight past/future calculation.
+    private val _resetGeneration = MutableStateFlow(0)
+    val resetGeneration: StateFlow<Int> = _resetGeneration.asStateFlow()
+
     init {
         // 1. Push the live clock forward every second when auto-update is enabled
         scope.launch {
@@ -67,9 +72,19 @@ class TimeRepository(
     }
 
     fun setAutoUpdateEnabled(enabled: Boolean) {
-        _isAutoUpdateEnabled.value = enabled
         if (enabled) {
-            _currentTime.value = ZonedDateTime.now(_currentZoneId.value)
+            resetToNow()
+        } else {
+            _isAutoUpdateEnabled.value = false
         }
+    }
+
+    /**
+     * Immediately halts any past/future time travel and snaps back to live current time.
+     */
+    fun resetToNow() {
+        _isAutoUpdateEnabled.value = true
+        _currentTime.value = ZonedDateTime.now(_currentZoneId.value)
+        _resetGeneration.value += 1
     }
 }

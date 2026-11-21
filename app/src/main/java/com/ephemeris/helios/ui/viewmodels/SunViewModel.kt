@@ -31,17 +31,17 @@ class SunViewModel(
     val uiState: StateFlow<SunUiState?> = combine(
         timeRepository.currentTime,
         locationRepository.coordinates,
-        ephemerisRepository.sunDaily,
+        ephemerisRepository.dailyData,
         ephemerisRepository.liveUpdates,
-    ) { time, coords, sunDaily, live ->
-        buildState(time, coords, sunDaily, live?.sun)
+    ) { time, coords, daily, live ->
+        buildState(time, coords, daily?.sun, live?.sun)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = buildState(
             time = timeRepository.currentTime.value,
             coords = locationRepository.coordinates.value,
-            sunDaily = ephemerisRepository.sunDaily.value,
+            sunDaily = ephemerisRepository.dailyData.value?.sun,
             sunLive = ephemerisRepository.liveUpdates.value?.sun,
         ),
     )

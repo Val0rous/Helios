@@ -30,17 +30,17 @@ class MoonViewModel(
     val uiState: StateFlow<MoonUiState?> = combine(
         timeRepository.currentTime,
         locationRepository.coordinates,
-        ephemerisRepository.moonDaily,
+        ephemerisRepository.dailyData,
         ephemerisRepository.liveUpdates,
-    ) { time, coords, moonDaily, live ->
-        buildState(time, coords, moonDaily, live?.moon)
+    ) { time, coords, daily, live ->
+        buildState(time, coords, daily?.moon, live?.moon)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = buildState(
             time = timeRepository.currentTime.value,
             coords = locationRepository.coordinates.value,
-            moonDaily = ephemerisRepository.moonDaily.value,
+            moonDaily = ephemerisRepository.dailyData.value?.moon,
             moonLive = ephemerisRepository.liveUpdates.value?.moon,
         ),
     )

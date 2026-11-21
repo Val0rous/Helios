@@ -101,6 +101,7 @@ class MainActivity : ComponentActivity() {
                                     isAutoUpdate = isAutoUpdateEnabled,
                                     onTimeChange = vm::setTime,
                                     onAutoUpdateChange = vm::setAutoUpdateEnabled,
+                                    onResetToNow = vm::resetToNow,
                                 )
                                 Navbar(navController)
                             }

@@ -349,42 +349,22 @@ internal fun generateSunData(
 }
 
 internal fun generateMoonData(
-    localDate: LocalDate,
+    lunarModel: LunarEphemeris.LunarDayModel,
     hoursCalc: DoubleArray,
-    coordinates: Coordinates,
-    tzOffset: Double,
-    currentTime: ZonedDateTime
 ): Pair<Map<Charts, FloatArray>, Map<Charts, FloatArray>> {
-    val elevationCalc = DoubleArray(X_SIZE)
+    val elevation = FloatArray(X_SIZE)
     val azimuthsCalc = FloatArray(X_SIZE)
+    lunarModel.fillDailyCurve(
+        hoursCalc = hoursCalc,
+        outElevation = elevation,
+        outAzimuth = azimuthsCalc,
+    )
     val xMap = mutableMapOf<Charts, FloatArray>()
     val yMap = mutableMapOf<Charts, FloatArray>()
-    for (i in 0 until X_SIZE) {
-        val position = LunarEphemeris.getPositionAtHour(
-            date = localDate,
-            decimalHour = hoursCalc[i],
-            coordinates = coordinates,
-            tzOffsetHours = tzOffset
-        )
-        elevationCalc[i] = position.altitude
-        azimuthsCalc[i] = position.azimuth.toFloat()
-    }
-    val elevation = FloatArray(X_SIZE) { elevationCalc[it].toFloat() }
-    val illuminance = FloatArray(X_SIZE)
-    val shadowRatio = FloatArray(X_SIZE)
-    val colorTemp = FloatArray(X_SIZE)
-    val airMass = FloatArray(X_SIZE)
-
-    val res = MoonMetrics.calculateMetrics(
-        time = currentTime,
-        coordinates = coordinates
-    )
 
     yMap[Charts.Moon.Daily.Elevation] = elevation
     yMap[Charts.Moon.Daily.Trajectory] = elevation
-//                    yDataMap[Charts.Moon.Daily.Illuminance] = res.illuminanceLux
-
     xMap[Charts.Moon.Daily.Trajectory] = azimuthsCalc
-    // Todo: fix and add Moon charts
+    // Todo: add Moon metric charts (illuminance, shadow ratio, color temp, air mass)
     return xMap to yMap
 }

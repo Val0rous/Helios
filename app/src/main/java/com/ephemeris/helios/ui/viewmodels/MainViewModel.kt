@@ -41,4 +41,6 @@ class MainViewModel(
     fun setTime(time: ZonedDateTime) = timeRepository.setTime(time)
 
     fun setAutoUpdateEnabled(enabled: Boolean) = timeRepository.setAutoUpdateEnabled(enabled)
+
+    fun resetToNow() = timeRepository.resetToNow()
 }
