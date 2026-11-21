@@ -24,6 +24,7 @@ object MoonMetrics {
 
     data class LunarMetricsResult(
         val illuminationPercent: Double, // 0.0 to 100.0
+        val isWaxing: Boolean,           // true from New Moon -> Full Moon, false from Full Moon -> New Moon
         val ageDays: Double,             // 0.0 to 29.53
         val phase: LunarPhase,
         val distanceKm: Double,          // Earth-Moon distance in kilometers
@@ -205,6 +206,12 @@ object MoonMetrics {
         val (normalizedD, signedPhaseAngleDeg) = calculatePhaseGeometry(t)
         val alphaDeg = foldPhaseAngleToAlpha(signedPhaseAngleDeg)
 
+        // Wrap signed phase angle into (-180°, 180°]: positive = waxing (New -> Full), negative = waning (Full -> New)
+        var wrappedSignedPhase = signedPhaseAngleDeg % 360.0
+        if (wrappedSignedPhase > 180.0) wrappedSignedPhase -= 360.0
+        if (wrappedSignedPhase <= -180.0) wrappedSignedPhase += 360.0
+        val isWaxing = wrappedSignedPhase > 0.0
+
         val illuminationFraction = (1.0 + cos(Math.toRadians(alphaDeg))) / 2.0
         val illuminationPercent = illuminationFraction * 100.0
 
@@ -251,6 +258,7 @@ object MoonMetrics {
 
         return LunarMetricsResult(
             illuminationPercent = round(illuminationPercent * 10) / 10.0,
+            isWaxing = isWaxing,
             ageDays = round(ageDays * 100) / 100.0,
             phase = phase,
             distanceKm = round(position.distanceKm),

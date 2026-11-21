@@ -49,6 +49,7 @@ import kotlin.math.cos
 import kotlin.math.pow
 import androidx.core.graphics.toColorInt
 import androidx.core.graphics.withRotation
+import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
 import com.ephemeris.helios.ui.composables.charts.rememberChartIconDrawer
 import com.ephemeris.helios.ui.composables.charts.rememberIconBitmapDescriptor
 import kotlin.math.abs
@@ -64,6 +65,7 @@ fun FullscreenAzimuthMap(
     modifier: Modifier = Modifier,
     sunChartArrays: ChartArrays?,
     moonChartArrays: ChartArrays?,
+    moonPhase: MoonPhaseAppearance = MoonPhaseAppearance.Full,
     onMapCenterSettled: (Coordinates) -> Unit
 ) {
     val context = LocalContext.current
@@ -568,7 +570,10 @@ fun FullscreenAzimuthMap(
 
         // 7b. The Moon Icon Marker
         val isMoonAbove = currentMoonElevation >= location.moonApparentHorizonAlt
-        val moonDrawer = rememberChartIconDrawer(chartType = Charts.Moon.Daily.Elevation)
+        val moonDrawer = rememberChartIconDrawer(
+            chartType = Charts.Moon.Daily.Elevation,
+            moonPhase = moonPhase,
+        )
         val moonIcon = rememberIconBitmapDescriptor(isAbove = isMoonAbove, drawer = moonDrawer)
         val moonMarkerState = rememberUpdatedMarkerState(position = currentMoonPoint)
         moonMarkerState.position = currentMoonPoint

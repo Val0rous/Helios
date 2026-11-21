@@ -51,13 +51,14 @@ fun DailyComboChart(
     modifier: Modifier = Modifier,
     isApparentElevation: Boolean = IS_APPARENT_ELEVATION_DEFAULT,
     liveHour: Float = currentHour,
+    moonPhase: MoonPhaseAppearance = MoonPhaseAppearance.Full,
 ) {
     val sunChartType = Charts.Sun.Daily.Elevation
     val moonChartType = Charts.Moon.Daily.Elevation
 
     // 1. Independent Icon Drawers
     val drawSunIcon = rememberChartIconDrawer(sunChartType)
-    val drawMoonIcon = rememberChartIconDrawer(moonChartType)
+    val drawMoonIcon = rememberChartIconDrawer(moonChartType, moonPhase)
 
     val colors = LocalCustomColors.current
     val colorScheme = MaterialTheme.colorScheme
@@ -138,6 +139,8 @@ fun DailyComboChart(
     val currentSunAltitudeState = rememberUpdatedState(currentSunAltitude)
     val currentMoonAzimuthState = rememberUpdatedState(currentMoonAzimuth)
     val currentMoonAltitudeState = rememberUpdatedState(currentMoonAltitude)
+    val drawSunIconState = rememberUpdatedState(drawSunIcon)
+    val drawMoonIconState = rememberUpdatedState(drawMoonIcon)
 
     // 4. Cache size-dependent geometry (Paths, twilight bands, axis labels) in Modifier.drawWithCache
     val drawModifier = remember(
@@ -151,8 +154,6 @@ fun DailyComboChart(
         colors,
         colorScheme,
         labelStyle,
-        drawSunIcon,
-        drawMoonIcon,
         textMeasurer,
         context
     ) {
@@ -380,11 +381,11 @@ fun DailyComboChart(
                 // --- 5. ICONS & DROP LINES ---
                 // Draw Moon Icon First (Bottom layer)
                 drawVerticalDropLine(colors, currentMoonXPx, currentMoonYPx, zeroYPixel)
-                paintIcon(currentMoonXPx, rawMoonAlt, currentMoonYPx, zeroYPixel, moonChartType, coordinates, drawMoonIcon)
+                paintIcon(currentMoonXPx, rawMoonAlt, currentMoonYPx, zeroYPixel, moonChartType, coordinates, drawMoonIconState.value)
 
                 // Draw Sun Icon Last (Top layer)
                 drawVerticalDropLine(colors, currentSunXPx, currentSunYPx, zeroYPixel)
-                paintIcon(currentSunXPx, rawSunAlt, currentSunYPx, zeroYPixel, sunChartType, coordinates, drawSunIcon)
+                paintIcon(currentSunXPx, rawSunAlt, currentSunYPx, zeroYPixel, sunChartType, coordinates, drawSunIconState.value)
             }
         }
     }

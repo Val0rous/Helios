@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ephemeris.helios.ui.composables.cards.DailyComboPathCard
+import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
 import com.ephemeris.helios.ui.viewmodels.HomeViewModel
 import com.ephemeris.helios.utils.Charts
 import org.koin.androidx.compose.koinViewModel
@@ -41,7 +42,8 @@ fun Home(
                 moonPhase = moon.phase,
                 type = Charts.SunMoonCombo.Daily.Elevation,
                 sunChartArrays = sun.chartArrays,
-                moonChartArrays = moon.chartArrays
+                moonChartArrays = moon.chartArrays,
+                moonPhaseAppearance = MoonPhaseAppearance.from(moon.metrics, ui.coordinates),
             )
         }
     }

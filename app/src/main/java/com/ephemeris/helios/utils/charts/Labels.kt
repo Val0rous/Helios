@@ -70,26 +70,11 @@ fun Density.prepareYLabels(
             }
         }
         className.contains("Irradiance") -> {
-            val step = when {
-                params.maxY <= 10f -> 1
-                params.maxY <= 22f -> 2
-                params.maxY <= 55f -> 5
-                params.maxY <= 110f -> 10
-                params.maxY <= 260f -> 25
-                params.maxY <= 520f -> 50
-                params.maxY <= 1050f -> 100
-                else -> 200
-            }
-            (0..params.maxY.toInt() step step).map { it.toFloat() }
+            val step = getIrradianceStep(params.maxY)
+            (0..(params.maxY + 1e-3f).toInt() step step).map { it.toFloat() }
         }
         className.contains("UvIntensity") -> {
-            val stepTenths = when {
-                params.maxY <= 1.0f -> 1  // 0.1
-                params.maxY <= 2.2f -> 2  // 0.2
-                params.maxY <= 5.2f -> 5  // 0.5
-                params.maxY <= 10.5f -> 10 // 1
-                else -> 20                 // 2
-            }
+            val stepTenths = getUvIntensityStepTenths(params.maxY)
             val maxTenths = (params.maxY * 10f + 1e-3f).toInt()
             (0..maxTenths step stepTenths).map { it / 10f }
         }
@@ -108,7 +93,7 @@ fun Density.prepareYLabels(
             ticks.filter { it <= params.maxY }
         }
         className.contains("AirMass") -> listOf(0f, 0.5f, 1f, 2f, 5f, 10f, 20f, 50f, 100f).filter { it <= params.maxY }
-        className.contains("ColorTemperature") -> (2000 until (params.maxY.roundToInt() + 1) step 500).map { it.toFloat() }
+        className.contains("ColorTemperature") -> (2000..(params.maxY + 1e-3f).toInt() step 500).map { it.toFloat() }
         else -> emptyList()
     }
 

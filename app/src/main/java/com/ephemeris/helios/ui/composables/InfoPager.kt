@@ -27,6 +27,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.R
+import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
+import com.ephemeris.helios.ui.composables.charts.MoonPhaseIcon
 import com.ephemeris.helios.ui.composables.charts.rememberChartIconDrawer
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.calc.LunarEphemeris
@@ -40,6 +42,7 @@ fun InfoPager(
     sunEvents: SolarEphemeris.DailyEvents,
     currentMoonPosition: LunarEphemeris.LunarPosition,
     moonEvents: LunarEphemeris.LunarDailyEvents,
+    moonPhase: MoonPhaseAppearance = MoonPhaseAppearance.Full,
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
@@ -136,17 +139,13 @@ fun InfoPager(
                             horizontalArrangement = Arrangement.SpaceAround,
                             modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)
                         ) {
-                            val sunIconDrawer = rememberChartIconDrawer(Charts.Moon.Daily.Elevation)
                             Column(
                                 modifier = Modifier.width(64.dp).fillMaxHeight(),
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                Spacer(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .drawBehind {
-                                            sunIconDrawer(size.width, false)
-                                        }
+                                MoonPhaseIcon(
+                                    phase = moonPhase,
+                                    size = 36.dp,
                                 )
                             }
                             Column(

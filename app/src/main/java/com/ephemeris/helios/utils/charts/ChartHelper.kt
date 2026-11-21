@@ -33,7 +33,7 @@ fun getMapY(
     return if (isLogScale) {
         // Scale low-range log charts so sub-1 and sub-2 values get clear vertical resolution
         // instead of flattening near 0 in log10(y + 1):
-        //  - Moon Illuminance (0..1 lx): ×1000 (millilux)
+        //  - Moon Illuminance (0..0.3 lx / 300 mlx): ×1000 (millilux)
         //  - Shadows (0..50+): ×10 (gives ~39% height to 0..1 and ~49% to 0..2)
         //  - Air Mass (0..50): ×4 (gives ~30% height to 0..1 and ~41% to 0..2)
         val logScale = when (chartType) {
@@ -72,6 +72,35 @@ fun getMinY(yValues: FloatArray, chartType: Charts): Float {
     return 0f
 }
 
+private const val LINEAR_HEADROOM_FACTOR = 1.10f
+
+/**
+ * Nice linear Y-axis step for Irradiance (`W/m²`), tuned for [LINEAR_HEADROOM_FACTOR]
+ * continuous scaling (`1.10 ×` the nominal `10, 20, 50, 100, 250, 500, 1000` thresholds).
+ */
+internal fun getIrradianceStep(maxValue: Float): Int = when {
+    maxValue <= 11f -> 1
+    maxValue <= 22f -> 2
+    maxValue <= 55f -> 5
+    maxValue <= 110f -> 10
+    maxValue <= 275f -> 25
+    maxValue <= 550f -> 50
+    maxValue <= 1100f -> 100
+    else -> 200
+}
+
+/**
+ * Nice linear Y-axis step in tenths of a UV Index unit (`5` = `0.5`, `10` = `1.0`), tuned for
+ * [LINEAR_HEADROOM_FACTOR] continuous scaling (`1.10 ×` the nominal `1, 2, 5, 12` thresholds).
+ */
+internal fun getUvIntensityStepTenths(maxValue: Float): Int = when {
+    maxValue <= 1.1f -> 1    // 0.1
+    maxValue <= 2.2f -> 2    // 0.2
+    maxValue <= 5.5f -> 5    // 0.5 (keeps 0.5 steps when data max is 5)
+    maxValue <= 13.2f -> 10  // 1 (keeps step 1 across data max 0–12)
+    else -> 20               // 2
+}
+
 fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
     val className = chartType.javaClass.simpleName
     // Strip out the NaNs so math operations don't crash
@@ -80,10 +109,10 @@ fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
 
     if (className.contains("Elevation")) return 90f
     if (className.contains("Trajectory")) return 90f
-    if (className.contains("Irradiance")) return max(10f, maxY)
-    if (className.contains("UvIntensity")) return max(1f, maxY)
+    if (className.contains("Irradiance")) return max(10f, maxY * LINEAR_HEADROOM_FACTOR)
+    if (className.contains("UvIntensity")) return max(1f, maxY * LINEAR_HEADROOM_FACTOR)
     if (className.contains("Illuminance")) {
-        val floorMax = if (chartType == Charts.Moon.Daily.Illuminance) 1.0f else 100000f
+        val floorMax = if (chartType == Charts.Moon.Daily.Illuminance) 0.3f else 100000f
         return max(floorMax, maxY)
     }
     if (className.contains("Shadows")) {
@@ -94,7 +123,8 @@ fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
     }
     if (className.contains("ColorTemperature")) {
         val floorMax = if (chartType == Charts.Moon.Daily.ColorTemperature) 4500f else 5500f
-        return max(floorMax, maxY)
+        val minY = 1800f
+        return max(floorMax, minY + (maxY - minY) * LINEAR_HEADROOM_FACTOR)
     }
     if (className.contains("AirMass")) return max(50f, maxY)
     return 90f // Todo: Change

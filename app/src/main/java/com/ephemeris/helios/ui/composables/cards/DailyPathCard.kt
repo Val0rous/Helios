@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.ChartSelectorChip
 import com.ephemeris.helios.ui.composables.charts.DailyChart
+import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.Charts
@@ -110,6 +111,7 @@ fun DailyPathCard(
     type: Charts,
     chartArrays: ChartArrays?,
     liveTime: ZonedDateTime = currentTime,
+    moonPhase: MoonPhaseAppearance = MoonPhaseAppearance.Full,
 ) {
     var selectedChartType by rememberSaveable { mutableStateOf(type) }
 
@@ -178,6 +180,7 @@ fun DailyPathCard(
                     currentAzimuth = currentAzimuth.toFloat(),
                     currentAltitude = currentAltitude.toFloat(),
                     coordinates = coordinates,
+                    moonPhase = moonPhase,
                     modifier = Modifier
                         .aspectRatio(2f)
                         .clip(

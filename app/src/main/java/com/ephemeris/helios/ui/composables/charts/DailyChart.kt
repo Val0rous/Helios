@@ -78,8 +78,9 @@ fun DailyChart(
     modifier: Modifier = Modifier,
     isApparentElevation: Boolean = IS_APPARENT_ELEVATION_DEFAULT,
     liveHour: Float = currentHour,
+    moonPhase: MoonPhaseAppearance = MoonPhaseAppearance.Full,
 ) {
-    val drawChartIcon = rememberChartIconDrawer(chartType)
+    val drawChartIcon = rememberChartIconDrawer(chartType, moonPhase)
     val colors = LocalCustomColors.current
     val colorScheme = MaterialTheme.colorScheme
     val fills = colors.fills
@@ -149,6 +150,7 @@ fun DailyChart(
     val liveHourState = rememberUpdatedState(liveHour)
     val currentAzimuthState = rememberUpdatedState(currentAzimuth)
     val currentAltitudeState = rememberUpdatedState(currentAltitude)
+    val drawChartIconState = rememberUpdatedState(drawChartIcon)
 
     // 3. Cache size-dependent Paths, bands, labels & gradient Brushes inside Modifier.drawWithCache
     val drawModifier = remember(
@@ -163,7 +165,6 @@ fun DailyChart(
         elapsedDayFill,
         elapsedNightFill,
         labelStyle,
-        drawChartIcon,
         textMeasurer,
         context
     ) {
@@ -319,7 +320,7 @@ fun DailyChart(
                     }
 
                     Charts.Sun.Daily.Illuminance, Charts.Moon.Daily.Illuminance -> {
-                        val absoluteMaxLux = if (chartType == Charts.Moon.Daily.Illuminance) 1.0f else 100000f
+                        val absoluteMaxLux = if (chartType == Charts.Moon.Daily.Illuminance) 0.3f else 100000f
                         Brush.verticalGradient(
                             0.0f to fills.luxBright,
                             1.0f to fills.luxDim,
@@ -457,7 +458,7 @@ fun DailyChart(
 
                 // Vertical drop line & icon (using interpolated rawCurrentY so horizon/metric thresholds stay in sync)
                 drawVerticalDropLine(colors, currentXPx, currentYPx, zeroYPixel)
-                paintIcon(currentXPx, rawCurrentY, currentYPx, zeroYPixel, chartType, coordinates, drawChartIcon)
+                paintIcon(currentXPx, rawCurrentY, currentYPx, zeroYPixel, chartType, coordinates, drawChartIconState.value)
             }
         }
     }

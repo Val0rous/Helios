@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ephemeris.helios.ui.composables.InfoPager
+import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
 import com.ephemeris.helios.ui.composables.maps.FullscreenAzimuthMap
 import com.ephemeris.helios.ui.composables.maps.FullscreenShadeMap
 import com.ephemeris.helios.ui.viewmodels.MapsViewModel
@@ -32,6 +33,7 @@ fun Maps(
     val ui = state ?: return
     val sun = ui.sun
     val moon = ui.moon
+    val moonPhase = MoonPhaseAppearance.from(moon.metrics, ui.coordinates)
 
     var selectedMapType by rememberSaveable { mutableIntStateOf(MapType.AZIMUTH.ordinal) }
 
@@ -72,6 +74,7 @@ fun Maps(
                         lunarEvents = moon.events,
                         sunChartArrays = sun.chartArrays,
                         moonChartArrays = moon.chartArrays,
+                        moonPhase = moonPhase,
                         onMapCenterSettled = viewModel::onMapCenterSettled
                     )
                 }
@@ -98,6 +101,7 @@ fun Maps(
             sunEvents = sun.events,
             currentMoonPosition = moon.position,
             moonEvents = moon.events,
+            moonPhase = moonPhase,
         )
     }
 }

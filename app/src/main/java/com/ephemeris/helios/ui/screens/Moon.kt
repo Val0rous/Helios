@@ -10,6 +10,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
+import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
 import com.ephemeris.helios.ui.composables.entries.LunarCulminationEntry
 import com.ephemeris.helios.ui.composables.entries.MoonriseMoonsetEntry
 import com.ephemeris.helios.ui.viewmodels.MoonViewModel
@@ -40,7 +41,8 @@ fun Moon(
                 currentAzimuth = moon.azimuth,
                 phase = moon.phase,
                 type = Charts.Moon.Daily.Elevation,
-                chartArrays = moon.chartArrays
+                chartArrays = moon.chartArrays,
+                moonPhase = MoonPhaseAppearance.from(moon.metrics, ui.coordinates),
             )
         }
         item {
