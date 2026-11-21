@@ -1,29 +1,44 @@
 package com.ephemeris.helios.ui.composables.cards
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.charts.AirMassPill
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
-import com.ephemeris.helios.ui.composables.entries.TextEntry
+import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.printSignificant
 
 @Composable
 fun AirMass(
     currentAirMass: Double,
-    minAirMass: Double // Passing MINIMUM, as 1.0 is the clearest sky
+    @Suppress("UNUSED_PARAMETER") minAirMass: Double, // Passing MINIMUM, as 1.0 is the clearest sky
 ) {
     val amFloat = currentAirMass.toFloat()
+    val isNight = amFloat < 0.1f
 
     // Custom non-linear scale matching the exponential nature of atmospheric thickness
     val description = when {
-        amFloat < 0.1f -> "None"         // Night (AM is 0)
+        isNight -> "N/A"                 // Night (AM is 0)
         amFloat < 1.0f -> "Sparse"       // High altitude anomaly (Sub-1 AM)
         amFloat < 1.15f -> "Very Thin"   // Absolute peak overhead (AM 1.0 - 1.15)
         amFloat < 1.5f -> "Thin"         // ~42°+ High sun, very clear
@@ -34,68 +49,122 @@ fun AirMass(
         else -> "Extreme"                // Sunrise/Sunset horizon hugging
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+    val valueColor = if (isNight) {
+        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    AirMassPill(
+        currentAirMass = amFloat,
+        modifier = Modifier.fillMaxSize(),
     ) {
-        HeaderEntry(
-            text = "Air Mass",
-            icon = R.drawable.ic_foggy_filled, // Replace with your preferred atmospheric icon
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp, vertical = 14.dp),
         ) {
-            // LEFT SIDE
-            Column(horizontalAlignment = Alignment.Start) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                if (amFloat > 0.1f) {
-                    Text(
-                        text = currentAirMass.printSignificant(),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black
-                    )
-                } else {
-                    Text(
-                        text = "--",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                }
-
-                Text(
-                    text = "Air Masses",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter),
+            ) {
+                HeaderEntry(
+                    text = "Air Mass",
+                    icon = R.drawable.ic_foggy_filled,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 )
             }
-
-            // RIGHT SIDE: The Pill
-            AirMassPill(
-                currentAirMass = amFloat,
-                modifier = Modifier.width(40.dp).height(72.dp)
+            Text(
+                text = if (isNight) "--" else currentAirMass.printSignificant(),
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontSize = 28.sp,
+                    lineHeight = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFeatureSettings = "tnum",
+                    color = valueColor,
+                ),
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.align(Alignment.CenterStart),
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                modifier = Modifier.align(Alignment.BottomStart),
             )
         }
     }
 
-    Spacer(Modifier.height(6.dp))
+//    CustomHorizontalDivider()
+//    Row(Modifier.padding(horizontal = 12.dp)) {
+//        TextEntry(
+//            text = minAirMass.printSignificant(),
+//            textVariant = "AM",
+//            icon = R.drawable.ic_foggy,
+//            desc = "Minimum Daily Air Mass"
+//        )
+//    }
+}
 
-    CustomHorizontalDivider()
-
-    Row(Modifier.padding(horizontal = 12.dp)) {
-        TextEntry(
-            text = minAirMass.printSignificant(),
-            textVariant = "AM",
-            icon = R.drawable.ic_foggy, // Match header icon
-            desc = "Minimum Daily Air Mass" // Explains why it's a small number
-        )
+@Preview(showBackground = true)
+@Composable
+private fun AirMassWavyTilePreview() {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .background(Color(0xFFECEEF4))
+            .padding(16.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            HeliosTheme(darkTheme = false, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        AirMass(currentAirMass = 2.0, minAirMass = 1.15)
+                    }
+                }
+            }
+            HeliosTheme(darkTheme = false, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        AirMass(currentAirMass = 12.5, minAirMass = 1.15)
+                    }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            HeliosTheme(darkTheme = true, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        AirMass(currentAirMass = 0.0, minAirMass = 1.15)
+                    }
+                }
+            }
+            HeliosTheme(darkTheme = true, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        AirMass(currentAirMass = 3.5, minAirMass = 1.15)
+                    }
+                }
+            }
+        }
     }
 }

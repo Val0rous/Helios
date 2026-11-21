@@ -1,27 +1,38 @@
 package com.ephemeris.helios.ui.composables.cards
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.charts.IlluminancePill
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
-import com.ephemeris.helios.ui.composables.entries.TextEntry
+import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.printSignificant
-import com.ephemeris.helios.utils.round
-import com.ephemeris.helios.utils.roundToSignificant
-import kotlin.math.roundToInt
 
 @Composable
 fun Illuminance(
     currentIlluminance: Double,
-    peakIlluminance: Double
+    @Suppress("UNUSED_PARAMETER") peakIlluminance: Double,
 ) {
     val luxFloat = currentIlluminance.toFloat()
     // Direct Beam Illuminance Scale (Matched to Half-Decade Chart steps)
@@ -38,67 +49,137 @@ fun Illuminance(
         luxFloat < 105000f -> "Intense"       // Zenith : Absolute peak overhead
         else -> "Extreme"                     // High altitude / Reflection spikes
     }
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
-    ) {
-        HeaderEntry(
-            text = "Illuminance",
-            icon = R.drawable.ic_lightbulb_filled,
-            textVariant = "(Direct)"
-        )
 
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+    val valueStyle = MaterialTheme.typography.headlineMedium.copy(
+        fontSize = 28.sp,
+        lineHeight = 32.sp,
+        fontWeight = FontWeight.Black,
+        fontFeatureSettings = "tnum",
+        color = MaterialTheme.colorScheme.onSurface,
+    )
+
+    IlluminancePill(
+        currentIlluminance = luxFloat,
+        modifier = Modifier.fillMaxSize(),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp, vertical = 14.dp),
         ) {
-            // LEFT SIDE
-            Column(horizontalAlignment = Alignment.Start) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter),
+            ) {
+                HeaderEntry(
+                    text = "Illuminance",
+                    icon = R.drawable.ic_lightbulb_filled,
+//                    textVariant = "(Direct)",
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
                 Text(
                     text = currentIlluminance.printSignificant(),
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Black
+                    style = valueStyle,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.alignByBaseline(),
                 )
                 Text(
                     text = "lux",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        lineHeight = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.alignByBaseline(),
                 )
             }
-
-            // RIGHT SIDE: The Pill and limits
-//            Row(
-//                verticalAlignment = Alignment.CenterVertically,
-//                horizontalArrangement = Arrangement.spacedBy(8.dp)
-//            ) {
-                IlluminancePill(
-                    currentIlluminance = currentIlluminance.toFloat(),
-                    modifier = Modifier.width(40.dp).height(72.dp) // Proportions map perfectly to the humidity image
-                )
-
-//                Column(
-//                    verticalArrangement = Arrangement.SpaceBetween,
-//                    modifier = Modifier.height(80.dp)
-//                ) {
-//                    Text("100k", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-//                    Text("0", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-//                }
-//            }
+            Text(
+                text = description,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                modifier = Modifier.align(Alignment.BottomStart),
+            )
         }
     }
-    CustomHorizontalDivider()
-    Row(Modifier.padding(horizontal = 12.dp)) {
-        TextEntry(
-            text = peakIlluminance.printSignificant(),
-            textVariant = "lux",
-            icon = R.drawable.ic_lightbulb,
-            desc = "Peak Illuminance"
-        )
+
+//    CustomHorizontalDivider()
+//    Row(Modifier.padding(horizontal = 12.dp)) {
+//        TextEntry(
+//            text = peakIlluminance.printSignificant(),
+//            textVariant = "lux",
+//            icon = R.drawable.ic_lightbulb,
+//            desc = "Peak Illuminance"
+//        )
+//    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun IlluminanceWavyTilePreview() {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .background(Color(0xFFECEEF4))
+            .padding(16.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            HeliosTheme(darkTheme = false, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Illuminance(currentIlluminance = 1200.0, peakIlluminance = 85000.0)
+                    }
+                }
+            }
+            HeliosTheme(darkTheme = false, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Illuminance(currentIlluminance = 105000.0, peakIlluminance = 105000.0)
+                    }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            HeliosTheme(darkTheme = true, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Illuminance(currentIlluminance = 0.0, peakIlluminance = 85000.0)
+                    }
+                }
+            }
+            HeliosTheme(darkTheme = true, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Illuminance(currentIlluminance = 35000.0, peakIlluminance = 85000.0)
+                    }
+                }
+            }
+        }
     }
 }

@@ -87,6 +87,7 @@ fun Sun(
         item {
             SmallCardRow(
                 disableInnerHorizontalPadding = true,
+                leftCircular = true,
                 leftCard = {
                     Irradiance(
                         currentIrradiance = sun.metrics.irradiance,
@@ -104,6 +105,8 @@ fun Sun(
         item {
             SmallCardRow(
                 disableInnerHorizontalPadding = true,
+                leftFullBleed = true,
+                rightCircular = true,
                 leftCard = {
                     Illuminance(
                         currentIlluminance = sun.metrics.luminance,
@@ -121,6 +124,7 @@ fun Sun(
         item {
             SmallCardRow(
                 disableInnerHorizontalPadding = true,
+                rightFullBleed = true,
                 leftCard = {
                     ColorTemperature(
                         currentColorTemp = sun.metrics.colorTemp,

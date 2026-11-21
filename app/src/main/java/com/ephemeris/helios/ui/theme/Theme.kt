@@ -130,16 +130,20 @@ data class CustomColorScheme(
     // Air Mass (Clear Sky to Hazy Horizon)
     val amZenith: Color,
     val amHorizon: Color,
+    val amWave: Color,
     // Shadows (Light/Short to Dark/Long)
     val shadowShort: Color,
     val shadowLong: Color,
+    val shadowDial: Color,
     // Illuminance (Blinding Light to Dim)
     val luxBright: Color,
     val luxDim: Color,
+    val luxWave: Color,
     // Irradiance Heat Map (Warm to Hot)
     val irrLow: Color,
     val irrMid: Color,
     val irrHigh: Color,
+    val irrDial: Color,
 
     // UV Index slices
     val uvDarkGreen: Color,
@@ -213,9 +217,12 @@ private fun buildCustomColorScheme(
     val moonBgScheme = colorEngine.generateColorScheme(MaterialColors.Purple200, isDark, ColorSchemeVariant.TONAL_SPOT)
     val twilightScheme = colorEngine.generateColorScheme(MaterialColors.BlueGray500, isDark, ColorSchemeVariant.FIDELITY)
 
-    // Air Mass horizon mist & Shadow light-to-dark neutral ramp
+    // Air Mass horizon mist, wavy tile fills, Shadow neutral ramp & Irradiance dial scheme
     val amHorizonScheme = colorEngine.generateColorScheme(Color(0xFFCFD8DC), isDark, ColorSchemeVariant.FIDELITY)
+    val amWaveScheme = colorEngine.generateColorScheme(Color(0xFF29B6F6), isDark, ColorSchemeVariant.TONAL_SPOT)
+    val luxWaveScheme = colorEngine.generateColorScheme(Color(0xFFFFF59D), isDark, ColorSchemeVariant.TONAL_SPOT)
     val shadowScheme = colorEngine.generateColorScheme(Color(0xFF424242), isDark, ColorSchemeVariant.NEUTRAL)
+    val irrDialScheme = colorEngine.generateColorScheme(Color(0xFFE65100), isDark, ColorSchemeVariant.FIDELITY)
 
     // Opaque base colors (1.0f)
     val dayBackground = daySkyScheme.primaryContainer
@@ -231,13 +238,17 @@ private fun buildCustomColorScheme(
 
     val amZenith = vividMetricColor(Color(0xFF29B6F6))
     val amHorizon = amHorizonScheme.surfaceContainerHighest
+    val amWave = amWaveScheme.primaryContainer
     val shadowShort = if (isDark) shadowScheme.outline else shadowScheme.surfaceContainerHighest
     val shadowLong = if (isDark) shadowScheme.surfaceContainerHigh else shadowScheme.onSurfaceVariant
+    val shadowDial = if (isDark) shadowScheme.primary else shadowScheme.onSurfaceVariant
     val luxBright = vividMetricColor(Color(0xFFFFF59D))
     val luxDim = vividMetricColor(Color(0xFF5C6BC0))
+    val luxWave = luxWaveScheme.primaryContainer
     val irrLow = vividMetricColor(Color(0xFFFFCC80))
     val irrMid = vividMetricColor(Color(0xFFFF9800))
     val irrHigh = vividMetricColor(Color(0xFFE65100))
+    val irrDial = if (isDark) irrDialScheme.primary else irrDialScheme.primaryContainer
 
     val uvDarkGreen = deepMetricColor(Color(0xFF2E7D32))
     val uvGreen = vividMetricColor(Color(0xFF4CAF50))
@@ -325,13 +336,17 @@ private fun buildCustomColorScheme(
 
         amZenith = amZenith,
         amHorizon = amHorizon,
+        amWave = amWave,
         shadowShort = shadowShort,
         shadowLong = shadowLong,
+        shadowDial = shadowDial,
         luxBright = luxBright,
         luxDim = luxDim,
+        luxWave = luxWave,
         irrLow = irrLow,
         irrMid = irrMid,
         irrHigh = irrHigh,
+        irrDial = irrDial,
 
         uvDarkGreen = uvDarkGreen,
         uvGreen = uvGreen,

@@ -47,7 +47,7 @@ fun ColorTemperature(
 
     // The upgraded description scale
     val description = when {
-        isNight -> "None"
+        isNight -> "N/A"
         currentColorTemp < 2500.0 -> "Crimson"
         currentColorTemp < 3000.0 -> "Amber"
         currentColorTemp < 3500.0 -> "Golden"

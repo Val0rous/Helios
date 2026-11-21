@@ -28,12 +28,13 @@ fun HeaderEntry(
     icon: Int? = null,
     desc: String = "",
     iconTint: Color = MaterialTheme.colorScheme.primary,
-    iconModifier: Modifier = Modifier
+    iconModifier: Modifier = Modifier,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
 ) {
     val headerStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, color = textColor)
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp, horizontalAlignment),
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
