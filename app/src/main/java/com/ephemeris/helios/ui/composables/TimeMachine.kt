@@ -91,14 +91,26 @@ fun TimeMachine(
     onResetToNow: () -> Unit = { onAutoUpdateChange(true) },
 ) {
     val context = LocalContext.current
-    val is24Hour = DateFormat.is24HourFormat(context)
-    val dayOfWeek = time.format(DateTimeFormatter.ofPattern("EEE", LocalLocale.current.platformLocale))
-    val dateFormatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM)
-    val timeFormatter = DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+    val locale = LocalLocale.current.platformLocale
+    val is24Hour = remember(context) { DateFormat.is24HourFormat(context) }
+    val dayOfWeekFormatter = remember(locale) { DateTimeFormatter.ofPattern("EEE", locale) }
+    val dateFormatter = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale) }
+    val timeFormatter = remember(locale) { DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale) }
+    val hourTickFormatter = remember(is24Hour, locale) {
+        DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h:mm a", locale)
+    }
+    val dayTickFormatter = remember(is24Hour, locale) {
+        DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h a", locale)
+    }
+    val monthTickFormatter = remember(locale) { DateTimeFormatter.ofPattern("MMM", locale) }
+    val yearTickFormatter = remember(locale) { DateTimeFormatter.ofPattern("yyyy", locale) }
+    val shortDateFormatter = remember(locale) { DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT).withLocale(locale) }
+
+    val dayOfWeek = time.format(dayOfWeekFormatter)
     val datePart = time.format(dateFormatter)
     val timePart = time.format(timeFormatter)
     val dateString = "$dayOfWeek $datePart".replace(",", "").uppercase()
-    val timeString = "$timePart".replace(",", "").uppercase()
+    val timeString = timePart.replace(",", "").uppercase()
 //    val dateTime = "$dayOfWeek $datePart \t $timePart".replace(",", "").uppercase()
     var selectedFilterType by remember { mutableStateOf<TimeMachineFilter>(TimeMachineFilter.Day) }
 
@@ -109,7 +121,7 @@ fun TimeMachine(
     // Track active fling animation so Reset / Tap / Drag / Filter switch cancels it immediately
     var flingJob by remember { mutableStateOf<Job?>(null) }
 
-    val textMeasurer = rememberTextMeasurer()
+    val textMeasurer = rememberTextMeasurer(cacheSize = 32)
     val latestTime by rememberUpdatedState(time)
 
     val isDark = isSystemInDarkTheme()
@@ -494,8 +506,7 @@ fun TimeMachine(
                                 )
 
                                 if (isMajor) {
-                                    val timeStr = currentTick
-                                        .format(DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h:mm a"))
+                                    val timeStr = currentTick.format(hourTickFormatter)
                                     val textResult = textMeasurer.measure(timeStr, textStyle)
                                     // Centered horizontally on the tick line
                                     drawText(
@@ -505,9 +516,7 @@ fun TimeMachine(
 
                                     // Date on midnight
                                     if (currentTick.hour == 0 && currentTick.minute == 0) {
-                                        val dateStr = currentTick.format(
-                                            DateTimeFormatter.ofLocalizedDate(FormatStyle.SHORT)
-                                        )
+                                        val dateStr = currentTick.format(shortDateFormatter)
                                         val dateResult = textMeasurer.measure(dateStr, textStyle)
                                         drawText(
                                             textLayoutResult = dateResult,
@@ -533,7 +542,7 @@ fun TimeMachine(
 
                                 val labelInterval = if (is24Hour) 2 else 3
                                 if (currentTick.hour % labelInterval == 0) {
-                                    val timeStr = currentTick.format(DateTimeFormatter.ofPattern(if (is24Hour) "HH:mm" else "h a"))
+                                    val timeStr = currentTick.format(dayTickFormatter)
                                     val textResult = textMeasurer.measure(timeStr, textStyle)
                                     drawText(
                                         textLayoutResult = textResult,
@@ -566,9 +575,7 @@ fun TimeMachine(
                                     strokeWidth = 1.dp.toPx()
                                 )
 
-                                val monthStr =
-                                    currentTick.format(DateTimeFormatter.ofPattern("MMM"))
-                                        .uppercase()
+                                val monthStr = currentTick.format(monthTickFormatter).uppercase()
                                 val textResult = textMeasurer.measure(monthStr, textStyle)
                                 drawText(
                                     textLayoutResult = textResult,
@@ -579,8 +586,7 @@ fun TimeMachine(
                                 )
 
                                 if (currentTick.monthValue == 1) {
-                                    val yearStr =
-                                        currentTick.format(DateTimeFormatter.ofPattern("yyyy"))
+                                    val yearStr = currentTick.format(yearTickFormatter)
                                     val yearResult = textMeasurer.measure(
                                         yearStr,
                                         textStyle.copy(fontWeight = FontWeight.Bold)
@@ -671,12 +677,14 @@ object SolarColorMap {
     private const val DAYLIGHT = 10.50
     private const val MIDDAY = 90.0
 
-    fun getColorForAltitude(altitude: Double, horizonAlt: Double): Color {
-        val alt = altitude.coerceIn(NIGHT, MIDDAY)
+    private var cachedHorizonAlt: Double = Double.NaN
+    private var cachedAlts: DoubleArray = DoubleArray(0)
+    private var cachedColors: Array<Color> = emptyArray()
 
-        // Let the preferences engine calculate the exact crushed bounds based on your altitude!
+    private fun ensureNodesCached(horizonAlt: Double) {
+        if (horizonAlt == cachedHorizonAlt && cachedAlts.isNotEmpty()) return
+
         val prefs = LightPhasePreferences(apparentHorizonAlt = horizonAlt)
-
         val blueStart = prefs.blueHourRange.start
         val blueEnd = prefs.blueHourRange.endInclusive
         val pinkStart = prefs.pinkHourRange.start
@@ -684,68 +692,55 @@ object SolarColorMap {
         val goldenStart = prefs.goldenHourRange.start
         val goldenEnd = prefs.goldenHourRange.endInclusive
 
-        val nodes = mutableListOf<Pair<Double, Color>>()
+        val nodes = ArrayList<Pair<Double, Color>>(9)
         nodes.add(NIGHT to MaterialColors.Gray900)
         nodes.add(ASTRO to MaterialColors.BlueGray900)
         nodes.add(PEAK_NAUTICAL to MaterialColors.BlueGray800)
 
-        // 1. Blue Hour Node (Only if it exists)
         if (blueStart < blueEnd) {
             nodes.add((blueStart + blueEnd) / 2.0 to MaterialColors.Blue700)
         }
 
-        // 2. Pink Hour / Alpenglow Node
         if (pinkStart < pinkEnd) {
             nodes.add((pinkStart + pinkEnd) / 2.0 to MaterialColors.Pink500)
         } else {
-            // If Pink Hour was crushed (e.g. you are on an airplane at -4.0 horizon),
-            // we inject a tiny Alpenglow band just 0.5 degrees before the horizon
-            // so it smoothly transitions from Deep Blue directly into Red!
             val alpenglowAlt = horizonAlt - 0.5
             if (nodes.isNotEmpty() && alpenglowAlt > nodes.last().first) {
                 nodes.add(alpenglowAlt to MaterialColors.Pink500)
             }
         }
 
-        // 3. True Horizon (The moment the direct beam hits)
         nodes.add(horizonAlt to MaterialColors.Red700)
 
-        // 4. Golden Hour
         if (goldenStart < goldenEnd) {
             nodes.add((goldenStart + goldenEnd) / 2.0 to MaterialColors.Amber700)
         }
 
-        // 5. Daylight
         nodes.add(goldenEnd to MaterialColors.Yellow700)
         nodes.add(MIDDAY to MaterialColors.Yellow400)
-
-        // Safety sort to guarantee strictly ascending altitudes for the lerp math
         nodes.sortBy { it.first }
 
-        // Find the bounding nodes and interpolate!
-        for (i in 0 until nodes.size - 1) {
-            val lower = nodes[i]
-            val upper = nodes[i + 1]
-            if (alt in lower.first..upper.first) {
-                return calculateLerp(alt, lower.first, upper.first, lower.second, upper.second)
+        cachedAlts = DoubleArray(nodes.size) { nodes[it].first }
+        cachedColors = Array(nodes.size) { nodes[it].second }
+        cachedHorizonAlt = horizonAlt
+    }
+
+    fun getColorForAltitude(altitude: Double, horizonAlt: Double): Color {
+        ensureNodesCached(horizonAlt)
+        val alt = altitude.coerceIn(NIGHT, MIDDAY)
+        val alts = cachedAlts
+        val colors = cachedColors
+
+        for (i in 0 until alts.size - 1) {
+            val lowerAlt = alts[i]
+            val upperAlt = alts[i + 1]
+            if (alt in lowerAlt..upperAlt) {
+                return calculateLerp(alt, lowerAlt, upperAlt, colors[i], colors[i + 1])
             }
         }
 
-        // Fallbacks
-        if (alt <= nodes.first().first) return nodes.first().second
-        return nodes.last().second
-
-//        return when {
-//            alt <= ASTRO -> calculateLerp(alt, NIGHT, ASTRO, MaterialColors.Gray900, MaterialColors.BlueGray900)
-//            alt <= PEAK_NAUTICAL -> calculateLerp(alt, ASTRO, PEAK_NAUTICAL, MaterialColors.BlueGray900, MaterialColors.BlueGray800)
-//            alt <= PEAK_BLUE -> calculateLerp(alt, PEAK_NAUTICAL, PEAK_BLUE, MaterialColors.BlueGray800, MaterialColors.Blue700)
-//            alt <= PEAK_PINK -> calculateLerp(alt, PEAK_BLUE, PEAK_PINK, MaterialColors.Blue700, MaterialColors.Pink500)
-//            alt <= SUNRISE_SET -> calculateLerp(alt, PEAK_ALPENGLOW, SUNRISE_SET, MaterialColors.Pink500, MaterialColors.Red700)
-//            alt <= PEAK_GOLDEN -> calculateLerp(alt, SUNRISE_SET, PEAK_GOLDEN, MaterialColors.Red700, MaterialColors.Amber700)
-//            alt <= DAYLIGHT -> calculateLerp(alt, PEAK_GOLDEN, DAYLIGHT, MaterialColors.Amber700, MaterialColors.Yellow700)
-//            // Taper the daylight slightly lighter toward true noon to give a visual peak
-//            else -> calculateLerp(alt, DAYLIGHT, MIDDAY, MaterialColors.Yellow700, MaterialColors.Yellow400)
-//        }
+        if (alt <= alts[0]) return colors[0]
+        return colors[colors.lastIndex]
     }
 
     private fun calculateLerp(

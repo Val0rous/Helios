@@ -33,7 +33,6 @@ private class ComboChartStaticData(
     val drawMoonY: FloatArray,
     val minX: Float,
     val maxX: Float,
-    val uniqueXPoints: List<Float>,
 )
 
 @Composable
@@ -64,7 +63,7 @@ fun DailyComboChart(
     val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
 
-    val textMeasurer = rememberTextMeasurer()
+    val textMeasurer = rememberTextMeasurer(cacheSize = 32)
     val labelStyle = remember(colorScheme.onSurfaceVariant) {
         TextStyle(
             color = colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -73,7 +72,7 @@ fun DailyComboChart(
         )
     }
 
-    // 2. Cache day-level array transforms & twilight crossing points (recomputed only when date/chart/mode changes)
+    // 2. Cache day-level array transforms (recomputed only when date/chart/mode changes)
     val staticData = remember(
         sunXValues,
         sunYValues,
@@ -118,30 +117,6 @@ fun DailyComboChart(
             moonXValues
         }
 
-        val uniqueXPoints = if (isTrajectory) {
-            emptyList()
-        } else {
-            val thresholds = floatArrayOf(0f, -6f, -12f, -18f)
-            val sortedXPoints = ArrayList<Float>(sunXValues.size + 16)
-            for (x in sunXValues) sortedXPoints.add(x)
-
-            for (i in 0 until sunXValues.size - 1) {
-                val x1 = sunXValues[i]
-                val x2 = sunXValues[i + 1]
-                val y1 = sunYValues[i]
-                val y2 = sunYValues[i + 1]
-
-                for (th in thresholds) {
-                    if ((y1 < th && y2 > th) || (y1 > th && y2 < th)) {
-                        val fraction = (th - y1) / (y2 - y1)
-                        sortedXPoints.add(x1 + fraction * (x2 - x1))
-                    }
-                }
-            }
-            sortedXPoints.sort()
-            sortedXPoints.distinct()
-        }
-
         ComboChartStaticData(
             isTrajectory = isTrajectory,
             shouldTransform = shouldTransform,
@@ -152,7 +127,6 @@ fun DailyComboChart(
             drawMoonY = drawMoonY,
             minX = getMinX(sunXValues, chartType),
             maxX = getMaxX(sunXValues, chartType),
-            uniqueXPoints = uniqueXPoints
         )
     }
 
@@ -165,7 +139,7 @@ fun DailyComboChart(
     val currentMoonAzimuthState = rememberUpdatedState(currentMoonAzimuth)
     val currentMoonAltitudeState = rememberUpdatedState(currentMoonAltitude)
 
-    // 4. Cache size-dependent geometry (Path objects & coordinate mappers) in Modifier.drawWithCache
+    // 4. Cache size-dependent geometry (Paths, twilight bands, axis labels) in Modifier.drawWithCache
     val drawModifier = remember(
         staticData,
         sunXValues,
@@ -241,6 +215,40 @@ fun DailyComboChart(
                 }
             }
 
+            // Precompute vertical twilight bands once per day/size in O(N) (~5-9 rects)
+            val nightTwilightBands = if (staticData.isTrajectory) {
+                emptyList()
+            } else {
+                buildNightVerticalTwilightBands(
+                    colors = colors,
+                    params = params,
+                    mapX = ::mapX,
+                    chartType = Charts.Sun.Daily.Elevation,
+                    isApparentElevation = staticData.shouldTransform,
+                )
+            }
+
+            // Pre-measure axis labels & gridlines once per day/size/theme
+            val preparedYLabels = prepareYLabels(
+                chartType = chartType,
+                materialTheme = colorScheme,
+                params = params,
+                mapY = ::mapY,
+                textMeasurer = textMeasurer,
+                labelStyle = labelStyle,
+                isApparentElevation = staticData.shouldTransform,
+            )
+            val preparedXLabels = prepareXLabels(
+                chartType = chartType,
+                materialTheme = colorScheme,
+                params = params,
+                mapX = ::mapX,
+                textMeasurer = textMeasurer,
+                labelStyle = labelStyle,
+                context = context,
+                isShiftTrajectory = if (staticData.isTrajectory) staticData.shiftTrajectory else false,
+            )
+
             // Cache trajectory elapsed paths per minute index to avoid reallocating on sub-minute redraws
             var cachedBestIndex = -1
             var cachedSunElapsedPath: Path? = null
@@ -315,15 +323,11 @@ fun DailyComboChart(
                             drawRect(color = colors.dayBackground, topLeft = Offset(0f, 0f), size = Size(params.width, zeroYPixel))
                         }
 
-                        // Draw Vertical Twilights (Pass Charts.Sun.Daily.Elevation to clear any internal type-checks!)
+                        // Draw precomputed Vertical Twilights (~5-9 rects)
                         drawNightVerticalTwilights(
-                            colors,
-                            params,
-                            staticData.uniqueXPoints,
-                            ::mapX,
-                            zeroYPixel,
-                            Charts.Sun.Daily.Elevation,
-                            staticData.shouldTransform
+                            bands = nightTwilightBands,
+                            zeroYPixel = zeroYPixel,
+                            canvasHeight = params.height,
                         )
 
                         clipRect(right = currentSunXPx) {
@@ -366,19 +370,10 @@ fun DailyComboChart(
                     drawElapsedTimePath(sunCurvePath, colors, Charts.Sun.Daily.Elevation, currentSunXPx)
                 }
 
-                // --- 4. GRIDS AND LABELS ---
+                // --- 4. GRIDS AND LABELS (Pre-measured) ---
                 drawHorizonLine(colorScheme, params, zeroYPixel)
-                drawYLabels(chartType, colorScheme, params, ::mapY, textMeasurer, labelStyle, staticData.shouldTransform)
-                drawXLabels(
-                    chartType,
-                    colorScheme,
-                    params,
-                    ::mapX,
-                    textMeasurer,
-                    labelStyle,
-                    context,
-                    if (staticData.isTrajectory) staticData.shiftTrajectory else false
-                )
+                drawPreparedYLabels(preparedYLabels, params.width)
+                drawPreparedXLabels(preparedXLabels, params.height)
 
                 // --- 5. ICONS & DROP LINES ---
                 // Draw Moon Icon First (Bottom layer)

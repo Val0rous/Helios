@@ -26,6 +26,8 @@ import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.ChartData
 import com.ephemeris.helios.utils.charts.IS_APPARENT_ELEVATION_DEFAULT
 import com.ephemeris.helios.utils.charts.buildDynamicPath
+import com.ephemeris.helios.utils.charts.buildNightVerticalTwilightBands
+import com.ephemeris.helios.utils.charts.buildUVSliceBands
 import com.ephemeris.helios.utils.charts.createHorizontalBrush
 import com.ephemeris.helios.utils.charts.drawCurvePath
 import com.ephemeris.helios.utils.charts.drawDayNightAreaFill
@@ -35,10 +37,10 @@ import com.ephemeris.helios.utils.charts.drawElapsedPath
 import com.ephemeris.helios.utils.charts.drawElapsedTimePath
 import com.ephemeris.helios.utils.charts.drawHorizonLine
 import com.ephemeris.helios.utils.charts.drawNightVerticalTwilights
+import com.ephemeris.helios.utils.charts.drawPreparedXLabels
+import com.ephemeris.helios.utils.charts.drawPreparedYLabels
 import com.ephemeris.helios.utils.charts.drawUVSlices
 import com.ephemeris.helios.utils.charts.drawVerticalDropLine
-import com.ephemeris.helios.utils.charts.drawXLabels
-import com.ephemeris.helios.utils.charts.drawYLabels
 import com.ephemeris.helios.utils.charts.getColorTemperatureBrushGradient
 import com.ephemeris.helios.utils.charts.getMapX
 import com.ephemeris.helios.utils.charts.getMapY
@@ -48,6 +50,8 @@ import com.ephemeris.helios.utils.charts.getMinX
 import com.ephemeris.helios.utils.charts.getMinY
 import com.ephemeris.helios.utils.charts.getZeroYPixel
 import com.ephemeris.helios.utils.charts.interpolateYAtHour
+import com.ephemeris.helios.utils.charts.prepareXLabels
+import com.ephemeris.helios.utils.charts.prepareYLabels
 import com.ephemeris.helios.utils.charts.transformApparentElevation
 import com.ephemeris.helios.utils.location.Coordinates
 
@@ -61,7 +65,6 @@ private class DailyChartStaticData(
     val maxX: Float,
     val minY: Float,
     val maxY: Float,
-    val uniqueXPoints: List<Float>,
 )
 
 @Composable
@@ -90,7 +93,7 @@ fun DailyChart(
 
     val context = LocalContext.current
     // Text Measurer and styling for the legends
-    val textMeasurer = rememberTextMeasurer()
+    val textMeasurer = rememberTextMeasurer(cacheSize = 32)
     val labelStyle = remember(colorScheme.onSurfaceVariant) {
         TextStyle(
             color = colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
@@ -99,7 +102,7 @@ fun DailyChart(
         )
     }
 
-    // 1. Cache day-level array transforms, bounds, trajectory shift, and threshold crossings
+    // 1. Cache day-level array transforms, bounds, and trajectory shift
     val staticData = remember(xValues, yValues, chartType, isApparentElevation) {
         if (xValues.isEmpty() || yValues.isEmpty()) return@remember null
 
@@ -128,33 +131,6 @@ fun DailyChart(
             xValues
         }
 
-        val uniqueXPoints = if (isTrajectory) {
-            emptyList()
-        } else {
-            val thresholds = when (chartType) {
-                Charts.Sun.Daily.UvIntensity -> floatArrayOf(0f, 2f, 3f, 5f, 6f, 8f, 10f, 11f)
-                else -> floatArrayOf(0f, -6f, -12f, -18f)
-            }
-            val sortedXPoints = ArrayList<Float>(xValues.size + 16)
-            for (x in xValues) sortedXPoints.add(x)
-
-            for (i in 0 until xValues.size - 1) {
-                val x1 = xValues[i]
-                val x2 = xValues[i + 1]
-                val y1 = yValues[i]
-                val y2 = yValues[i + 1]
-
-                for (th in thresholds) {
-                    if ((y1 < th && y2 > th) || (y1 > th && y2 < th)) {
-                        val fraction = (th - y1) / (y2 - y1)
-                        sortedXPoints.add(x1 + fraction * (x2 - x1))
-                    }
-                }
-            }
-            sortedXPoints.sort()
-            sortedXPoints.distinct()
-        }
-
         DailyChartStaticData(
             isTrajectory = isTrajectory,
             shouldTransform = shouldTransform,
@@ -165,18 +141,17 @@ fun DailyChart(
             maxX = getMaxX(xValues, chartType),
             minY = getMinY(yValues, chartType),
             maxY = getMaxY(yValues, chartType),
-            uniqueXPoints = uniqueXPoints
         )
     }
 
     // 2. Keep per-frame scrubbing values in stable State holders so onDrawBehind redraws
-    //    without ever invalidating the cached paths & gradient brushes in drawWithCache
+    //    without ever invalidating the cached paths, bands, labels, & gradient brushes in drawWithCache
     val currentHourState = rememberUpdatedState(currentHour)
     val liveHourState = rememberUpdatedState(liveHour)
     val currentAzimuthState = rememberUpdatedState(currentAzimuth)
     val currentAltitudeState = rememberUpdatedState(currentAltitude)
 
-    // 3. Cache size-dependent Paths & gradient Brushes inside Modifier.drawWithCache
+    // 3. Cache size-dependent Paths, bands, labels & gradient Brushes inside Modifier.drawWithCache
     val drawModifier = remember(
         staticData,
         xValues,
@@ -260,6 +235,45 @@ fun DailyChart(
                     }
                 }
             }
+
+            // Precompute vertical twilight & UV bands once per day/size in O(N)
+            val nightTwilightBands = if (staticData.isTrajectory) {
+                emptyList()
+            } else {
+                buildNightVerticalTwilightBands(
+                    colors = colors,
+                    params = params,
+                    mapX = ::mapX,
+                    chartType = chartType,
+                    isApparentElevation = staticData.shouldTransform,
+                )
+            }
+            val uvSliceBands = if (!staticData.isTrajectory && chartType == Charts.Sun.Daily.UvIntensity) {
+                buildUVSliceBands(params = params, mapX = ::mapX, colors = colors)
+            } else {
+                emptyList()
+            }
+
+            // Pre-measure axis labels & gridlines once per day/size/theme
+            val preparedYLabels = prepareYLabels(
+                chartType = chartType,
+                materialTheme = colorScheme,
+                params = params,
+                mapY = ::mapY,
+                textMeasurer = textMeasurer,
+                labelStyle = labelStyle,
+                isApparentElevation = staticData.shouldTransform,
+            )
+            val preparedXLabels = prepareXLabels(
+                chartType = chartType,
+                materialTheme = colorScheme,
+                params = params,
+                mapX = ::mapX,
+                textMeasurer = textMeasurer,
+                labelStyle = labelStyle,
+                context = context,
+                isShiftTrajectory = if (staticData.isTrajectory) staticData.shiftTrajectory else false,
+            )
 
             // Pre-build static gradient brushes once per data/size/theme change
             val dayBrush: Brush? = if (staticData.isTrajectory) {
@@ -391,11 +405,8 @@ fun DailyChart(
                         clipRect(bottom = zeroYPixel) {
                             when {
                                 chartType == Charts.Sun.Daily.UvIntensity -> drawUVSlices(
-                                    params,
-                                    staticData.uniqueXPoints,
-                                    ::mapX,
-                                    zeroYPixel,
-                                    colors
+                                    bands = uvSliceBands,
+                                    zeroYPixel = zeroYPixel,
                                 )
 
                                 dayBrush != null -> drawRect(
@@ -413,13 +424,9 @@ fun DailyChart(
                         }
 
                         drawNightVerticalTwilights(
-                            colors,
-                            params,
-                            staticData.uniqueXPoints,
-                            ::mapX,
-                            zeroYPixel,
-                            chartType,
-                            staticData.shouldTransform
+                            bands = nightTwilightBands,
+                            zeroYPixel = zeroYPixel,
+                            canvasHeight = params.height,
                         )
 
                         // Elapsed time overlay (clipped strictly up to currentHour)
@@ -443,15 +450,10 @@ fun DailyChart(
                     drawElapsedTimePath(primaryCurvePath, colors, chartType, currentXPx)
                 }
 
-                // Horizon line & legends
+                // Horizon line & pre-measured legends
                 drawHorizonLine(colorScheme, params, zeroYPixel)
-                drawYLabels(chartType, colorScheme, params, ::mapY, textMeasurer, labelStyle, staticData.shouldTransform)
-
-                if (staticData.isTrajectory) {
-                    drawXLabels(chartType, colorScheme, params, ::mapX, textMeasurer, labelStyle, context, staticData.shiftTrajectory)
-                } else {
-                    drawXLabels(chartType, colorScheme, params, ::mapX, textMeasurer, labelStyle, context)
-                }
+                drawPreparedYLabels(preparedYLabels, params.width)
+                drawPreparedXLabels(preparedXLabels, params.height)
 
                 // Vertical drop line & icon (using interpolated rawCurrentY so horizon/metric thresholds stay in sync)
                 drawVerticalDropLine(colors, currentXPx, currentYPx, zeroYPixel)
