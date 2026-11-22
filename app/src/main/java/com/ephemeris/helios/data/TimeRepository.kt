@@ -71,6 +71,14 @@ class TimeRepository(
         _currentTime.value = newTime
     }
 
+    /**
+     * Enters TimeMachine manual mode and jumps directly to [newTime].
+     */
+    fun travelTo(newTime: ZonedDateTime) {
+        _isAutoUpdateEnabled.value = false
+        _currentTime.value = newTime
+    }
+
     fun setAutoUpdateEnabled(enabled: Boolean) {
         if (enabled) {
             resetToNow()

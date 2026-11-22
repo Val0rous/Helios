@@ -13,8 +13,6 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,11 +63,12 @@ fun DailyComboChart(
     val context = LocalContext.current
 
     val textMeasurer = rememberTextMeasurer(cacheSize = 32)
-    val labelStyle = remember(colors.chartLabel) {
-        TextStyle(
+    val baseLabelStyle = MaterialTheme.typography.labelSmall
+    val labelStyle = remember(colors.chartLabel, baseLabelStyle) {
+        baseLabelStyle.copy(
             color = colors.chartLabel,
             fontSize = (9.5).sp,
-            fontFamily = FontFamily.Monospace
+            fontFeatureSettings = "tnum",
         )
     }
 

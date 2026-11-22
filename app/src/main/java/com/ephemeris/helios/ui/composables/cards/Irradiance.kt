@@ -18,48 +18,75 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
-import com.ephemeris.helios.ui.composables.charts.AnchoredMetricValue
 import com.ephemeris.helios.ui.composables.charts.IrradianceDial
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
+import com.ephemeris.helios.ui.composables.entries.MetricModePill
 import com.ephemeris.helios.ui.theme.HeliosTheme
+import com.ephemeris.helios.utils.datastore.IrradianceMode
 import com.ephemeris.helios.utils.printSignificant
 
 @Composable
 fun Irradiance(
     currentIrradiance: Double,
     @Suppress("UNUSED_PARAMETER") peakIrradiance: Double,
+    mode: IrradianceMode = IrradianceMode.DIRECT,
+    onToggleMode: () -> Unit = {},
 ) {
     val irradianceFloat = currentIrradiance.toFloat()
 
-    val description = when {
-        irradianceFloat < 0.001f -> "None"
-        irradianceFloat < 10f -> "Trace"
-        irradianceFloat < 100f -> "Very Weak"
-        irradianceFloat < 250f -> "Weak"
-        irradianceFloat < 500f -> "Moderate"
-        irradianceFloat < 800f -> "Strong"
-        irradianceFloat < 1000f -> "Very Strong"
-        else -> "Extreme"
+    val maxIrradiance = when (mode) {
+        IrradianceMode.DIRECT -> 950f
+        IrradianceMode.GLOBAL -> 1050f
+        IrradianceMode.DIFFUSE -> 120f
+    }
+
+    val description = if (mode == IrradianceMode.DIFFUSE) {
+        when {
+            irradianceFloat < 0.001f -> "None"
+            irradianceFloat < 1f -> "Trace"
+            irradianceFloat < 10f -> "Faint"
+            irradianceFloat < 30f -> "Low"
+            irradianceFloat < 60f -> "Moderate"
+            irradianceFloat < 90f -> "Bright"
+            else -> "Strong"
+        }
+    } else {
+        when {
+            irradianceFloat < 0.001f -> "None"
+            irradianceFloat < 10f -> "Trace"
+            irradianceFloat < 100f -> "Very Weak"
+            irradianceFloat < 250f -> "Weak"
+            irradianceFloat < 500f -> "Moderate"
+            irradianceFloat < 800f -> "Strong"
+            irradianceFloat < 1000f -> "Very Strong"
+            else -> "Extreme"
+        }
     }
 
     IrradianceDial(
         currentIrradiance = irradianceFloat,
-        maxIrradiance = 950f,
+        maxIrradiance = maxIrradiance,
         modifier = Modifier
             .fillMaxSize()
-            .padding(10.dp),
-        strokeWidth = 10.dp,
+            .padding(8.dp),
+        strokeWidth = 9.dp,
     ) {
         IrradianceInnerContent(
             title = stringResource(R.string.irradiance),
             valueText = currentIrradiance.printSignificant(),
             description = description,
+        )
+        MetricModePill(
+            label = mode.label,
+            onClick = onToggleMode,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 8.dp),
         )
     }
 //    CustomHorizontalDivider()
@@ -75,8 +102,8 @@ private fun IrradianceInnerContent(
     description: String,
 ) {
     val valueStyle = MaterialTheme.typography.headlineMedium.copy(
-        fontSize = 22.sp,
-        lineHeight = 26.sp,
+        fontSize = 28.sp,
+        lineHeight = 32.sp,
         fontWeight = FontWeight.Black,
         fontFeatureSettings = "tnum",
         color = MaterialTheme.colorScheme.onSurface,
@@ -84,47 +111,41 @@ private fun IrradianceInnerContent(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
     ) {
         HeaderEntry(
             text = title,
 //            textVariant = "(Direct)",
             icon = R.drawable.ic_bolt_filled,
             horizontalAlignment = Alignment.CenterHorizontally,
+            iconSize = 19.dp,
+            textSize = 15.sp,
+            spacing = 5.dp,
         )
-        AnchoredMetricValue(
-            value = {
-                Text(
-                    text = valueText,
-                    style = valueStyle,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            },
-            anchor = {
-                Text(
-                    text = "0",
-                    style = valueStyle,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            },
-            unit = {
-                Text(
-                    text = "W/m²",
-                    style = TextStyle(
-                        fontSize = 13.sp,
-                        lineHeight = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            },
-            unitSpacing = 4.dp,
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = valueText,
+                style = valueStyle,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.alignByBaseline(),
+            )
+            Text(
+                text = "W/m²",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontSize = 13.sp,
+                    lineHeight = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ),
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.alignByBaseline(),
+            )
+        }
         Text(
             text = description,
             style = MaterialTheme.typography.titleSmall,
@@ -151,7 +172,11 @@ private fun IrradianceCircularTilePreview() {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Irradiance(currentIrradiance = 0.003, peakIrradiance = 850.0)
+                        Irradiance(
+                            currentIrradiance = 640.0,
+                            peakIrradiance = 850.0,
+                            mode = IrradianceMode.DIRECT,
+                        )
                     }
                 }
             }
@@ -162,7 +187,11 @@ private fun IrradianceCircularTilePreview() {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Irradiance(currentIrradiance = 640.0, peakIrradiance = 850.0)
+                        Irradiance(
+                            currentIrradiance = 1050.0,
+                            peakIrradiance = 1050.0,
+                            mode = IrradianceMode.GLOBAL,
+                        )
                     }
                 }
             }
@@ -175,7 +204,11 @@ private fun IrradianceCircularTilePreview() {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Irradiance(currentIrradiance = 0.0, peakIrradiance = 850.0)
+                        Irradiance(
+                            currentIrradiance = 0.0,
+                            peakIrradiance = 850.0,
+                            mode = IrradianceMode.DIRECT,
+                        )
                     }
                 }
             }
@@ -186,7 +219,11 @@ private fun IrradianceCircularTilePreview() {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Irradiance(currentIrradiance = 640.0, peakIrradiance = 850.0)
+                        Irradiance(
+                            currentIrradiance = 86.4,
+                            peakIrradiance = 92.0,
+                            mode = IrradianceMode.DIFFUSE,
+                        )
                     }
                 }
             }

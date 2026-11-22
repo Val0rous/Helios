@@ -64,9 +64,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
@@ -174,93 +172,83 @@ fun TimeMachine(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 4.dp, end = 8.dp)
                     .height(48.dp)
             ) {
-                Box(
-                    contentAlignment = Alignment.CenterStart,
-                    modifier = Modifier.weight(1f)
+                TextButton(
+                    onClick = {
+                        flingJob?.cancel()
+                        flingJob = null
+                        showDatePicker = true
+                    },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier.align(Alignment.CenterStart),
                 ) {
-                    TextButton(
-                        onClick = {
-                            flingJob?.cancel()
-                            flingJob = null
-                            showDatePicker = true
-                        },
-                    ) {
-                        Text(
-                            text = dateString,
-                            color = MaterialTheme.colorScheme.primary,
-                            style = TextStyle(
-                                fontFamily = FontFamily.Default,
-                                fontSize = 13.sp,
-                            ),
-                        )
-                    }
+                    Text(
+                        text = dateString,
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontSize = 13.sp,
+                        ),
+                        maxLines = 1,
+                        softWrap = false,
+                    )
                 }
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.weight(1f)
+                TextButton(
+                    onClick = {
+                        flingJob?.cancel()
+                        flingJob = null
+                        showTimePicker = true
+                    },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    modifier = Modifier.align(Alignment.Center),
                 ) {
-                    TextButton(
-                        onClick = {
-                            flingJob?.cancel()
-                            flingJob = null
-                            showTimePicker = true
-                        },
-                    ) {
-                        Text(
-                            text = timeString,
-                            color = MaterialTheme.colorScheme.primary,
-                            style = TextStyle(
-                                fontFamily = FontFamily.Default,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold
-                            ),
-                            textAlign = TextAlign.Center
-                        )
-                    }
+                    Text(
+                        text = timeString,
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
                 }
-                Box(
-                    contentAlignment = Alignment.CenterEnd,
-                    modifier = Modifier.weight(1f)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.align(Alignment.CenterEnd),
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TimeMachineFilter.entries.forEachIndexed { index, filter ->
-                            OutlinedToggleButton(
-                                checked = filter == selectedFilterType,
-                                onCheckedChange = {
-                                    flingJob?.cancel()
-                                    flingJob = null
-                                    selectedFilterType = filter
-                                },
-                                shapes = when (index) {
-                                    0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                    TimeMachineFilter.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                                    else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                                },
-                                border = ButtonDefaults.outlinedButtonBorder(),
-                                colors = ToggleButtonDefaults.colors(
-                                    checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                ),
-                                contentPadding = PaddingValues(0.dp),
-                                modifier = Modifier.size(32.dp) // Matching your previous FilterChip size
-                            ) {
-                                Text(
-                                    text = stringResource(id = filter.label),
-                                    textAlign = TextAlign.Center,
-                                    fontSize = 13.sp
-                                )
-                            }
+                    TimeMachineFilter.entries.forEachIndexed { index, filter ->
+                        OutlinedToggleButton(
+                            checked = filter == selectedFilterType,
+                            onCheckedChange = {
+                                flingJob?.cancel()
+                                flingJob = null
+                                selectedFilterType = filter
+                            },
+                            shapes = when (index) {
+                                0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                TimeMachineFilter.entries.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                            },
+                            border = ButtonDefaults.outlinedButtonBorder(),
+                            colors = ToggleButtonDefaults.colors(
+                                checkedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                checkedContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ),
+                            contentPadding = PaddingValues(0.dp),
+                            modifier = Modifier.size(32.dp) // Matching your previous FilterChip size
+                        ) {
+                            Text(
+                                text = stringResource(id = filter.label),
+                                textAlign = TextAlign.Center,
+                                fontSize = 13.sp
+                            )
                         }
                     }
                 }
@@ -289,11 +277,12 @@ fun TimeMachine(
                 val tickLabelColor = if (isDark) tickScheme.onSurface else tickScheme.surfaceBright
                 val majorTickColor = tickLabelColor
                 val minorTickColor = if (isDark) tickScheme.onSurfaceVariant else tickScheme.surfaceContainerLow
-                val textStyle = remember(tickLabelColor) {
-                    TextStyle(
+                val baseTickStyle = MaterialTheme.typography.labelSmall
+                val textStyle = remember(tickLabelColor, baseTickStyle) {
+                    baseTickStyle.copy(
                         color = tickLabelColor,
                         fontSize = 11.sp,   // was 10.dp
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
                     )
                 }
 

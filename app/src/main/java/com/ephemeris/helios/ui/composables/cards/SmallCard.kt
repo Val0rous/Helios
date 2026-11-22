@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -27,25 +26,19 @@ internal fun SmallCard(
     isCircular: Boolean = false,
     fullBleed: Boolean = false,
     fillHeight: Boolean = true,
+    onClick: (() -> Unit)? = null,
 ) {
     val paddingValue = if (modifier == Modifier) 16.dp else 8.dp
     val horizontalPadding = if (disableInnerHorizontalPadding) 0.dp else 12.dp
     val useBoxLayout = isCircular || fullBleed
     val useSquareAspect = isCircular || (fullBleed && !fillHeight)
-    val resolvedShape = when {
-        isCircular -> CircleShape
-        fullBleed -> RoundedCornerShape(28.dp)
-        else -> shape
-    }
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = paddingValue)
-            .then(if (useSquareAspect) Modifier.aspectRatio(1f) else Modifier),
-        shape = resolvedShape,
-//        border = CardDefaults.outlinedCardBorder(enabled = false)
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
+    val resolvedShape = if (isCircular) CircleShape else shape
+    val cardModifier = modifier
+        .fillMaxWidth()
+        .padding(horizontal = paddingValue)
+        .then(if (useSquareAspect) Modifier.aspectRatio(1f) else Modifier)
+    val cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    val cardContent: @Composable () -> Unit = {
         if (useBoxLayout) {
             Box(
                 modifier = Modifier
@@ -64,6 +57,25 @@ internal fun SmallCard(
             ) {
                 card()
             }
+        }
+    }
+
+    if (onClick != null) {
+        Card(
+            onClick = onClick,
+            modifier = cardModifier,
+            shape = resolvedShape,
+            colors = cardColors,
+        ) {
+            cardContent()
+        }
+    } else {
+        Card(
+            modifier = cardModifier,
+            shape = resolvedShape,
+            colors = cardColors,
+        ) {
+            cardContent()
         }
     }
 }

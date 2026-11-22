@@ -398,6 +398,7 @@ fun HeliosTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = Shapes,
         content = {
             CompositionLocalProvider(
                 LocalCustomColors provides customColors

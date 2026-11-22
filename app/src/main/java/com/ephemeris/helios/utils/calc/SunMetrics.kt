@@ -1,29 +1,54 @@
 package com.ephemeris.helios.utils.calc
 
-import com.mapbox.maps.extension.style.expressions.dsl.generated.distance
+import com.ephemeris.helios.utils.datastore.IlluminanceMode
+import com.ephemeris.helios.utils.datastore.IrradianceMode
 import kotlin.math.*
 
 object SunMetrics {
     private const val SOLAR_CONSTANT = 1361.0
-    private const val LUMINOUS_EFFICACY = 105.0
+    private const val DIRECT_LUMINOUS_EFFICACY = 105.0
+    private const val DIFFUSE_LUMINOUS_EFFICACY = 115.0
+    private const val TWILIGHT_HORIZON_DHI = 3.5 // Clear-sky horizontal diffuse irradiance at 0° (~400 lux)
+    private const val ASTRONOMICAL_TWILIGHT_DEG = -18.0
     private const val DEFAULT_OZONE_DU = 300.0
     private const val ATMOSPHERE_SCALE_HEIGHT = 8434.0
     private const val SUN_SEMI_DIAMETER_DEG = 0.266
-    private const val DIRECT_BEAM_IRRADIANCE_CONSTANT = 1
-    private const val GLOBAL_HORIZONTAL_IRRADIANCE_CONSTANT = 1.125 // +10-15%
-    // Todo: let users choose their preferred irradiance calc, default is 1 (direct) for solar panels and 1.125 for photography/cinematic purposes
 
     data class SunMetricsResult(
+        /** Direct Normal Irradiance (DNI, W/m²) — default irradiance metric. */
         val irradiance: Double,
+        /** Global Horizontal Irradiance (GHI, W/m²): direct horizontal beam + diffuse sky. */
+        val globalIrradiance: Double = irradiance,
+        /** Diffuse Horizontal Irradiance (DHI, W/m²): scattered ambient sky radiation. */
+        val diffuseIrradiance: Double = 0.0,
         val uvIntensity: Double,
+        /** Global Horizontal Illuminance (lux) — default illuminance metric (direct horizontal + ambient sky). */
         val luminance: Double,
+        /** Direct beam illuminance (lux). */
+        val directIlluminance: Double = luminance,
+        /** Global Horizontal Illuminance (lux): alias for [luminance]. */
+        val globalIlluminance: Double = luminance,
+        /** Diffuse / Ambient sky illuminance (lux): scattered skylight (including twilight). */
+        val diffuseIlluminance: Double = 0.0,
         val shadowRatio: Double,
         val airMass: Double,
         val colorTemp: Double,
         val distanceKm: Double,
         val distanceAu: Double,
         val solarSpeed: Double
-    )
+    ) {
+        fun irradianceFor(mode: IrradianceMode): Double = when (mode) {
+            IrradianceMode.DIRECT -> irradiance
+            IrradianceMode.GLOBAL -> globalIrradiance
+            IrradianceMode.DIFFUSE -> diffuseIrradiance
+        }
+
+        fun illuminanceFor(mode: IlluminanceMode): Double = when (mode) {
+            IlluminanceMode.GLOBAL -> globalIlluminance
+            IlluminanceMode.DIRECT -> directIlluminance
+            IlluminanceMode.DIFFUSE -> diffuseIlluminance
+        }
+    }
 
     fun calculateMetrics(
         sunElevationDeg: Double,
@@ -34,8 +59,12 @@ object SunMetrics {
         horizonAltDeg: Double = -0.833
     ): SunMetricsResult {
         val outIrradiance = FloatArray(1)
+        val outGlobalIrradiance = FloatArray(1)
+        val outDiffuseIrradiance = FloatArray(1)
         val outUvi = FloatArray(1)
         val outIlluminance = FloatArray(1)
+        val outDirectIlluminance = FloatArray(1)
+        val outDiffuseIlluminance = FloatArray(1)
         val outShadowRatio = FloatArray(1)
         val outAirMass = FloatArray(1)
         val outColorTemp = FloatArray(1)
@@ -51,7 +80,11 @@ object SunMetrics {
             outIlluminance = outIlluminance,
             outShadowRatio = outShadowRatio,
             outAirMass = outAirMass,
-            outColorTemp = outColorTemp
+            outColorTemp = outColorTemp,
+            outGlobalIrradiance = outGlobalIrradiance,
+            outDiffuseIrradiance = outDiffuseIrradiance,
+            outDirectIlluminance = outDirectIlluminance,
+            outDiffuseIlluminance = outDiffuseIlluminance,
         )
 
         // 1 AU is exactly 149,597,870.7 kilometers
@@ -59,8 +92,13 @@ object SunMetrics {
 
         return SunMetricsResult(
             irradiance = outIrradiance[0].toDouble(),
+            globalIrradiance = outGlobalIrradiance[0].toDouble(),
+            diffuseIrradiance = outDiffuseIrradiance[0].toDouble(),
             uvIntensity = outUvi[0].toDouble(),
             luminance = outIlluminance[0].toDouble(),
+            directIlluminance = outDirectIlluminance[0].toDouble(),
+            globalIlluminance = outIlluminance[0].toDouble(),
+            diffuseIlluminance = outDiffuseIlluminance[0].toDouble(),
             shadowRatio = outShadowRatio[0].toDouble(),
             airMass = outAirMass[0].toDouble(),
             colorTemp = outColorTemp[0].toDouble(),
@@ -76,10 +114,14 @@ object SunMetrics {
      * @param observerAltitudeMeters Physical elevation of the observer in meters.
      * @param ozoneDU Ozone thickness in Dobson Units.
      * @param outAirMass Pre-allocated array to store Air Mass results.
-     * @param outIrradiance Pre-allocated array to store Irradiance (W/m^2).
-     * @param outIlluminance Pre-allocated array to store Illuminance (lux).
+     * @param outIrradiance Pre-allocated array to store Direct Normal Irradiance (W/m^2).
+     * @param outIlluminance Pre-allocated array to store Global Horizontal Illuminance (lux).
      * @param outUvi Pre-allocated array to store UV Index.
      * @param outShadowRatio Pre-allocated array to store Shadow Ratios.
+     * @param outGlobalIrradiance Optional pre-allocated array for Global Horizontal Irradiance (W/m^2).
+     * @param outDiffuseIrradiance Optional pre-allocated array for Diffuse Horizontal Irradiance (W/m^2).
+     * @param outDirectIlluminance Optional pre-allocated array for Direct beam Illuminance (lux).
+     * @param outDiffuseIlluminance Optional pre-allocated array for Diffuse/Ambient Illuminance (lux).
      */
     fun calculateMetrics(
         sunElevationsDeg: DoubleArray,
@@ -87,13 +129,16 @@ object SunMetrics {
         distancesAu: DoubleArray,
         ozoneDU: Double = DEFAULT_OZONE_DU,
         horizonAltDeg: Double = -0.833,
-//        outSunElevations: FloatArray,
         outIrradiance: FloatArray,
         outUvi: FloatArray,
         outIlluminance: FloatArray,
         outShadowRatio: FloatArray,
         outAirMass: FloatArray,
-        outColorTemp: FloatArray
+        outColorTemp: FloatArray,
+        outGlobalIrradiance: FloatArray? = null,
+        outDiffuseIrradiance: FloatArray? = null,
+        outDirectIlluminance: FloatArray? = null,
+        outDiffuseIlluminance: FloatArray? = null,
     ) {
         val size = sunElevationsDeg.size
 
@@ -103,73 +148,86 @@ object SunMetrics {
         val uvAltitudeModifier = 1.0 + (observerAltitudeMeters / 10000.0)
         val combinedUvModifier = uvOzoneModifier * uvAltitudeModifier
 
-        // 2. Air Mass Elevation Modifier
-        // e^(-h / 8434)
+        // 2. Air Mass Elevation Modifier: e^(-h / 8434)
         val amElevationModifier = exp(-observerAltitudeMeters / ATMOSPHERE_SCALE_HEIGHT)
 
         for (i in 0 until size) {
             val sunElevDeg = sunElevationsDeg[i]
-
-//            // 1. Instantly store the Float version for your UI
-//            outSunElevations[i] = sunElevDeg.toFloat()
-
-            // If the sun is below the horizon, all light metrics are strictly 0.
-            if (sunElevDeg <= horizonAltDeg) {
-                outAirMass[i] = 0f // 0f (instead of old 1f) aligns it to chart minimum
-                outIrradiance[i] = 0f
-                outIlluminance[i] = 0f
-                outUvi[i] = 0f
-                outShadowRatio[i] = 0f // 0 represents infinite/no shadow
-                outColorTemp[i] = Float.NaN // Sun is down, no direct beam temp. 2000f aligns it to chart minimum
-//                // Color Temperature Piecewise Logic
-//                if (sunElevDeg >= -6.0) {
-//                    // Sun is in Civil Twilight (Blue Hour)
-//                    outColorTemp[i] = 10000.0 - 8000.0 * exp(sunElevDeg / 2.0)
-//                } else {
-//                    // Deep night. NaN stops the chart line from dropping to 0.
-//                    outColorTemp[i] = Float.NaN
-//                }
-                continue
-            }
-
-            // --- Orbital Power Modifier ---
-            // Inverse-Square Law: Intensity = 1 / R^2
             val distanceAu = distancesAu[i]
             val distanceModifier = 1.0 / (distanceAu * distanceAu)
 
+            // If the sun is below the apparent horizon, all direct-beam metrics are strictly 0.
+            // Ambient sky scatter (Diffuse & Global) still decays smoothly through twilight down to -18°.
+            if (sunElevDeg <= horizonAltDeg) {
+                outAirMass[i] = 0f
+                outIrradiance[i] = 0f
+                outUvi[i] = 0f
+                outShadowRatio[i] = 0f
+                outColorTemp[i] = Float.NaN
+
+                val twilightDhi = if (sunElevDeg > ASTRONOMICAL_TWILIGHT_DEG) {
+                    TWILIGHT_HORIZON_DHI * distanceModifier * exp(0.8 * sunElevDeg) * amElevationModifier
+                } else {
+                    0.0
+                }
+                val twilightLux = twilightDhi * DIFFUSE_LUMINOUS_EFFICACY
+                outIlluminance[i] = twilightLux.toFloat()
+                outDirectIlluminance?.set(i, 0f)
+                outDiffuseIrradiance?.set(i, twilightDhi.toFloat())
+                outGlobalIrradiance?.set(i, twilightDhi.toFloat())
+                outDiffuseIlluminance?.set(i, twilightLux.toFloat())
+                continue
+            }
+
             val sunElevRad = Math.toRadians(sunElevDeg)
             val sinElev = sin(sunElevRad)
+            val posSinElev = max(0.0, sinElev)
 
             // 1. Air Mass (Kasten-Young with Sub-Zero Projection)
-            // Kasten-Young breaks and bends backwards at -1.8°. We use it natively above 0°,
-            // and seamlessly project it downwards using a continuous polynomial below 0°
-            // so the atmosphere correctly continues to thicken to infinity!
             val relativeAirMass = if (sunElevDeg >= 0.0) {
                 val amDenominator = sinElev + 0.50572 * (sunElevDeg + 6.07995).pow(-1.6364)
                 1.0 / amDenominator
             } else {
                 val amZero = 1.0 / (0.50572 * 6.07995.pow(-1.6364)) // Exact value at 0.0° (~37.92)
                 val absElev = abs(sunElevDeg)
-                // Smooth quadratic explosion that seamlessly connects to the 0° slope
                 amZero + (10.0 * absElev) + (5.0 * absElev.pow(2))
             }
             val actualAirMass = relativeAirMass * amElevationModifier
             outAirMass[i] = actualAirMass.toFloat()
 
-            // 2. Irradiance (Depends on Air Mass) (Scaled by distance)
-            // DNI (For cameras, eyes, and tracking solar panels)
-            val directIrradiance = (SOLAR_CONSTANT * distanceModifier) * 0.7.pow(actualAirMass)
-            // GHI (For flat ground and flat solar panels)
-            // Notice the max() clamp to prevent the negative ground shadow bug!
-            val flatGroundIrradiance = directIrradiance * max(0.0, sinElev)
-            outIrradiance[i] = directIrradiance.toFloat()
+            // 2. Irradiance (Direct Normal, Diffuse Horizontal, Global Horizontal)
+            val extraterrestrialIrradiance = SOLAR_CONSTANT * distanceModifier
+            val directIrradiance = extraterrestrialIrradiance * 0.7.pow(actualAirMass)
+            val directHorizontalIrradiance = directIrradiance * posSinElev
 
-            // 3. Illuminance (Depends on Irradiance)
-            outIlluminance[i] = (directIrradiance * LUMINOUS_EFFICACY).toFloat()
+            // Liu-Jordan clear-sky diffuse model + continuous twilight horizon term
+            val dayDiffuse = max(
+                0.0,
+                (0.271 * extraterrestrialIrradiance - 0.2939 * directIrradiance) * posSinElev,
+            )
+            val twilightComponent = if (sunElevDeg >= 0.0) {
+                TWILIGHT_HORIZON_DHI * distanceModifier * exp(-0.18 * sunElevDeg) * amElevationModifier
+            } else {
+                TWILIGHT_HORIZON_DHI * distanceModifier * exp(0.8 * sunElevDeg) * amElevationModifier
+            }
+            val diffuseIrradiance = dayDiffuse + twilightComponent
+            val globalIrradiance = directHorizontalIrradiance + diffuseIrradiance
+
+            outIrradiance[i] = directIrradiance.toFloat()
+            outDiffuseIrradiance?.set(i, diffuseIrradiance.toFloat())
+            outGlobalIrradiance?.set(i, globalIrradiance.toFloat())
+
+            // 3. Illuminance (Global Horizontal default, Direct Beam, Diffuse/Ambient Sky)
+            val directIlluminance = directIrradiance * DIRECT_LUMINOUS_EFFICACY
+            val diffuseIlluminance = diffuseIrradiance * DIFFUSE_LUMINOUS_EFFICACY
+            val globalIlluminance = (directHorizontalIrradiance * DIRECT_LUMINOUS_EFFICACY) + diffuseIlluminance
+
+            outIlluminance[i] = globalIlluminance.toFloat()
+            outDirectIlluminance?.set(i, directIlluminance.toFloat())
+            outDiffuseIlluminance?.set(i, diffuseIlluminance.toFloat())
 
             // 4. UV Index (Scaled by distance)
-            // Note: max(0.0, sinAlt) prevents NaN errors if floating point inaccuracies dip below 0
-            val baseUv = (12.5 * distanceModifier) * max(0.0, sinElev).pow(2.42)
+            val baseUv = (12.5 * distanceModifier) * posSinElev.pow(2.42)
             outUvi[i] = (baseUv * combinedUvModifier).toFloat()
 
             // 5. Shadow Ratio (Refracted apparent elevation with smooth partial-disk rise/set)
@@ -180,9 +238,6 @@ object SunMetrics {
             ).toFloat()
 
             // 6. Color Temperature (Kelvin)
-            // No clamp! Allowing Air Mass to drop below 1.0 at altitude mathematically
-            // pushes the temperature naturally from 5500K (Sea Level) towards 5800K (Space).
-            // Bottoms out at 1800K
             outColorTemp[i] = (1800.0 + 3700.0 * exp(-0.1 * (actualAirMass - 1.0))).toFloat()
         }
     }

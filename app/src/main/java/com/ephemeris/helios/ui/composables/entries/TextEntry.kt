@@ -14,8 +14,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -31,7 +29,7 @@ fun TextEntry(
     iconTint: Color = MaterialTheme.colorScheme.primary,
     iconModifier: Modifier = Modifier
 ) {
-    val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default, color = textColor)
+    val textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp, color = textColor)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),

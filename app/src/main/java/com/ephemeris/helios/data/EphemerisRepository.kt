@@ -113,6 +113,7 @@ private data class SeasonalCacheKey(
     val latitude: Double,
     val longitude: Double,
     val altitude: Double,
+    val useHorizonDip: Boolean,
 )
 
 private data class DailyCacheKey(
@@ -196,6 +197,7 @@ class EphemerisRepository(
                             latitude = coords.latitude,
                             longitude = coords.longitude,
                             altitude = coords.altitude,
+                            useHorizonDip = coords.useHorizonDip,
                         )
                         val seasonal = if (seasonalKey == cachedSeasonalKey && cachedSeasonalBundle != null) {
                             cachedSeasonalBundle!!

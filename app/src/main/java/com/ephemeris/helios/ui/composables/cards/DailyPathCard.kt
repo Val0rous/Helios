@@ -31,8 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -252,7 +250,7 @@ internal fun CustomHorizontalDivider() {
 
 @Composable
 internal fun CustomColumn(header: String, value: String) {
-    val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default)
+    val textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
     val verticalSpacing = 4.dp
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -272,7 +270,7 @@ internal fun CustomColumn(header: String, value: String) {
 
 @Composable
 internal fun CustomRow(header: String, value: String) {
-    val textStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default)
+    val textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
     val horizontalSpacing = 8.dp
     Row(
         horizontalArrangement = Arrangement.spacedBy(horizontalSpacing),

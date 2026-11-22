@@ -1,7 +1,6 @@
 package com.ephemeris.helios.ui.composables.charts
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -11,7 +10,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 
@@ -22,7 +20,6 @@ fun ColorTempBar(
     activeColor: Color,
     modifier: Modifier = Modifier
 ) {
-    val isLightMode = !isSystemInDarkTheme()
     val colorScheme = MaterialTheme.colorScheme
     val customColors = LocalCustomColors.current
 
@@ -50,16 +47,14 @@ fun ColorTempBar(
 
     Canvas(modifier = modifier.fillMaxSize()) {
         val trackHeight = 8.dp.toPx()
-        val thumbRadius = 8.dp.toPx()
+        val thumbOuterRadius = 8.dp.toPx()
+        val thumbInnerRadius = 5.5.dp.toPx()
 
         // Center the track vertically in the canvas
         val trackTop = (size.height - trackHeight) / 2f
 
-        // Account for thumb overhang so the thumb doesn't clip off the sides
-//        val usableWidth = size.width - (thumbRadius * 2)
-//        val trackStart = thumbRadius
         val usableWidth = size.width
-        val trackStart = 0.dp.toPx()
+        val trackStart = 0f
 
         // 1. Draw the Background Gradient Track
         if (isNight) {
@@ -78,37 +73,24 @@ fun ColorTempBar(
             )
         }
 
-        // 2. Draw the Indicator Thumb
-        val thumbX = trackStart + (usableWidth * fraction)
+        // 2. Draw the Indicator Thumb (insetting within track bounds so the outer halo never clips)
+        val thumbTravel = (usableWidth - thumbOuterRadius * 2f).coerceAtLeast(0f)
+        val thumbX = trackStart + thumbOuterRadius + (thumbTravel * fraction)
         val thumbCenter = Offset(thumbX, size.height / 2f)
 
-        if (isNight) {
-//            // "Parked" disabled thumb to maintain visual height at night
-//            drawCircle(
-//                color = colorScheme.surface, // Matches background to look hollow
-//                radius = thumbRadius - 2.dp.toPx(),
-//                center = thumbCenter
-//            )
-//            drawCircle(
-//                color = colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
-//                radius = thumbRadius - 1.dp.toPx(),
-//                center = thumbCenter,
-//                style = Stroke(width = 2.dp.toPx())
-//            )
-        } else if (colorTemp > minK) {
-            // 1. Inner fill (painted safely over the opaque blocker)
+        if (!isNight && colorTemp > minK) {
+            // 1. Outer cutout ring matching card surface (Google Weather AQI slider style)
             drawCircle(
-                color = activeColor,
-                radius = thumbRadius - 2.dp.toPx(),
-                center = thumbCenter
+                color = colorScheme.surface,
+                radius = thumbOuterRadius,
+                center = thumbCenter,
             )
 
-            // 2. Outer ring (creates a crisp border so it pops against the gradient)
+            // 2. Inner active-color indicator dot
             drawCircle(
-                color = colorScheme.onSurface.copy(alpha = 0.9f),
-                radius = thumbRadius - 1.dp.toPx(),
+                color = activeColor,
+                radius = thumbInnerRadius,
                 center = thumbCenter,
-                style = Stroke(width = 2.dp.toPx())
             )
         }
     }

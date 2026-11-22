@@ -39,7 +39,7 @@ fun WavyMetricFill(
         Canvas(modifier = Modifier.matchParentSize()) {
             if (clamped <= 0f) return@Canvas
 
-            if (clamped >= 0.995f) {
+            if (clamped >= 1f) {
                 drawRect(color = fillColor)
                 return@Canvas
             }
@@ -64,12 +64,12 @@ fun WavyMetricFill(
             val wavePath = Path().apply {
                 val startX = centerX + (startIndex * halfWave)
                 var prevX = startX
-                var prevY = if (startIndex % 2 == 0) peakY else valleyY
+                var prevY = if ((startIndex % 2) == 0) peakY else valleyY
                 moveTo(prevX, prevY)
 
                 for (idx in (startIndex + 1)..halfWavesFromCenter) {
                     val nextX = centerX + (idx * halfWave)
-                    val nextY = if (idx % 2 == 0) peakY else valleyY
+                    val nextY = if ((idx % 2) == 0) peakY else valleyY
                     cubicTo(
                         x1 = prevX + controlOffset,
                         y1 = prevY,

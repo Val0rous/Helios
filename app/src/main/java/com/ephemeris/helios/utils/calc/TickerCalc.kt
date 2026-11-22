@@ -4,7 +4,6 @@ import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import java.time.ZoneId
 import java.time.ZonedDateTime
-import kotlin.math.max
 
 data class SeasonalBundle(
     val seasonalEvents: SeasonalEphemeris.SeasonalEvents,
@@ -124,10 +123,7 @@ fun getSunLiveSnapshot(
         date = currentTime.toLocalDate(),
     )
 
-    // Calculate the dynamic horizon specifically for the live observer
-    val elevation = max(0.0, coordinates.altitude)
-    val horizonDipDeg = 0.032 * kotlin.math.sqrt(elevation)
-    val dynamicSunriseSunsetAlt = SolarEphemeris.ALT_SUNRISE_SUNSET - horizonDipDeg
+    val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
 
     val metrics = SunMetrics.calculateMetrics(
         sunElevationDeg = pos.altitude,

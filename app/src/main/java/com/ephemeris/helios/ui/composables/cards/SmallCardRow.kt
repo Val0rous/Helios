@@ -20,8 +20,10 @@ internal fun SmallCardRow(
     rightCircular: Boolean = false,
     leftFullBleed: Boolean = false,
     rightFullBleed: Boolean = false,
+    onLeftClick: (() -> Unit)? = null,
+    onRightClick: (() -> Unit)? = null,
 ) {
-    val useIntrinsicHeight = !leftCircular && !rightCircular
+    val useIntrinsicHeight = !leftCircular && !rightCircular && !(leftFullBleed && rightFullBleed)
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -37,6 +39,7 @@ internal fun SmallCardRow(
             isCircular = leftCircular,
             fullBleed = leftFullBleed,
             fillHeight = useIntrinsicHeight,
+            onClick = onLeftClick,
         )
         // Right Card
         SmallCard(
@@ -46,6 +49,7 @@ internal fun SmallCardRow(
             isCircular = rightCircular,
             fullBleed = rightFullBleed,
             fillHeight = useIntrinsicHeight,
+            onClick = onRightClick,
         )
     }
 }

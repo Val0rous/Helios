@@ -14,15 +14,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
 fun HeaderEntry(
     text: String,
+    modifier: Modifier = Modifier,
     textVariant: String = "",
     textColor: Color = MaterialTheme.colorScheme.primary,
     icon: Int? = null,
@@ -30,16 +31,31 @@ fun HeaderEntry(
     iconTint: Color = MaterialTheme.colorScheme.primary,
     iconModifier: Modifier = Modifier,
     horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+    iconSize: Dp = 18.dp,
+    textSize: TextUnit = 14.sp,
+    spacing: Dp = 6.dp,
 ) {
-    val headerStyle = TextStyle(fontSize = (14).sp, fontFamily = FontFamily.Default, fontWeight = FontWeight.SemiBold, color = textColor)
+    val headerStyle = MaterialTheme.typography.titleSmall.copy(
+        fontSize = textSize,
+        lineHeight = textSize * 1.25f,
+        fontWeight = FontWeight.SemiBold,
+        color = textColor,
+    )
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp, horizontalAlignment),
-        modifier = Modifier
+        horizontalArrangement = Arrangement.spacedBy(spacing, horizontalAlignment),
+        modifier = modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min)
+            .height(IntrinsicSize.Min),
     ) {
-        if (icon != null) Icon(painter = painterResource(id = icon), contentDescription = desc, modifier = iconModifier.size(18.dp), tint = iconTint)
+        if (icon != null) {
+            Icon(
+                painter = painterResource(id = icon),
+                contentDescription = desc,
+                modifier = iconModifier.size(iconSize),
+                tint = iconTint,
+            )
+        }
         Text(text = text, style = headerStyle)
         if (textVariant != "") TextEntryVariant(textVariant)
     }

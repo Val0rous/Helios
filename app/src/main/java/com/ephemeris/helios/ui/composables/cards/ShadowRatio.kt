@@ -20,13 +20,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
-import com.ephemeris.helios.ui.composables.charts.AnchoredMetricValue
 import com.ephemeris.helios.ui.composables.charts.ShadowDial
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
 import com.ephemeris.helios.ui.theme.HeliosTheme
@@ -62,8 +60,8 @@ fun ShadowRatio(
         isNight = isNight,
         modifier = Modifier
             .fillMaxSize()
-            .padding(10.dp),
-        strokeWidth = 10.dp,
+            .padding(8.dp),
+        strokeWidth = 9.dp,
     ) {
         ShadowRatioInnerContent(
             title = stringResource(R.string.shadows),
@@ -107,72 +105,76 @@ private fun ShadowRatioInnerContent(
         MaterialTheme.colorScheme.onSurface
     }
     val valueStyle = MaterialTheme.typography.headlineMedium.copy(
-        fontSize = 22.sp,
-        lineHeight = 26.sp,
+        fontSize = 28.sp,
+        lineHeight = 32.sp,
         fontWeight = FontWeight.Black,
         fontFeatureSettings = "tnum",
         color = valueColor,
     )
     val infinityStyle = MaterialTheme.typography.headlineMedium.copy(
-        fontSize = 31.sp,
-        lineHeight = 31.sp,
+        fontSize = 38.sp,
+        lineHeight = 38.sp,
         fontWeight = FontWeight.Black,
         color = MaterialTheme.colorScheme.onSurface,
     )
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 4.dp),
     ) {
         HeaderEntry(
             text = title,
             icon = R.drawable.ic_ev_shadow_filled,
             horizontalAlignment = Alignment.CenterHorizontally,
+            iconSize = 19.dp,
+            textSize = 15.sp,
+            spacing = 5.dp,
         )
-        AnchoredMetricValue(
-            value = {
+        if (isNight) {
+            Text(
+                text = valueText,
+                style = valueStyle,
+                maxLines = 1,
+                softWrap = false,
+            )
+        } else {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 Text(
                     text = valueText,
                     style = if (isInfinite) infinityStyle else valueStyle,
                     maxLines = 1,
                     softWrap = false,
                     modifier = if (isInfinite) {
-                        // Keep layout box height & baseline identical to 22.sp digits so
+                        // Keep layout box height & baseline identical to 28.sp digits so
                         // header, ": 1", and description never shift vertically while
                         // visually centering the taller ∞ glyph against digit cap-height.
-                        Modifier.layout { measurable, constraints ->
-                            val placeable = measurable.measure(constraints)
-                            val targetHeight = 26.dp.roundToPx()
-                            val targetBaseline = 20.5.dp.roundToPx()
-                            val digitCenterY = targetBaseline - 22.sp.toPx() * 0.36f
-                            val glyphCenterY = placeable[FirstBaseline] - 31.sp.toPx() * 0.30f
-                            val offsetY = (digitCenterY - glyphCenterY).roundToInt()
-                            layout(
-                                width = placeable.width,
-                                height = targetHeight,
-                                alignmentLines = mapOf(FirstBaseline to targetBaseline),
-                            ) {
-                                placeable.placeRelative(0, offsetY)
-                            }
-                        }
-                    } else {
                         Modifier
+                            .alignByBaseline()
+                            .layout { measurable, constraints ->
+                                val placeable = measurable.measure(constraints)
+                                val targetHeight = 32.dp.roundToPx()
+                                val targetBaseline = 25.5.dp.roundToPx()
+                                val digitCenterY = targetBaseline - 28.sp.toPx() * 0.36f
+                                val glyphCenterY = placeable[FirstBaseline] - 38.sp.toPx() * 0.30f
+                                val offsetY = (digitCenterY - glyphCenterY).roundToInt()
+                                layout(
+                                    width = placeable.width,
+                                    height = targetHeight,
+                                    alignmentLines = mapOf(FirstBaseline to targetBaseline),
+                                ) {
+                                    placeable.placeRelative(0, offsetY)
+                                }
+                            }
+                    } else {
+                        Modifier.alignByBaseline()
                     },
                 )
-            },
-            anchor = {
-                Text(
-                    text = "-",
-                    style = valueStyle,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-            },
-            unit = {
                 Text(
                     text = ": 1",
-                    style = TextStyle(
+                    style = MaterialTheme.typography.labelLarge.copy(
                         fontSize = 14.sp,
                         lineHeight = 16.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -180,10 +182,10 @@ private fun ShadowRatioInnerContent(
                     ),
                     maxLines = 1,
                     softWrap = false,
+                    modifier = Modifier.alignByBaseline(),
                 )
-            },
-            unitSpacing = 4.dp,
-        )
+            }
+        }
         Text(
             text = description,
             style = MaterialTheme.typography.titleSmall,

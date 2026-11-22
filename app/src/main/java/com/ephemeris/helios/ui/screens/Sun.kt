@@ -81,7 +81,8 @@ fun Sun(
                         noonAzimuth = sun.events.solarNoonAzimuth.round(),
                         noonAltitude = sun.events.solarNoonAltitude.round()
                     )
-                }
+                },
+                onRightClick = viewModel::jumpToSolarNoon,
             )
         }
         item {
@@ -90,8 +91,10 @@ fun Sun(
                 leftCircular = true,
                 leftCard = {
                     Irradiance(
-                        currentIrradiance = sun.metrics.irradiance,
-                        peakIrradiance = sun.dailyPeakMetrics.irradiance
+                        currentIrradiance = sun.metrics.irradianceFor(ui.irradianceMode),
+                        peakIrradiance = sun.dailyPeakMetrics.irradianceFor(ui.irradianceMode),
+                        mode = ui.irradianceMode,
+                        onToggleMode = viewModel::cycleIrradianceMode,
                     )
                 },
                 rightCard = {
@@ -109,8 +112,10 @@ fun Sun(
                 rightCircular = true,
                 leftCard = {
                     Illuminance(
-                        currentIlluminance = sun.metrics.luminance,
-                        peakIlluminance = sun.dailyPeakMetrics.luminance
+                        currentIlluminance = sun.metrics.illuminanceFor(ui.illuminanceMode),
+                        peakIlluminance = sun.dailyPeakMetrics.illuminanceFor(ui.illuminanceMode),
+                        mode = ui.illuminanceMode,
+                        onToggleMode = viewModel::cycleIlluminanceMode,
                     )
                 },
                 rightCard = {
@@ -124,6 +129,7 @@ fun Sun(
         item {
             SmallCardRow(
                 disableInnerHorizontalPadding = true,
+                leftFullBleed = true,
                 rightFullBleed = true,
                 leftCard = {
                     ColorTemperature(

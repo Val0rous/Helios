@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -14,15 +13,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.AlignmentLine
-import androidx.compose.ui.layout.FirstBaseline
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 /**
  * Pluggable mapping from a raw metric value to a normalized `[0f, 1f]` dial sweep fraction.
@@ -126,65 +119,5 @@ fun CircularMetricDial(
         }
 
         content()
-    }
-}
-
-/**
- * Lays out a metric [value] and its [unit] so that:
- * - A reference [anchor] glyph (e.g., `"0"` or `"∞"`) sits dead-center horizontally.
- * - [unit] is permanently pinned to the right of the anchor's right edge plus [unitSpacing]
- *   (so it never shifts horizontally regardless of how many digits [value] currently has).
- * - [value] is right-aligned against that same anchor edge and grows strictly to the left.
- * - [value] and [unit] share their [FirstBaseline].
- */
-@Composable
-fun AnchoredMetricValue(
-    value: @Composable () -> Unit,
-    anchor: @Composable () -> Unit,
-    unit: @Composable () -> Unit,
-    modifier: Modifier = Modifier,
-    unitSpacing: Dp = 4.dp,
-    anchorBias: Float = 0.5f,
-) {
-    Layout(
-        modifier = modifier.fillMaxWidth(),
-        content = {
-            value()
-            Box(modifier = Modifier.clearAndSetSemantics {}) { anchor() }
-            unit()
-        },
-    ) { measurables, constraints ->
-        val looseConstraints = constraints.copy(minWidth = 0, minHeight = 0)
-        val valuePlaceable = measurables[0].measure(looseConstraints)
-        val anchorPlaceable = measurables[1].measure(looseConstraints)
-        val unitPlaceable = measurables[2].measure(looseConstraints)
-
-        val valueBaseline = valuePlaceable[FirstBaseline].let {
-            if (it != AlignmentLine.Unspecified) it else valuePlaceable.height
-        }
-        val unitBaseline = unitPlaceable[FirstBaseline].let {
-            if (it != AlignmentLine.Unspecified) it else unitPlaceable.height
-        }
-        val sharedBaseline = max(valueBaseline, unitBaseline)
-        val valueY = sharedBaseline - valueBaseline
-        val unitY = sharedBaseline - unitBaseline
-
-        val layoutHeight = max(valueY + valuePlaceable.height, unitY + unitPlaceable.height)
-        val spacingPx = unitSpacing.roundToPx()
-        val minRequiredWidth = valuePlaceable.width + spacingPx + unitPlaceable.width
-        val layoutWidth = if (constraints.hasBoundedWidth) {
-            constraints.maxWidth
-        } else {
-            minRequiredWidth
-        }
-
-        val anchorRightEdge = (layoutWidth * anchorBias).roundToInt() + anchorPlaceable.width / 2
-        val valueX = anchorRightEdge - valuePlaceable.width
-        val unitX = anchorRightEdge + spacingPx
-
-        layout(layoutWidth, layoutHeight) {
-            valuePlaceable.placeRelative(valueX, valueY)
-            unitPlaceable.placeRelative(unitX, unitY)
-        }
     }
 }

@@ -10,14 +10,15 @@ data class Coordinates(
     val longitude: Double,
     val altitude: Double = 0.0,
     val locationName: String? = null,
-    val timezoneId: String? = null
+    val timezoneId: String? = null,
+    val useHorizonDip: Boolean = false,
 ) {
-    // The raw angular dip of the horizon caused by observer altitude
+    // The raw angular dip of the horizon caused by observer altitude (controlled by AppSettings.useHorizonDip)
     val horizonDipDeg: Double
         get() {
-            return 0.0
-//            val elevation = max(0.0, this.altitude)
-//            return 0.032 * sqrt(elevation)
+            if (!useHorizonDip) return 0.0
+            val elevation = max(0.0, this.altitude)
+            return 0.032 * sqrt(elevation)
         }
 
     // The dynamic solar horizon (Sunrise/Sunset)

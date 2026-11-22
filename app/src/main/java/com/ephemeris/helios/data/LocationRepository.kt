@@ -6,6 +6,7 @@ import com.ephemeris.helios.utils.GpsEvent
 import com.ephemeris.helios.utils.LocationService
 import com.ephemeris.helios.utils.LocationStatus
 import com.ephemeris.helios.utils.datastore.LocationDataStore
+import com.ephemeris.helios.utils.datastore.SettingsDataStore
 import com.ephemeris.helios.utils.location.AltitudeCorrector
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.location.MapboxElevationEngine
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -29,6 +31,7 @@ import kotlinx.coroutines.launch
  */
 class LocationRepository(
     private val locationDataStore: LocationDataStore,
+    settingsDataStore: SettingsDataStore,
     private val geocodingEngine: NativeGeocodingEngine,
     private val locationService: LocationService,
     private val altitudeCorrector: AltitudeCorrector,
@@ -38,7 +41,12 @@ class LocationRepository(
     private val _isLoaded = MutableStateFlow(false)
     val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
 
-    val coordinates: StateFlow<Coordinates?> = locationDataStore.coordinatesFlow
+    val coordinates: StateFlow<Coordinates?> = combine(
+        locationDataStore.coordinatesFlow,
+        settingsDataStore.settingsFlow,
+    ) { coords, settings ->
+        coords?.copy(useHorizonDip = settings.useHorizonDip)
+    }
         .onEach { _isLoaded.value = true }
         .stateIn(
             scope = scope,
