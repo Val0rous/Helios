@@ -1,138 +1,286 @@
 package com.ephemeris.helios.ui.composables.cards
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLocale
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.charts.SolarDistanceBar
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
-import com.ephemeris.helios.ui.composables.entries.TextEntry
-import java.util.Locale
-import kotlin.math.roundToInt
-import androidx.compose.ui.platform.LocalLocale
-import com.ephemeris.helios.utils.printSignificant
+import com.ephemeris.helios.ui.composables.entries.MetricModePill
+import com.ephemeris.helios.ui.theme.HeliosTheme
+import com.ephemeris.helios.utils.calc.SolarEphemeris
+import com.ephemeris.helios.utils.datastore.DistanceUnit
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
+
+/**
+ * Returns `true` when [currentTime] falls within the exact 24-hour window (`±12h`)
+ * surrounding Earth's annual perihelion (strict local minimum of Earth–Sun distance).
+ */
+private fun isWithin24hOfPerihelion(au: Double, currentTime: ZonedDateTime): Boolean {
+    if (au >= 0.9845) return false
+    val decreasingBefore = SolarEphemeris.calculateDistanceAu(currentTime.minusHours(12).minusMinutes(15)) >=
+        SolarEphemeris.calculateDistanceAu(currentTime.minusHours(12).plusMinutes(15))
+    val increasingAfter = SolarEphemeris.calculateDistanceAu(currentTime.plusHours(12).minusMinutes(15)) <=
+        SolarEphemeris.calculateDistanceAu(currentTime.plusHours(12).plusMinutes(15))
+    return decreasingBefore && increasingAfter
+}
+
+/**
+ * Returns `true` when [currentTime] falls within the exact 24-hour window (`±12h`)
+ * surrounding Earth's annual aphelion (strict local maximum of Earth–Sun distance).
+ */
+private fun isWithin24hOfAphelion(au: Double, currentTime: ZonedDateTime): Boolean {
+    if (au <= 1.0155) return false
+    val increasingBefore = SolarEphemeris.calculateDistanceAu(currentTime.minusHours(12).minusMinutes(15)) <=
+        SolarEphemeris.calculateDistanceAu(currentTime.minusHours(12).plusMinutes(15))
+    val decreasingAfter = SolarEphemeris.calculateDistanceAu(currentTime.plusHours(12).minusMinutes(15)) >=
+        SolarEphemeris.calculateDistanceAu(currentTime.plusHours(12).plusMinutes(15))
+    return increasingBefore && decreasingAfter
+}
 
 @Composable
 fun SolarDistance(
     currentDistanceAu: Double,
     currentDistanceKm: Double,
     currentTime: ZonedDateTime,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    distanceUnit: DistanceUnit = DistanceUnit.AU,
+    onToggleUnit: () -> Unit = {},
 ) {
-//    // 1 AU is exactly 149,597,870.7 km
-//    val distanceKm = currentDistanceAu * 149597870.7
-
-    // Determine orbital momentum by combining actual distance with the calendar half.
-    // Perihelion is ~0.983 AU. Aphelion is ~1.017 AU.
+    val locale = LocalLocale.current.platformLocale
     val au = currentDistanceAu
-    val isOutbound = currentTime.dayOfYear < 184 // Roughly Jan 4 to July 4
 
-    // Scale split roughly into fifths (Total Range: ~0.983 to ~1.017)
-    // 1. Inner Fifth (< 0.990): Near Perihelion
-    // 2. Inner-Mid Fifth (0.990 - 0.997): Closer than average
-    // 3. Center Fifth (0.997 - 1.003): Mean Distance Zone
-    // 4. Outer-Mid Fifth (1.003 - 1.010): Further than average
-    // 5. Outer Fifth (> 1.010): Near Aphelion
+    // Exact 24h peak detection for Perihelion/Aphelion, with concise orbital proximity tiers
     val description = when {
-        au <= 0.985 -> "At Perihelion"                // The absolute minimums (~Jan 2-6)
-        au >= 1.015 -> "At Aphelion"                  // The absolute maximums (~July 2-6)
-        isOutbound -> when {
-            au < 0.990 -> "Departing Perihelion"      // Early Spring
-            au < 0.997 -> "Closer Than Average"       // Mid Spring
-            au <= 1.003 -> "Mean Distance (1 AU)"     // Exact Center (~April)
-            au < 1.010 -> "Further Than Average"      // Late Spring
-            else -> "Approaching Aphelion"            // Early Summer
-        }
-        else -> when {
-            au > 1.010 -> "Departing Aphelion"        // Early Autumn
-            au > 1.003 -> "Further Than Average"      // Mid Autumn
-            au >= 0.997 -> "Mean Distance (1 AU)"     // Exact Center (~October)
-            au > 0.990 -> "Closer Than Average"       // Late Autumn
-            else -> "Approaching Perihelion"          // Early Winter
-        }
+        isWithin24hOfPerihelion(au, currentTime) -> "Perihelion"
+        isWithin24hOfAphelion(au, currentTime) -> "Aphelion"
+        au < 0.9855 -> "Closest"
+        au < 0.992 -> "Very Close"
+        au < 0.998 -> "Closer"
+        au <= 1.002 -> "Average"
+        au < 1.008 -> "Further"
+        au <= 1.0145 -> "Very Far"
+        else -> "Furthest"
     }
 
+    // Both AU (e.g., "0.9885", "1.0167") and km (e.g., "147.95 mln", "152.09 mln") use 5 digits + dot
+    val formattedNumber = if (distanceUnit == DistanceUnit.AU) {
+        String.format(locale, "%.4f", currentDistanceAu)
+    } else {
+        String.format(locale, "%.2f", currentDistanceKm / 1_000_000.0)
+    }
+
+    /*
     // Calculate exact time it takes light to bridge this distance
     val lightSeconds = currentDistanceKm / 299792.458
     val minutes = (lightSeconds / 60).toInt()
     val seconds = (lightSeconds % 60).toInt()
+    */
 
-    Column(
+    Box(
         modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp)
+            .fillMaxSize()
+            .padding(horizontal = 14.dp, vertical = 14.dp),
     ) {
-        HeaderEntry(
-            text = "Distance from Sun",
-            icon = R.drawable.ic_orbit_filled // Use whichever orbit/distance icon you prefer
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter),
+        ) {
+            HeaderEntry(
+                text = stringResource(R.string.sun_distance),
+                icon = R.drawable.ic_orbit_filled,
+                horizontalAlignment = Alignment.CenterHorizontally,
+                iconSize = 20.dp,
+                textSize = 16.sp,
+                spacing = 8.dp,
+            )
+        }
 
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.CenterStart),
+        ) {
+            val valueStyle = MaterialTheme.typography.headlineMedium.copy(
+                fontSize = 28.sp,
+                lineHeight = 32.sp,
+                fontWeight = FontWeight.Black,
+                fontFeatureSettings = "tnum",
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+
+            Text(
+                text = buildAnnotatedString {
+                    append(formattedNumber)
+                    if (distanceUnit == DistanceUnit.KM) {
+                        withStyle(
+                            SpanStyle(
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
+                        ) {
+                            append(" mln")
+                        }
+                    }
+                },
+                style = valueStyle,
+                maxLines = 1,
+                softWrap = false,
+            )
+
+            /*
+            // Formats with commas (e.g., 149,597,870)
+            Text(
+                text = "${currentDistanceKm.printSignificant()} km",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            */
+
+            SolarDistanceBar(
+                distanceAu = currentDistanceAu.toFloat(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(20.dp),
+            )
+        }
+
+        // Description at bottom-left; unit toggle pill anchored to bottom-right so it expands leftward without shifting
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp),
+                .align(Alignment.BottomStart),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            // LEFT SIDE (Takes full width since there is no squircle)
-            Column(horizontalAlignment = Alignment.Start) {
-                // The new Momentum Description
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Row(verticalAlignment = Alignment.Bottom) {
-                    // AU measurement
-                    Text(
-                        text = String.format(LocalLocale.current.platformLocale, "%.5f", currentDistanceAu),
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Black
-                    )
-                    Text(
-                        text = "AU",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 0.dp, start = 8.dp)
-                    )
-                }
-                // Formats with commas (e.g., 149,597,870)
-                Text(
-                    text = "${currentDistanceKm.printSignificant()} km",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-//                Spacer(modifier = Modifier.height(4.dp))
-            }
+            Text(
+                text = description,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .padding(end = 4.dp),
+            )
+            MetricModePill(
+                label = distanceUnit.label,
+                onClick = onToggleUnit,
+            )
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // The horizontal line indicator component
-        SolarDistanceBar(
-            distanceAu = currentDistanceAu.toFloat(),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(24.dp)
-        )
-    }
-
-//    CustomHorizontalDivider()
-    Column(Modifier.padding(horizontal = 12.dp)) {
+        /*
         Text(
             text = "Light travels in ${minutes}m ${seconds}s",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        */
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SolarDistanceTilePreview() {
+    val perihelionTime = ZonedDateTime.of(2026, 1, 3, 17, 0, 0, 0, ZoneOffset.UTC)
+    val meanTime = ZonedDateTime.of(2026, 4, 3, 12, 0, 0, 0, ZoneOffset.UTC)
+    val aphelionTime = ZonedDateTime.of(2026, 7, 4, 12, 0, 0, 0, ZoneOffset.UTC)
+    val novTime = ZonedDateTime.of(2026, 11, 22, 12, 0, 0, 0, ZoneOffset.UTC)
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .background(Color(0xFFECEEF4))
+            .padding(16.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            HeliosTheme(darkTheme = false, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    SolarDistance(
+                        currentDistanceAu = 0.9833,
+                        currentDistanceKm = 147_100_000.0,
+                        currentTime = perihelionTime,
+                        distanceUnit = DistanceUnit.AU,
+                    )
+                }
+            }
+            HeliosTheme(darkTheme = false, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    SolarDistance(
+                        currentDistanceAu = 0.9890,
+                        currentDistanceKm = 147_950_000.0,
+                        currentTime = novTime,
+                        distanceUnit = DistanceUnit.KM,
+                    )
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            HeliosTheme(darkTheme = true, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    SolarDistance(
+                        currentDistanceAu = 1.0001,
+                        currentDistanceKm = 149_610_000.0,
+                        currentTime = meanTime,
+                        distanceUnit = DistanceUnit.AU,
+                    )
+                }
+            }
+            HeliosTheme(darkTheme = true, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    SolarDistance(
+                        currentDistanceAu = 1.0167,
+                        currentDistanceKm = 152_090_000.0,
+                        currentTime = aphelionTime,
+                        distanceUnit = DistanceUnit.KM,
+                    )
+                }
+            }
+        }
     }
 }

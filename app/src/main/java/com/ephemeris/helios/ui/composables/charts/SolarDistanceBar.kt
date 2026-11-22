@@ -10,89 +10,118 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.ephemeris.helios.R
 import com.ephemeris.helios.utils.Charts
 
 @Composable
 fun SolarDistanceBar(
     distanceAu: Float,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
 ) {
     val colorScheme = MaterialTheme.colorScheme
+    val isDarkSurface = colorScheme.surface.luminance() < 0.5f
 
-    // The Earth's exact orbital extremes
-    val minAu = 0.983f // Perihelion (Closest - Early January)
-    val maxAu = 1.017f // Aphelion (Furthest - Early July)
+    // Earth's orbital extremes (~1.0000 ± 0.0167 AU: perihelion to aphelion)
+    val minAu = 0.98329f
+    val maxAu = 1.01671f
     val rangeAu = maxAu - minAu
 
-    // Calculate fraction (0.0 = Near, 1.0 = Far)
+    // Position fraction (0.0 = Perihelion, 0.5 = Mean 1.0000 AU, 1.0 = Aphelion)
     val fraction = ((distanceAu - minAu) / rangeAu).coerceIn(0f, 1f)
 
-    // Orbital proximity colors
-    val nearColor = Color(0xFFFF8C00) // Fiery Orange (Close/Hot)
-    val farColor = Color(0xFF0288D1)  // Distant Blue (Far/Cool)
-
-    // The exact color of the thumb on the track
-    val activeColor = lerp(nearColor, farColor, fraction).copy(alpha = 1f)
-
-    val gradientBrush = Brush.horizontalGradient(
-        0.0f to nearColor,
-        1.0f to farColor
-    )
+    // Perihelion Red -> symmetric neutral mean zone -> Aphelion Blue
+    val nearColor = Color(0xFFD32F2F)
+    val farColor = Color(0xFF0288D1)
+    val neutralColor = lerp(colorScheme.surface, colorScheme.onSurfaceVariant, 0.34f)
 
     val sunIconDrawer = rememberChartIconDrawer(Charts.Sun.Daily.Elevation)
+    val earthPainter = painterResource(id = R.drawable.ic_public)
+    val oceanColor = if (isDarkSurface) Color(0xFF29B6F6) else Color(0xFF1E88E5)
+    val landColor = if (isDarkSurface) Color(0xFF66BB6A) else Color(0xFF43A047)
+    val rimColor = if (isDarkSurface) Color(0xFF4FC3F7) else Color(0xFF1565C0)
 
     Canvas(modifier = modifier.fillMaxSize()) {
         val trackHeight = 8.dp.toPx()
-        val thumbRadius = 8.dp.toPx()
+        val sunIconSize = 20.dp.toPx()
+        val sunGap = 8.dp.toPx()
+        val earthSize = 18.dp.toPx()
+        val thumbCutoutRadius = earthSize * 0.42f + 2.dp.toPx()
 
-        val iconSize = 20.dp.toPx()
-        val padding = 10.dp.toPx()
-        val trackTop = (size.height - trackHeight) / 2f
+        val centerY = size.height / 2f
+        val trackTop = centerY - trackHeight / 2f
+        val trackStart = sunIconSize + sunGap
+        val trackWidth = (size.width - trackStart).coerceAtLeast(0f)
 
-        val trackStart = iconSize + padding
-        val usableWidth = size.width - trackStart
+        // Bind gradient explicitly to [trackStart, size.width] so red and blue are 100% symmetrical
+        val gradientBrush = Brush.horizontalGradient(
+            0.00f to nearColor,
+            0.18f to lerp(nearColor, neutralColor, 0.35f),
+            0.38f to neutralColor,
+            0.62f to neutralColor,
+            0.82f to lerp(farColor, neutralColor, 0.35f),
+            1.00f to farColor,
+            startX = trackStart,
+            endX = size.width,
+        )
 
-        // Draw Sun Icon at the start (Perihelion side)
-        translate(left = 0f, top = (size.height - iconSize) / 2f) {
-            sunIconDrawer(iconSize, false)
+        // Draw Sun Icon at the left (Perihelion side)
+        translate(left = 0f, top = centerY - sunIconSize / 2f) {
+            sunIconDrawer(sunIconSize, false)
         }
 
-        // 1. Draw the Background Gradient Track
+        // 1. Draw the symmetric Red -> Neutral -> Blue Gradient Track
         drawRoundRect(
             brush = gradientBrush,
             topLeft = Offset(trackStart, trackTop),
-            size = Size(usableWidth, trackHeight),
-            cornerRadius = CornerRadius(trackHeight / 2f)
+            size = Size(trackWidth, trackHeight),
+            cornerRadius = CornerRadius(trackHeight / 2f),
         )
 
-        // 2. Draw the Indicator Thumb
-        val thumbX = trackStart + (usableWidth * fraction)
-        val thumbCenter = Offset(thumbX, size.height / 2f)
+        // 2. Draw the non-rotating Earth Indicator Thumb (inset so it never clips or hits the Sun)
+        val thumbTravel = (trackWidth - thumbCutoutRadius * 2f).coerceAtLeast(0f)
+        val thumbX = trackStart + thumbCutoutRadius + (thumbTravel * fraction)
+        val thumbCenter = Offset(thumbX, centerY)
 
-        // Opaque blocker to completely hide the gradient track underneath
-//        drawCircle(
-//            color = colorScheme.surface,
-//            radius = thumbRadius - 2.dp.toPx(),
-//            center = thumbCenter
-//        )
-
-        // Inner fill (Matches exact location color)
+        // Surface cutout ring so the track breaks cleanly around Earth
         drawCircle(
-            color = activeColor,
-            radius = thumbRadius - 2.dp.toPx(),
-            center = thumbCenter
-        )
-
-        // Outer ring
-        drawCircle(
-            color = colorScheme.onSurface.copy(alpha = 0.9f),
-            radius = thumbRadius - 1.dp.toPx(),
+            color = colorScheme.surface,
+            radius = thumbCutoutRadius,
             center = thumbCenter,
-            style = Stroke(width = 2.dp.toPx())
+        )
+
+        // Ocean fill behind continents
+        drawCircle(
+            color = oceanColor,
+            radius = earthSize * 0.39f,
+            center = thumbCenter,
+        )
+
+        // Upright (non-rotating) Earth continents via ic_public
+        translate(
+            left = thumbCenter.x - earthSize / 2f,
+            top = thumbCenter.y - earthSize / 2f,
+        ) {
+            with(earthPainter) {
+                draw(
+                    size = Size(earthSize, earthSize),
+                    colorFilter = ColorFilter.tint(landColor),
+                )
+            }
+        }
+
+        // Crisp blue globe rim over ic_public's circular outline
+        drawCircle(
+            color = rimColor,
+            radius = earthSize * 0.375f,
+            center = thumbCenter,
+            style = Stroke(width = earthSize * 0.09f),
         )
     }
 }

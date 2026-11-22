@@ -122,7 +122,7 @@ fun getMaxY(yValues: FloatArray, chartType: Charts): Float {
         return max(50f, 5f * minPositive).coerceAtMost(maxShadow)
     }
     if (className.contains("ColorTemperature")) {
-        val floorMax = if (chartType == Charts.Moon.Daily.ColorTemperature) 4500f else 5500f
+        val floorMax = if (chartType == Charts.Moon.Daily.ColorTemperature) 8000f else 5500f
         val minY = 1800f
         return max(floorMax, minY + (maxY - minY) * LINEAR_HEADROOM_FACTOR)
     }

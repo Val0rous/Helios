@@ -50,15 +50,30 @@ fun getColorTemperatureBrushGradient(
     colors: CustomColorScheme
 ): Brush {
     val fills = colors.fills
+    val coolMoonFill = lerp(colors.ct5500, colors.moonPath, 0.45f).copy(alpha = fills.ct5500.alpha)
     return if (!isGradientHorizontal) {
-        Brush.verticalGradient(
-            0.0f to fills.ct5500,
-            ((5500f - 4000f) / 3500f) to fills.ct4000, // ~0.42f
-            ((5500f - 3000f) / 3500f) to fills.ct3000, // ~0.71f
-            1.0f to fills.ct2000,
-            startY = mapY(5500f),
-            endY = mapY(2000f)
-        )
+        if (params.maxY > 6000f) {
+            val topK = max(8000f, params.maxY)
+            val span = (topK - 2000f).coerceAtLeast(1f)
+            Brush.verticalGradient(
+                0.0f to coolMoonFill,
+                ((topK - 5500f) / span) to fills.ct5500,
+                ((topK - 4000f) / span) to fills.ct4000,
+                ((topK - 3000f) / span) to fills.ct3000,
+                1.0f to fills.ct2000,
+                startY = mapY(topK),
+                endY = mapY(2000f)
+            )
+        } else {
+            Brush.verticalGradient(
+                0.0f to fills.ct5500,
+                ((5500f - 4000f) / 3500f) to fills.ct4000, // ~0.42f
+                ((5500f - 3000f) / 3500f) to fills.ct3000, // ~0.71f
+                1.0f to fills.ct2000,
+                startY = mapY(5500f),
+                endY = mapY(2000f)
+            )
+        }
     } else {
         // Helper to interpolate exact Kelvin to our defined colors
         fun getCtColor(temp: Float): Color {
@@ -66,8 +81,9 @@ fun getColorTemperatureBrushGradient(
                 temp <= 2000f -> fills.ct2000
                 temp <= 3000f -> lerp(fills.ct2000, fills.ct3000, (temp - 2000f) / 1000f)
                 temp <= 4000f -> lerp(fills.ct3000, fills.ct4000, (temp - 3000f) / 1000f)
-                temp < 5500f -> lerp(fills.ct4000, fills.ct5500, (temp - 4000f) / 1500f)
-                else -> fills.ct5500
+                temp <= 5500f -> lerp(fills.ct4000, fills.ct5500, (temp - 4000f) / 1500f)
+                temp < 8000f -> lerp(fills.ct5500, coolMoonFill, (temp - 5500f) / 2500f)
+                else -> coolMoonFill
             }
         }
 

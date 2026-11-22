@@ -73,14 +73,16 @@ fun DrawScope.drawMoonPhaseIcon(
     backgroundColor: Color = Color.Transparent,
     isDimmed: Boolean = false,
     reusablePath: Path = Path(),
+    outerRadiusRatio: Float = 10f / 24f,
+    strokeWidthPx: Float = iconSize * (1.75f / 24f),
 ) {
     val cx = iconSize / 2f
     val cy = iconSize / 2f
     val center = Offset(cx, cy)
 
-    // Match Material 24dp icon optical disc diameter (20dp / 24dp) and Sun border stroke weight
-    val outerRadius = iconSize * (10f / 24f)
-    val strokeWidth = iconSize * (1.75f / 24f)
+    // Default matches Material 24dp icon optical disc diameter (20dp / 24dp) and Sun border stroke weight
+    val outerRadius = iconSize * outerRadiusRatio
+    val strokeWidth = strokeWidthPx
     val radius = (outerRadius - (strokeWidth / 2f)).coerceAtLeast(0.5f)
 
     val effectiveFill = if (isDimmed) fillColor.copy(alpha = ChartAlphas.ICON_BELOW_HORIZON) else fillColor

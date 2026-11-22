@@ -241,6 +241,30 @@ object LunarEphemeris {
     }
 
     /**
+     * Lightweight Earth–Moon geocentric distance evaluation in kilometers for a given instant.
+     */
+    fun calculateDistanceKm(time: ZonedDateTime): Double {
+        val decimalHour = time.hour + (time.minute / 60.0) + (time.second / 3600.0)
+        val tzOffsetHours = time.offset.totalSeconds / 3600.0
+        val t = calculateJulianCentury(time.year, time.monthValue, time.dayOfMonth, decimalHour, tzOffsetHours)
+
+        val d = (297.8501921 + 445267.1114034 * t) % 360.0
+        val m = (357.5291092 + 35999.0502909 * t) % 360.0
+        val mPrime = (134.9633964 + 477198.8675055 * t) % 360.0
+        val f = (93.2720950 + 483202.0175233 * t) % 360.0
+
+        var sumR = 0.0
+        for (term in LUNAR_LONGITUDE_TERMS) {
+            val distAmp = term[5]
+            if (distAmp != 0.0) {
+                val angleRad = Math.toRadians(term[0] * d + term[1] * m + term[2] * mPrime + term[3] * f)
+                sumR += distAmp * cos(angleRad)
+            }
+        }
+        return 385000.56 + (sumR / 1000.0)
+    }
+
+    /**
      * Precomputed 24-hour lunar ephemeris model for a single date & observer location.
      *
      * Because geocentric lunar equatorial coordinates (RA, Dec, Distance) vary smoothly over a day

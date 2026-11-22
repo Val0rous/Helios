@@ -158,11 +158,15 @@ fun Sun(
         item {
             SmallCardRow(
                 disableInnerHorizontalPadding = true,
+                leftFullBleed = true,
+                forceSquare = true,
                 leftCard = {
                     SolarDistance(
                         currentDistanceAu = sun.position.distanceAu,
                         currentDistanceKm = sun.metrics.distanceKm,
-                        currentTime = ui.currentTime
+                        currentTime = ui.currentTime,
+                        distanceUnit = ui.distanceUnit,
+                        onToggleUnit = viewModel::toggleDistanceUnit,
                     )
                 },
                 rightCard = {
@@ -175,6 +179,8 @@ fun Sun(
         item {
             SmallCardRow(
                 disableInnerHorizontalPadding = true,
+                rightFullBleed = true,
+                forceSquare = true,
                 leftCard = {
                     Declination(
                         currentDeclinationDeg = sun.position.declination,

@@ -428,6 +428,17 @@ object SolarEphemeris {
         return SolarParams(declinationRad, eotMinutes, distanceAu)
     }
 
+    /**
+     * Lightweight Earth–Sun radius vector evaluation in Astronomical Units (AU) for a given instant.
+     */
+    fun calculateDistanceAu(time: ZonedDateTime): Double {
+        val date = time.toLocalDate()
+        val decimalHour = time.hour + time.minute / 60.0 + time.second / 3600.0
+        val tzOffsetHours = time.offset.totalSeconds / 3600.0
+        val t = calculateJulianCentury(date, decimalHour, tzOffsetHours)
+        return calculateSolarParams(t).distanceAu
+    }
+
     // --- Extracted continuous math helpers for clean code ---
 
     private fun calculateGamma(dayOfYear: Int, hour: Double): Double {

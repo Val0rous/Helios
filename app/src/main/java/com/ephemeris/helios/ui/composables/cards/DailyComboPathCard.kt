@@ -4,17 +4,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,6 +40,7 @@ import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.round
 import java.time.ZonedDateTime
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun DailyComboPathCard(
     currentTime: ZonedDateTime,
@@ -68,22 +72,28 @@ fun DailyComboPathCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column() {
+            val charts = when (type) {
+                is Charts.Sun -> Charts.Sun.Daily.entries
+                is Charts.Moon -> Charts.Moon.Daily.entries
+                is Charts.SunMoonCombo -> Charts.SunMoonCombo.Daily.entries
+                else -> Charts.Moon.Daily.entries // Todo: Charts.Planets.Daily.entries, keeping Moon for now to be able to compile
+            }
             LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 8.dp)
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
             ) {
-                val charts = when (type) {
-                    is Charts.Sun -> Charts.Sun.Daily.entries
-                    is Charts.Moon -> Charts.Moon.Daily.entries
-                    is Charts.SunMoonCombo -> Charts.SunMoonCombo.Daily.entries
-                    else -> Charts.Moon.Daily.entries // Todo: Charts.Planets.Daily.entries, keeping Moon for now to be able to compile
-                }
-                items(charts) { type ->
+                itemsIndexed(charts) { index, chart ->
+                    val shapes = when (index) {
+                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                        charts.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                    }
                     ChartSelectorChip(
-                        chartType = type,
-                        isSelected = type == selectedChartType,
-                        onSelectedChartTypeChange = { selectedChartType = it }
+                        chartType = chart,
+                        isSelected = chart == selectedChartType,
+                        onSelectedChartTypeChange = { selectedChartType = it },
+                        shapes = shapes,
                     )
                 }
             }

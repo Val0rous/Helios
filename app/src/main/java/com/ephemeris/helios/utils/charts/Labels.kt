@@ -93,7 +93,10 @@ fun Density.prepareYLabels(
             ticks.filter { it <= params.maxY }
         }
         className.contains("AirMass") -> listOf(0f, 0.5f, 1f, 2f, 5f, 10f, 20f, 50f, 100f).filter { it <= params.maxY }
-        className.contains("ColorTemperature") -> (2000..(params.maxY + 1e-3f).toInt() step 500).map { it.toFloat() }
+        className.contains("ColorTemperature") -> {
+            val step = if (params.maxY > 6000f) 1000 else 500
+            (2000..(params.maxY + 1e-3f).toInt() step step).map { it.toFloat() }
+        }
         else -> emptyList()
     }
 

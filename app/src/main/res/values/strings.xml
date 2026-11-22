@@ -17,6 +17,11 @@
     <string name="color_temp">Color Temp.</string>
     <string name="color_temperature">Color Temperature</string>
     <string name="air_mass">Air Mass</string>
+    <string name="sun_distance">Sun Distance</string>
+    <string name="moon_distance">Moon Distance</string>
+    <string name="illumination">Illumination</string>
+    <string name="eq_of_time">Eq. of Time</string>
+    <string name="equation_of_time">Equation of Time</string>
 
     <string name="sunrise_sunset">Sunrise &amp; Sunset</string>
     <string name="sunrise">Sunrise</string>

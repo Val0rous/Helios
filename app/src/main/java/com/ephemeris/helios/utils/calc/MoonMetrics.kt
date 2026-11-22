@@ -1,7 +1,7 @@
 package com.ephemeris.helios.utils.calc
 
-import com.ephemeris.helios.utils.datastore.IlluminanceMode
 import com.ephemeris.helios.utils.datastore.MoonColorTempMode
+import com.ephemeris.helios.utils.datastore.MoonIlluminanceMode
 import com.ephemeris.helios.utils.location.Coordinates
 import java.time.LocalDate
 import java.time.ZonedDateTime
@@ -14,7 +14,6 @@ object MoonMetrics {
     private const val AIR_MASS_AT_ZERO = 1.0 / (0.50572 * 0.0521265083015075) // 6.07995^-1.6364 ≈ 0.0521265 -> AM ≈ 37.92
     // Clear-sky scattered horizon fraction matching SunMetrics (~0.28% of exo-atmospheric flux at 0°)
     private const val TWILIGHT_HORIZON_SCATTER_RATIO = 0.00282
-    private const val NAUTICAL_TWILIGHT_DEG = -12.0
     private const val ASTRONOMICAL_TWILIGHT_DEG = -18.0
 
     enum class LunarPhase(val displayName: String) {
@@ -48,24 +47,17 @@ object MoonMetrics {
         val airMass: Double,
         /** Physical direct lunar beam color temperature (K). */
         val colorTempKelvin: Double,
-        /** Physical global horizontal moonlight color temperature (K): mired-weighted direct + lunar sky. */
-        val globalColorTempKelvin: Double = colorTempKelvin,
-        /** Physical diffuse / ambient Rayleigh-scattered lunar skylight color temperature (K). */
-        val diffuseColorTempKelvin: Double = Double.NaN,
         /** Human dark-adapted perceived moonlight color temperature (K, Purkinje shift). */
         val perceivedColorTempKelvin: Double,
     ) {
-        fun illuminanceFor(mode: IlluminanceMode): Double = when (mode) {
-            IlluminanceMode.GLOBAL -> globalIlluminanceLux
-            IlluminanceMode.DIRECT -> directIlluminanceLux
-            IlluminanceMode.DIFFUSE -> diffuseIlluminanceLux
+        fun illuminanceFor(mode: MoonIlluminanceMode): Double = when (mode) {
+            MoonIlluminanceMode.GLOBAL -> globalIlluminanceLux
+            MoonIlluminanceMode.DIRECT -> directIlluminanceLux
         }
 
         fun colorTempFor(mode: MoonColorTempMode): Double = when (mode) {
-            MoonColorTempMode.DIRECT -> colorTempKelvin
-            MoonColorTempMode.GLOBAL -> globalColorTempKelvin
-            MoonColorTempMode.DIFFUSE -> diffuseColorTempKelvin
             MoonColorTempMode.PURKINJE -> perceivedColorTempKelvin
+            MoonColorTempMode.DIRECT -> colorTempKelvin
         }
     }
 
@@ -245,26 +237,11 @@ object MoonMetrics {
         return 1800.0 + 2300.0 * exp(-0.1 * (actualAirMass - 1.0))
     }
 
-    private fun computeDiffuseColorTempKelvin(
-        moonElevDeg: Double,
-        amElevationModifier: Double,
-        diffuseLux: Double,
-    ): Double {
-        if (moonElevDeg <= NAUTICAL_TWILIGHT_DEG || diffuseLux <= 0.0) return Double.NaN
-        // Rayleigh-scattered lunar skylight shifted from 4100K regolith sunlight (~6,200 K -> ~8,200 K)
-        // plus ozone Chappuis twilight shift around -4.5° (~9,000 K).
-        val posSinElev = max(0.0, sin(Math.toRadians(moonElevDeg)))
-        val baseSkyK = 6200.0 + 2000.0 * posSinElev.pow(0.6)
-        val twilightShift = 2800.0 * exp(-((moonElevDeg + 4.5) / 3.5).pow(2))
-        val altitudeClarityFactor = 1.0 + 0.12 * (1.0 - amElevationModifier)
-        return (baseSkyK + twilightShift) * altitudeClarityFactor
-    }
-
     /**
      * Estimates human-perceived moonlight color temperature accounting for the Purkinje effect
      * (CIE 191:2010 mesopic-to-scotopic rod dominance blended in perceptually uniform mireds).
      *
-     * Direct moonlight is physically ~4100K at zenith, yet appears cool silvery-blue (~6900K–8000K)
+     * Direct moonlight is physically ~4100K at zenith, yet appears cool silvery-blue (~7000K–8000K)
      * to dark-adapted eyes because rods peak near 498 nm. Near the horizon, Rayleigh scattering
      * removes blue-green wavelengths so rising/setting Moons retain their warm amber/orange hue.
      */
@@ -274,11 +251,12 @@ object MoonMetrics {
     ): Double {
         if (physicalColorTempKelvin.isNaN() || illuminanceLux <= 0.0) return Double.NaN
 
-        // Convert horizontal illuminance (lx) to typical landscape luminance (cd/m², 18% reflectance)
-        // and map across the CIE mesopic transition range [0.005 cd/m² (scotopic), 5.0 cd/m² (photopic)]
+        // Convert horizontal illuminance (lx) to typical landscape luminance (cd/m², 18% reflectance).
+        // Use a smooth Hill/sigmoid rod-dominance curve across the mesopic range (half-saturation at
+        // 0.16 cd/m², the geometric midpoint of CIE 191's [0.005, 5.0] cd/m² bounds) so there are
+        // no hard-clamp corners or artificial plateaus on bright Full Moon nights.
         val landscapeLuminance = illuminanceLux * (0.18 / PI)
-        val clampedLuminance = landscapeLuminance.coerceIn(0.005, 5.0)
-        val rodFactor = ((log10(5.0) - log10(clampedLuminance)) / 3.0).coerceIn(0.0, 1.0)
+        val rodFactor = 1.0 / (1.0 + (landscapeLuminance / 0.16).pow(0.75))
 
         // Short-wavelength availability for rod stimulation (drops sharply near the horizon)
         val normalizedBlue = ((physicalColorTempKelvin - 1800.0) / 2300.0).coerceIn(0.0, 1.0)
@@ -341,7 +319,6 @@ object MoonMetrics {
         var actualAirMass = 0.0
         var shadowRatio = 0.0
         var colorTempKelvin = Double.NaN
-        var globalColorTempKelvin = Double.NaN
         var perceivedColorTempKelvin = Double.NaN
 
         val isAboveHorizon = position.altitude > coordinates.moonApparentHorizonAlt
@@ -358,12 +335,6 @@ object MoonMetrics {
             amElevationModifier = amElevationModifier,
         )
 
-        val diffuseColorTempKelvin = computeDiffuseColorTempKelvin(
-            moonElevDeg = position.altitude,
-            amElevationModifier = amElevationModifier,
-            diffuseLux = illuminance.diffuseLux,
-        )
-
         if (isAboveHorizon) {
             shadowRatio = computeShadowRatio(
                 geometricAltDeg = position.altitude,
@@ -372,19 +343,6 @@ object MoonMetrics {
             )
             colorTempKelvin = computeColorTempKelvin(actualAirMass)
             perceivedColorTempKelvin = computePerceivedColorTempKelvin(colorTempKelvin, illuminance.globalLux)
-
-            val directHorizontalLux = max(0.0, illuminance.globalLux - illuminance.diffuseLux)
-            globalColorTempKelvin = if (illuminance.globalLux > 0.0 && !diffuseColorTempKelvin.isNaN()) {
-                val directWeight = directHorizontalLux / illuminance.globalLux
-                val diffuseWeight = illuminance.diffuseLux / illuminance.globalLux
-                val mixedMired = directWeight * (1_000_000.0 / colorTempKelvin) +
-                    diffuseWeight * (1_000_000.0 / diffuseColorTempKelvin)
-                1_000_000.0 / mixedMired
-            } else {
-                colorTempKelvin
-            }
-        } else {
-            globalColorTempKelvin = diffuseColorTempKelvin
         }
 
         return LunarMetricsResult(
@@ -402,8 +360,6 @@ object MoonMetrics {
             shadowRatio = shadowRatio,
             airMass = actualAirMass,
             colorTempKelvin = colorTempKelvin,
-            globalColorTempKelvin = globalColorTempKelvin,
-            diffuseColorTempKelvin = diffuseColorTempKelvin,
             perceivedColorTempKelvin = perceivedColorTempKelvin,
         )
     }
@@ -484,7 +440,8 @@ object MoonMetrics {
                 semiDiameterDeg = MOON_SEMI_DIAMETER_DEG,
             ).toFloat()
 
-            outColorTemp[i] = computeColorTempKelvin(actualAirMass).toFloat()
+            val physicalColorTemp = computeColorTempKelvin(actualAirMass)
+            outColorTemp[i] = computePerceivedColorTempKelvin(physicalColorTemp, illuminance.globalLux).toFloat()
         }
     }
 

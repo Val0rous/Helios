@@ -33,6 +33,23 @@ enum class IlluminanceMode(val label: String) {
     }
 }
 
+enum class MoonIlluminanceMode(val label: String) {
+    GLOBAL("Global"),
+    DIRECT("Direct");
+
+    fun next(): MoonIlluminanceMode = entries[(ordinal + 1) % entries.size]
+
+    fun toIlluminanceMode(): IlluminanceMode = when (this) {
+        GLOBAL -> IlluminanceMode.GLOBAL
+        DIRECT -> IlluminanceMode.DIRECT
+    }
+
+    companion object {
+        fun fromName(name: String?): MoonIlluminanceMode =
+            entries.firstOrNull { it.name == name } ?: GLOBAL
+    }
+}
+
 enum class ColorTempMode(val label: String) {
     DIRECT("Direct"),
     GLOBAL("Global"),
@@ -47,10 +64,8 @@ enum class ColorTempMode(val label: String) {
 }
 
 enum class MoonColorTempMode(val label: String) {
-    DIRECT("Direct"),
-    GLOBAL("Global"),
-    DIFFUSE("Ambient"),
-    PURKINJE("Purkinje");
+    PURKINJE("Purkinje"),
+    DIRECT("Direct");
 
     fun next(): MoonColorTempMode = entries[(ordinal + 1) % entries.size]
 
@@ -58,8 +73,20 @@ enum class MoonColorTempMode(val label: String) {
         fun fromName(name: String?): MoonColorTempMode = when (name) {
             "PHYSICAL" -> DIRECT
             "PERCEIVED" -> PURKINJE
-            else -> entries.firstOrNull { it.name == name } ?: DIRECT
+            else -> entries.firstOrNull { it.name == name } ?: PURKINJE
         }
+    }
+}
+
+enum class DistanceUnit(val label: String) {
+    AU("AU"),
+    KM("km");
+
+    fun next(): DistanceUnit = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        fun fromName(name: String?): DistanceUnit =
+            entries.firstOrNull { it.name == name } ?: AU
     }
 }
 
@@ -72,16 +99,18 @@ enum class MoonColorTempMode(val label: String) {
  * @property irradianceMode Selected display mode for the Sun Irradiance card (defaults to [IrradianceMode.DIRECT]).
  * @property illuminanceMode Selected display mode for the Sun Illuminance card (defaults to [IlluminanceMode.GLOBAL]).
  * @property colorTempMode Selected display mode for the Sun Color Temp card (defaults to [ColorTempMode.DIRECT]).
- * @property moonIlluminanceMode Selected display mode for the Moon Illuminance card (defaults to [IlluminanceMode.GLOBAL]).
- * @property moonColorTempMode Selected display mode for the Moon Color Temp card (defaults to [MoonColorTempMode.DIRECT]).
+ * @property moonIlluminanceMode Selected display mode for the Moon Illuminance card (defaults to [MoonIlluminanceMode.GLOBAL]).
+ * @property moonColorTempMode Selected display mode for the Moon Color Temp card (defaults to [MoonColorTempMode.PURKINJE]).
+ * @property distanceUnit Selected display unit for the Sun Distance card (defaults to [DistanceUnit.AU]).
  */
 data class AppSettings(
     val useHorizonDip: Boolean = false,
     val irradianceMode: IrradianceMode = IrradianceMode.DIRECT,
     val illuminanceMode: IlluminanceMode = IlluminanceMode.GLOBAL,
     val colorTempMode: ColorTempMode = ColorTempMode.DIRECT,
-    val moonIlluminanceMode: IlluminanceMode = IlluminanceMode.GLOBAL,
-    val moonColorTempMode: MoonColorTempMode = MoonColorTempMode.DIRECT,
+    val moonIlluminanceMode: MoonIlluminanceMode = MoonIlluminanceMode.GLOBAL,
+    val moonColorTempMode: MoonColorTempMode = MoonColorTempMode.PURKINJE,
+    val distanceUnit: DistanceUnit = DistanceUnit.AU,
 )
 
 /**
@@ -95,6 +124,7 @@ class SettingsDataStore(private val context: Context) {
     private val colorTempModeKey = stringPreferencesKey("color_temp_mode")
     private val moonIlluminanceModeKey = stringPreferencesKey("moon_illuminance_mode")
     private val moonColorTempModeKey = stringPreferencesKey("moon_color_temp_mode")
+    private val distanceUnitKey = stringPreferencesKey("distance_unit")
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data
         .map { preferences ->
@@ -103,8 +133,9 @@ class SettingsDataStore(private val context: Context) {
                 irradianceMode = IrradianceMode.fromName(preferences[irradianceModeKey]),
                 illuminanceMode = IlluminanceMode.fromName(preferences[illuminanceModeKey]),
                 colorTempMode = ColorTempMode.fromName(preferences[colorTempModeKey]),
-                moonIlluminanceMode = IlluminanceMode.fromName(preferences[moonIlluminanceModeKey]),
+                moonIlluminanceMode = MoonIlluminanceMode.fromName(preferences[moonIlluminanceModeKey]),
                 moonColorTempMode = MoonColorTempMode.fromName(preferences[moonColorTempModeKey]),
+                distanceUnit = DistanceUnit.fromName(preferences[distanceUnitKey]),
             )
         }
 
@@ -132,7 +163,7 @@ class SettingsDataStore(private val context: Context) {
         }
     }
 
-    suspend fun setMoonIlluminanceMode(mode: IlluminanceMode) {
+    suspend fun setMoonIlluminanceMode(mode: MoonIlluminanceMode) {
         context.dataStore.edit { preferences ->
             preferences[moonIlluminanceModeKey] = mode.name
         }
@@ -141,6 +172,12 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setMoonColorTempMode(mode: MoonColorTempMode) {
         context.dataStore.edit { preferences ->
             preferences[moonColorTempModeKey] = mode.name
+        }
+    }
+
+    suspend fun setDistanceUnit(unit: DistanceUnit) {
+        context.dataStore.edit { preferences ->
+            preferences[distanceUnitKey] = unit.name
         }
     }
 }

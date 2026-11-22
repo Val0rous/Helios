@@ -14,6 +14,8 @@ import com.ephemeris.helios.ui.composables.cards.AirMass
 import com.ephemeris.helios.ui.composables.cards.ColorTemperature
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.Illuminance
+import com.ephemeris.helios.ui.composables.cards.LunarDistance
+import com.ephemeris.helios.ui.composables.cards.LunarIllumination
 import com.ephemeris.helios.ui.composables.cards.ShadowRatio
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
@@ -33,6 +35,7 @@ fun Moon(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val ui = state ?: return
     val moon = ui.moon
+    val moonPhase = MoonPhaseAppearance.from(moon.metrics, ui.coordinates)
 
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -49,7 +52,7 @@ fun Moon(
                 phase = moon.phase,
                 type = Charts.Moon.Daily.Elevation,
                 chartArrays = moon.chartArrays,
-                moonPhase = MoonPhaseAppearance.from(moon.metrics, ui.coordinates),
+                moonPhase = moonPhase,
             )
         }
         item {
@@ -68,7 +71,33 @@ fun Moon(
                         culminationAzimuth = moon.events.culminationAzimuth!!.round(),
                         culminationAltitude = moon.events.culminationAltitude!!.round()
                     )
-                }
+                },
+                onRightClick = if (moon.events.culmination != null) viewModel::jumpToCulmination else null,
+            )
+        }
+        item {
+            SmallCardRow(
+                disableInnerHorizontalPadding = true,
+                leftCircular = true,
+                rightFullBleed = true,
+                forceSquare = true,
+                leftCard = {
+                    LunarIllumination(
+                        illuminationPercent = moon.metrics.illuminationPercent,
+                        phase = moon.metrics.phase,
+                        ageDays = moon.metrics.ageDays,
+                        moonPhase = moonPhase,
+                    )
+                },
+                rightCard = {
+                    LunarDistance(
+                        currentDistanceKm = moon.metrics.distanceKm,
+                        currentTime = ui.currentTime,
+                        illuminationPercent = moon.metrics.illuminationPercent,
+                        phase = moon.metrics.phase,
+                        moonPhase = moonPhase,
+                    )
+                },
             )
         }
         item {
@@ -80,7 +109,7 @@ fun Moon(
                     Illuminance(
                         currentIlluminance = moon.metrics.illuminanceFor(ui.illuminanceMode),
                         peakIlluminance = 0.0,
-                        mode = ui.illuminanceMode,
+                        mode = ui.illuminanceMode.toIlluminanceMode(),
                         onToggleMode = viewModel::cycleIlluminanceMode,
                         isLunar = true,
                     )
@@ -95,10 +124,8 @@ fun Moon(
         }
         item {
             val (ctMinK, ctMaxK) = when (ui.colorTempMode) {
-                MoonColorTempMode.DIRECT -> 1800f to 4500f
-                MoonColorTempMode.GLOBAL -> 1800f to 10000f
-                MoonColorTempMode.DIFFUSE -> 5500f to 10000f
                 MoonColorTempMode.PURKINJE -> 1800f to 8000f
+                MoonColorTempMode.DIRECT -> 1800f to 4500f
             }
             SmallCardRow(
                 disableInnerHorizontalPadding = true,

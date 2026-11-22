@@ -26,12 +26,13 @@ internal fun SmallCard(
     isCircular: Boolean = false,
     fullBleed: Boolean = false,
     fillHeight: Boolean = true,
+    forceSquare: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
     val paddingValue = if (modifier == Modifier) 16.dp else 8.dp
     val horizontalPadding = if (disableInnerHorizontalPadding) 0.dp else 12.dp
     val useBoxLayout = isCircular || fullBleed
-    val useSquareAspect = isCircular || (fullBleed && !fillHeight)
+    val useSquareAspect = isCircular || forceSquare || (fullBleed && !fillHeight)
     val resolvedShape = if (isCircular) CircleShape else shape
     val cardModifier = modifier
         .fillMaxWidth()

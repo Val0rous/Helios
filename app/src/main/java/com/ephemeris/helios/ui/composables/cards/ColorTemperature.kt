@@ -18,7 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Brush
+// import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
@@ -60,8 +60,11 @@ fun ColorTemperature(
         colorForKelvin(tempF, customColors)
     }
 
-    // 2. Representative all-card glow tinted by the active color temperature
+    // 2. Flat Material-compliant tonal tint derived from the active color temperature
     val glowModifier = if (!isNight) {
+        val tintAlpha = if (isDarkSurface) 0.22f else 0.28f
+        Modifier.background(activeColor.copy(alpha = tintAlpha))
+        /*
         val topAlpha = if (isDarkSurface) 0.24f else 0.30f
         val bottomAlpha = if (isDarkSurface) 0.46f else 0.62f
         Modifier.background(
@@ -72,6 +75,7 @@ fun ColorTemperature(
                 ),
             ),
         )
+        */
     } else {
         Modifier
     }
