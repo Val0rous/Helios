@@ -1,40 +1,52 @@
 package com.ephemeris.helios.ui.composables.cards
 
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
-import com.ephemeris.helios.ui.composables.charts.UvDial
+import com.ephemeris.helios.ui.composables.charts.DecalobeShape
+import com.ephemeris.helios.ui.composables.charts.UvCircleIndicator
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
-import com.ephemeris.helios.ui.composables.entries.TextEntry
-import com.ephemeris.helios.ui.composables.entries.TextEntryVariant
+import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.ui.theme.LocalCustomColors
-import com.ephemeris.helios.utils.printRounded
 import com.ephemeris.helios.utils.round
-import kotlin.math.roundToInt
 
 @Composable
 fun UvIntensity(
     currentUvIntensity: Double,
-    peakUvIntensity: Double
+    @Suppress("UNUSED_PARAMETER") peakUvIntensity: Double,
+    modifier: Modifier = Modifier,
 ) {
+    val locale = LocalLocale.current.platformLocale
     val uvFloat = currentUvIntensity.round(1).toFloat()
+    val isZero = uvFloat < 0.05f
 
     // Standard WHO text descriptions
     val description = when {
-        uvFloat < 0.01f -> "None"
+        isZero -> "None"
         uvFloat < 3f -> "Low"
         uvFloat < 6f -> "Moderate"
         uvFloat < 8f -> "High"
@@ -42,106 +54,123 @@ fun UvIntensity(
         else -> "Extreme"
     }
 
-    val isLightMode = !isSystemInDarkTheme()
-    val colors = LocalCustomColors.current
-    // 2. Exact Color Map pulled directly from UVSlicing.kt
-    // Leaving native alphas untouched per your request!
+    // Discrete vertical fill color shared with the UV chart slices, capped at standard metric
+    // opacity in dark mode so foreground text on the tile stays high-contrast while the chart pops.
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val isDarkSurface = surfaceColor.luminance() < 0.5f
+    val fills = LocalCustomColors.current.fills
     val rawFillColor = when {
-        currentUvIntensity < 0.01f -> MaterialTheme.colorScheme.onSurfaceVariant // Nighttime/Zero UV
-        currentUvIntensity < 2f -> colors.uvDarkGreen
-        currentUvIntensity < 3f -> colors.uvGreen
-        currentUvIntensity < 5f -> colors.uvYellow
-        currentUvIntensity < 6f -> colors.uvAmber
-        currentUvIntensity < 8f -> colors.uvOrange
-        currentUvIntensity < 10f -> colors.uvRed
-        currentUvIntensity < 11f -> colors.uvDarkRed
-        else -> colors.uvPurple
+        isZero -> Color.Transparent
+        uvFloat < 2f -> fills.uvDarkGreen
+        uvFloat < 3f -> fills.uvGreen
+        uvFloat < 5f -> fills.uvYellow
+        uvFloat < 6f -> fills.uvAmber
+        uvFloat < 8f -> fills.uvOrange
+        uvFloat < 10f -> fills.uvRed
+        uvFloat < 11f -> fills.uvDarkRed
+        else -> fills.uvPurple
+    }
+    val fillColor = if (isDarkSurface && rawFillColor != Color.Transparent) {
+        rawFillColor.copy(alpha = 0.45f)
+    } else {
+        rawFillColor
     }
 
-    // --- ACCESSIBILITY TRANSFORM ---
-    // If we are in light mode, check the mathematical brightness of the hue.
-    // Yellows/Greens trigger this and get darkened by 25%. Reds/Purples ignore it!
-    val fillColor = if (isLightMode && rawFillColor.luminance() > 0.4f) {
-        Color(
-            red = rawFillColor.red * 0.75f,
-            green = rawFillColor.green * 0.75f,
-            blue = rawFillColor.blue * 0.75f,
-            alpha = rawFillColor.alpha
-        )
-    } else rawFillColor
+    // Flat vertical fill fraction: 0 = empty, 11+ = full
+    val fillFraction = if (isZero) 0f else (currentUvIntensity.toFloat() / 11f).coerceIn(0f, 1f)
 
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)
+    // Always 1 decimal place (e.g. "9.0"), except plain "0" when there is no UV
+    val valueText = if (isZero) {
+        "0"
+    } else {
+        String.format(locale, "%.1f", currentUvIntensity)
+    }
+
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
     ) {
-        // Assuming you have a string resource for "UV Index"
-        HeaderEntry(text = stringResource(R.string.uv_intensity), icon = R.drawable.ic_beach_access_filled)
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-//                .height(120.dp)
-                .padding(top = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // LEFT SIDE: The 1-decimal value and text descriptor
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.titleSmallEmphasized,
-                    color = MaterialTheme.colorScheme.onSurface
+        // 1. Flat vertical discrete-color fill (clipped cleanly by the parent DecalobeShape Card)
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            if (fillFraction > 0f && fillColor != Color.Transparent) {
+                val fillTop = size.height * (1f - fillFraction)
+                drawRect(
+                    color = fillColor,
+                    topLeft = Offset(0f, fillTop),
+                    size = Size(size.width, size.height - fillTop),
                 )
-                Text(
-                    text = currentUvIntensity.printRounded(decimals = 1, stripTrailingZeros = false), // Uses your exact Formatter for 1 decimal
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Black
-                )
-//                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "${(25 * currentUvIntensity).roundToInt()} mW/m²",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Black
-                )
-//                Text(
-//                    text = "",
-//                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-//                    style = MaterialTheme.typography.titleSmall,
-//                    modifier = Modifier.offset(y = (-2).dp)
-//                )
-            }
-
-            // RIGHT SIDE: The 11+, the Dial, and the 0
-            Column(
-                modifier = Modifier
-                    .offset(x = (5).dp)
-                    .weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-//                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-//                Text(
-//                    text = "11+",
-//                    style = MaterialTheme.typography.labelMedium,
-//                    color = MaterialTheme.colorScheme.onSurfaceVariant
-//                )
-
-                UvDial(
-                    currentUv = uvFloat,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(68.dp)
-                )
-
-//                Text(
-//                    text = "0",
-//                    style = MaterialTheme.typography.labelMedium,
-//                    color = MaterialTheme.colorScheme.onSurfaceVariant
-//                )
             }
         }
+
+        // 2. Semicircle 5-circle UV tier indicator nestled inside the bottom 5 lobes
+        UvCircleIndicator(
+            currentUv = uvFloat,
+            borderColor = surfaceColor,
+            modifier = Modifier.fillMaxSize(),
+        )
+
+        // 3. Centered title, big value, and description inside the semicircle bowl
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 31.dp),
+            ) {
+                HeaderEntry(
+                    text = stringResource(R.string.uv_intensity),
+                    icon = R.drawable.ic_beach_access_filled,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    iconSize = 18.dp,
+                    textSize = 14.5.sp,
+                    spacing = 4.dp,
+                )
+            }
+
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontSize = 30.sp,
+                    lineHeight = 34.sp,
+                    fontWeight = FontWeight.Black,
+                    fontFeatureSettings = "tnum",
+                    color = MaterialTheme.colorScheme.onSurface,
+                ),
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(bottom = 10.dp),
+            )
+
+            Text(
+                text = description,
+                style = MaterialTheme.typography.titleSmall.copy(
+                    fontSize = 13.sp,
+                    lineHeight = 17.sp,
+                ),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 48.dp),
+            )
+
+            /*
+            Text(
+                text = "${(25 * currentUvIntensity).roundToInt()} mW/m²",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Black
+            )
+            */
+        }
     }
+
+    /*
     CustomHorizontalDivider()
     Row(Modifier.padding(horizontal = 12.dp)) {
         TextEntry(
@@ -150,5 +179,76 @@ fun UvIntensity(
             icon = R.drawable.ic_beach_access,
             desc = "Peak UV Index"
         )
+    }
+    */
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun UvIntensityDecalobePreview() {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier
+            .background(Color(0xFFECEEF4))
+            .padding(16.dp),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            HeliosTheme(darkTheme = false, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = DecalobeShape,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    UvIntensity(currentUvIntensity = 0.0, peakUvIntensity = 6.2)
+                }
+            }
+            HeliosTheme(darkTheme = false, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = DecalobeShape,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    UvIntensity(currentUvIntensity = 2.4, peakUvIntensity = 6.2)
+                }
+            }
+            HeliosTheme(darkTheme = false, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = DecalobeShape,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    UvIntensity(currentUvIntensity = 5.3, peakUvIntensity = 8.1)
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            HeliosTheme(darkTheme = true, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = DecalobeShape,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    UvIntensity(currentUvIntensity = 9.0, peakUvIntensity = 10.2)
+                }
+            }
+            HeliosTheme(darkTheme = true, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = DecalobeShape,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    UvIntensity(currentUvIntensity = 10.4, peakUvIntensity = 10.8)
+                }
+            }
+            HeliosTheme(darkTheme = true, dynamicColor = false) {
+                Card(
+                    modifier = Modifier.size(168.dp),
+                    shape = DecalobeShape,
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                ) {
+                    UvIntensity(currentUvIntensity = 11.6, peakUvIntensity = 11.6)
+                }
+            }
+        }
     }
 }

@@ -24,6 +24,7 @@ import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.cards.SolarDistance
 import com.ephemeris.helios.ui.composables.cards.SolarSpeed
 import com.ephemeris.helios.ui.composables.cards.UvIntensity
+import com.ephemeris.helios.ui.composables.charts.DecalobeShape
 import com.ephemeris.helios.ui.composables.entries.DurationEntry
 import com.ephemeris.helios.ui.composables.entries.NightEntry
 import com.ephemeris.helios.ui.composables.entries.PlutoTimeEntry
@@ -90,6 +91,9 @@ fun Sun(
             SmallCardRow(
                 disableInnerHorizontalPadding = true,
                 leftCircular = true,
+                rightFullBleed = true,
+                rightShape = DecalobeShape,
+                forceSquare = true,
                 leftCard = {
                     Irradiance(
                         currentIrradiance = sun.metrics.irradianceFor(ui.irradianceMode),

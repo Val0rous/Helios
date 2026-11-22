@@ -1,169 +1,151 @@
 package com.ephemeris.helios.ui.composables.charts
 
-import android.graphics.CornerPathEffect
-import android.graphics.Paint
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.StrokeJoin
-import androidx.compose.ui.graphics.asAndroidPath
-import androidx.compose.ui.graphics.drawscope.Fill
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.ephemeris.helios.ui.theme.LocalCustomColors
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
-@Composable
-fun UvDial(
-    currentUv: Float,
-    modifier: Modifier = Modifier,
-    trackColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f)
-) {
-    val colors = LocalCustomColors.current
-    val colorScheme = MaterialTheme.colorScheme
-    val isLightMode = !isSystemInDarkTheme()
+/**
+ * Smooth 10-lobed scalloped cookie shape (decalobe) matching Google Weather's UV Index tile.
+ */
+object DecalobeShape : Shape {
+    private const val LOBE_COUNT = 10
+    private const val SAMPLES = 160
+    private const val INNER_RATIO = 0.89f
 
-    // 1. Calculate height fraction (capped at 11+ for the visual scale)
-    val fraction = (currentUv / 11f).coerceIn(0f, 1f)
-
-    // 2. Exact Color Map pulled directly from UVSlicing.kt
-    // Leaving native alphas untouched per your request!
-    val rawFillColor = when {
-        currentUv < 0.01f -> colorScheme.onSurfaceVariant // Nighttime/Zero UV
-        currentUv < 2f -> colors.uvDarkGreen
-        currentUv < 3f -> colors.uvGreen
-        currentUv < 5f -> colors.uvYellow
-        currentUv < 6f -> colors.uvAmber
-        currentUv < 8f -> colors.uvOrange
-        currentUv < 10f -> colors.uvRed
-        currentUv < 11f -> colors.uvDarkRed
-        else -> colors.uvPurple
-    }
-
-    // --- ACCESSIBILITY TRANSFORM ---
-    val fillColor = if (isLightMode && rawFillColor.luminance() > 0.4f) {
-        Color(
-            red = rawFillColor.red * 0.75f,
-            green = rawFillColor.green * 0.75f,
-            blue = rawFillColor.blue * 0.75f,
-            alpha = rawFillColor.alpha
-        )
-    } else rawFillColor
-
-    // --- Faint Background Match ---
-    // Washes out the active color to 15% opacity for the unfilled background
-    val trackColor = if (fillColor == Color.Transparent) {
-        colorScheme.onSurface.copy(alpha = 0.05f)
-    } else {
-        fillColor.copy(alpha = 0.15f)
-    }
-
-    Canvas(modifier = modifier.fillMaxSize()) {
-        // Center mathematically perfectly to align with outer labels
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density,
+    ): Outline {
         val cx = size.width / 2f
         val cy = size.height / 2f
+        val maxRadius = min(size.width, size.height) / 2f
+        val midRadius = maxRadius * ((1f + INNER_RATIO) / 2f)
+        val amplitude = maxRadius * ((1f - INNER_RATIO) / 2f)
 
-        // Scale the badge to 80% so the left-side indicator has room to draw
-        val diameter = min(size.width, size.height) * 1f
-
-        // --- SUNBURST GEOMETRY MATH ---
-        val points = 24 // A 12-pointed scalloped sun badge
-        val cornerRadius = diameter * 0.04f
-        // Subtract cornerRadius from base radius so the thick stroke fits inside the Canvas bounds
-        val baseRadius = (diameter / 2f) - cornerRadius
-        val innerRadius = baseRadius * 0.88f
-
-        val sunburstPath = Path().apply {
-            for (i in 0 until points) {
-                val angle = Math.toRadians((i * 360f / points).toDouble() - 90.0)
-                val r = if (i % 2 == 0) baseRadius else innerRadius
-                val x = cx + r * cos(angle).toFloat()
-                val y = cy + r * sin(angle).toFloat()
+        val path = Path().apply {
+            for (i in 0 until SAMPLES) {
+                val theta = (2.0 * PI * i / SAMPLES) - (PI / 2.0)
+                val r = midRadius + amplitude * cos(LOBE_COUNT * (theta + PI / 2.0)).toFloat()
+                val x = cx + r * cos(theta).toFloat()
+                val y = cy + r * sin(theta).toFloat()
                 if (i == 0) moveTo(x, y) else lineTo(x, y)
             }
             close()
         }
+        return Outline.Generic(path)
+    }
+}
 
-        // --- THE FIX: Android Native Canvas Paint ---
-        // By using FILL_AND_STROKE, the shape is rasterized as a single uniform body.
-        // This completely eliminates the "outlined shadow" overlap artifact!
-        val androidSunburst = sunburstPath.asAndroidPath()
+/**
+ * 5-circle Google Weather-style UV Index tier indicator arranged along the bottom semicircle
+ * nestled inside the lower 5 lobes of [DecalobeShape] (`Low`, `Moderate`, `High`, `Very High`, `Extreme`).
+ *
+ * Each circle has a crisp [borderColor] outer backing/cutout ring so both active and soft-tinted
+ * inactive circles stay sharp over the flat vertical UV fill. The active tier pops with full chroma
+ * and a slightly larger radius, shifting shades discretely at UV 2 (Low), UV 5 (Moderate), and
+ * UV 10 (Very High).
+ */
+@Composable
+fun UvCircleIndicator(
+    currentUv: Float,
+    modifier: Modifier = Modifier,
+    borderColor: Color = MaterialTheme.colorScheme.surface,
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    val isDarkSurface = colorScheme.surface.luminance() < 0.5f
 
-        val trackPaint = Paint().apply {
-            color = trackColor.toArgb()
-            style = Paint.Style.FILL_AND_STROKE
-            strokeWidth = cornerRadius * 2f
-            strokeJoin = Paint.Join.ROUND
-            pathEffect = CornerPathEffect(cornerRadius)
-            isAntiAlias = true
+    // High-chroma popping circle colors (distinct from the softer chart/tile fill shades)
+    val lowDarkGreen = if (isDarkSurface) Color(0xFF43A047) else Color(0xFF2E7D32)
+    val lowBrightGreen = if (isDarkSurface) Color(0xFF76FF03) else Color(0xFF4CAF50)
+    val modYellow = if (isDarkSurface) Color(0xFFFFEE58) else Color(0xFFFDD835)
+    val modAmber = if (isDarkSurface) Color(0xFFFFB300) else Color(0xFFFFA000)
+    val highOrange = if (isDarkSurface) Color(0xFFFF7043) else Color(0xFFF57C00)
+    val veryHighRed = if (isDarkSurface) Color(0xFFFF5252) else Color(0xFFE53935)
+    val veryHighDarkRed = if (isDarkSurface) Color(0xFFD32F2F) else Color(0xFFB71C1C)
+    val extremePurple = if (isDarkSurface) Color(0xFFBA68C8) else Color(0xFF7B1FA2)
+
+    val inactiveAlpha = if (isDarkSurface) 0.30f else 0.22f
+    val activeIndex = when {
+        currentUv < 0.05f -> -1
+        currentUv < 3f -> 0
+        currentUv < 6f -> 1
+        currentUv < 8f -> 2
+        currentUv < 11f -> 3
+        else -> 4
+    }
+
+    val tierActiveColors = listOf(
+        if (currentUv < 2f) lowDarkGreen else lowBrightGreen,
+        if (currentUv < 5f) modYellow else modAmber,
+        highOrange,
+        if (currentUv < 10f) veryHighRed else veryHighDarkRed,
+        extremePurple,
+    )
+    val tierBaseColors = listOf(
+        lowBrightGreen,
+        modYellow,
+        highOrange,
+        veryHighRed,
+        extremePurple,
+    )
+
+    // Bottom 5 lobe angles of the 10-lobe DecalobeShape (left to right: 162°, 126°, 90°, 54°, 18°)
+    val lobeAnglesDeg = doubleArrayOf(162.0, 126.0, 90.0, 54.0, 18.0)
+
+    Canvas(modifier = modifier.fillMaxSize()) {
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val maxRadius = min(size.width, size.height) / 2f
+        val arcRadius = maxRadius * 0.74f
+
+        val borderThickness = 2.dp.toPx()
+        val inactiveInnerRadius = 6.dp.toPx()
+        val activeInnerRadius = 8.5.dp.toPx()
+
+        for (i in lobeAnglesDeg.indices) {
+            val isActive = i == activeIndex
+            val angleRad = Math.toRadians(lobeAnglesDeg[i])
+            val center = Offset(
+                x = cx + arcRadius * cos(angleRad).toFloat(),
+                y = cy + arcRadius * sin(angleRad).toFloat(),
+            )
+            val innerRadius = if (isActive) activeInnerRadius else inactiveInnerRadius
+            val outerRadius = innerRadius + borderThickness
+            val circleColor = if (isActive) {
+                tierActiveColors[i]
+            } else {
+                tierBaseColors[i].copy(alpha = inactiveAlpha)
+            }
+
+            // Solid surface backing disc creates the crisp outer border and masks the vertical fill
+            // so translucent pastel inactive dots stay clean and never muddy over the fill.
+            drawCircle(
+                color = borderColor,
+                radius = outerRadius,
+                center = center,
+            )
+            drawCircle(
+                color = circleColor,
+                radius = innerRadius,
+                center = center,
+            )
         }
-
-        val fillPaint = Paint().apply {
-            color = fillColor.toArgb()
-            style = Paint.Style.FILL_AND_STROKE
-            strokeWidth = cornerRadius * 2f
-            strokeJoin = Paint.Join.ROUND
-            pathEffect = CornerPathEffect(cornerRadius)
-            isAntiAlias = true
-        }
-
-        // Draw Background Track uniformly
-        drawContext.canvas.nativeCanvas.drawPath(androidSunburst, trackPaint)
-
-        // 4. Calculate exactly where the continuous decimal fill line should be
-        val actualRadius = baseRadius + cornerRadius
-        val bottomY = cy + actualRadius
-        val topY = cy - actualRadius
-        val fillHeightY = bottomY - (bottomY - topY) * fraction
-
-        // 5. Draw the Active Color Fill (Clipped perfectly to the height)
-        clipRect(
-            left = 0f,
-            top = fillHeightY,
-            right = size.width,
-            bottom = size.height
-        ) {
-            drawContext.canvas.nativeCanvas.drawPath(androidSunburst, fillPaint)
-        }
-
-        // 6. Draw the Left-Side Indicator Triangle
-        val triangleWidth = 6.dp.toPx()
-        val triangleHeight = 8.dp.toPx()
-
-        // Tip touches just slightly outside the left edge of the sunburst
-        val tipX = cx - actualRadius - 2.dp.toPx()
-
-        val trianglePath = Path().apply {
-            moveTo(tipX, fillHeightY) // Tip pointing right
-            lineTo(tipX - triangleWidth, fillHeightY - triangleHeight / 2f) // Top left
-            lineTo(tipX - triangleWidth, fillHeightY + triangleHeight / 2f) // Bottom left
-            close()
-        }
-
-        val markerColor = colorScheme.onSurface.copy(alpha = 0.9f)
-        val androidTriangle = trianglePath.asAndroidPath()
-
-        val trianglePaint = Paint().apply {
-            color = markerColor.toArgb()
-            style = Paint.Style.FILL_AND_STROKE
-            strokeWidth = 2.dp.toPx()
-            strokeJoin = Paint.Join.ROUND
-            pathEffect = CornerPathEffect(2.dp.toPx())
-            isAntiAlias = true
-        }
-
-        drawContext.canvas.nativeCanvas.drawPath(androidTriangle, trianglePaint)
     }
 }

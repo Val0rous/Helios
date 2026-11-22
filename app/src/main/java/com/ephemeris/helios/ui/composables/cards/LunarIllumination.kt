@@ -87,28 +87,37 @@ fun LunarIllumination(
             )
         }
 
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.padding(horizontal = 12.dp),
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
         ) {
-            HeaderEntry(
-                text = stringResource(R.string.illumination),
-                icon = R.drawable.ic_flare,
-                horizontalAlignment = Alignment.CenterHorizontally,
-                iconSize = 18.dp,
-                textSize = 14.5.sp,
-                spacing = 4.dp,
-            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 28.dp),
+            ) {
+                HeaderEntry(
+                    text = stringResource(R.string.illumination),
+                    icon = R.drawable.ic_flare,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    iconSize = 17.dp,
+                    textSize = 14.sp,
+                    spacing = 4.dp,
+                )
+            }
 
             Row(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(bottom = 8.dp),
             ) {
                 Text(
                     text = formattedPercent,
                     style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = 25.sp,
-                        lineHeight = 29.sp,
+                        fontSize = 28.sp,
+                        lineHeight = 32.sp,
                         fontWeight = FontWeight.Black,
                         fontFeatureSettings = "tnum",
                         color = MaterialTheme.colorScheme.onSurface,
@@ -120,8 +129,8 @@ fun LunarIllumination(
                 Text(
                     text = "%",
                     style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = 14.sp,
-                        lineHeight = 16.sp,
+                        fontSize = 15.sp,
+                        lineHeight = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     ),
@@ -131,27 +140,35 @@ fun LunarIllumination(
                 )
             }
 
-            Text(
-                text = phase.displayName,
-                style = MaterialTheme.typography.titleSmall.copy(
-                    fontSize = 12.5.sp,
-                    lineHeight = 16.sp,
-                ),
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 17.dp),
+            ) {
+                Text(
+                    text = phase.displayName,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontSize = 13.sp,
+                        lineHeight = 16.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
 
-            Text(
-                text = formattedAge,
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontSize = 11.sp,
-                    lineHeight = 14.sp,
-                    fontFeatureSettings = "tnum",
-                ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
+                Text(
+                    text = formattedAge,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontSize = 13.sp,
+                        lineHeight = 16.sp,
+                        fontFeatureSettings = "tnum",
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

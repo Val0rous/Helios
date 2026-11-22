@@ -140,10 +140,11 @@ fun LunarDistance(
                 .align(Alignment.CenterStart),
         ) {
             val valueStyle = MaterialTheme.typography.headlineMedium.copy(
-                fontSize = 23.sp,
-                lineHeight = 30.sp,
+                fontSize = 26.sp,
+                lineHeight = 32.sp,
                 fontWeight = FontWeight.Black,
                 fontFeatureSettings = "tnum",
+                letterSpacing = (-0.5).sp,
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
@@ -152,12 +153,13 @@ fun LunarDistance(
                     append(formattedKm)
                     withStyle(
                         SpanStyle(
-                            fontSize = 14.sp,
+                            fontSize = 13.5.sp,
                             fontWeight = FontWeight.Bold,
+                            letterSpacing = 0.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
                     ) {
-                        append(" km")
+                        append("\u2009km")
                     }
                 },
                 style = valueStyle,

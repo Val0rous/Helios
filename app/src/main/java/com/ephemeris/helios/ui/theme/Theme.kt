@@ -1,5 +1,6 @@
 package com.ephemeris.helios.ui.theme
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -13,7 +14,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import com.google.android.material.color.utilities.Hct
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -47,7 +50,7 @@ private val LightColorScheme = lightColorScheme(
 object ChartAlphas {
     // --- Chart Fills ---
     fun fillSky(isDark: Boolean): Float = if (isDark) 0.65f else 0.60f
-    fun fillMetric(isDark: Boolean): Float = if (isDark) 0.45f else 0.50f
+    fun fillMetric(isDark: Boolean): Float = if (isDark) 0.65f else 0.50f
     fun fillElapsed(isDark: Boolean): Float = if (isDark) 0.30f else 0.35f
 
     // --- Non-fill Chrome (Icons, Labels, Grids) ---
@@ -170,6 +173,7 @@ data class CustomColorScheme(
  * using [MaterialColorEngine], and precomputes standardized translucent [CustomColorScheme.fills]
  * using [ChartAlphas] in one central place.
  */
+@SuppressLint("RestrictedApi")
 private fun buildCustomColorScheme(
     colorEngine: MaterialColorEngine,
     isDark: Boolean,
@@ -224,45 +228,77 @@ private fun buildCustomColorScheme(
     val shadowScheme = colorEngine.generateColorScheme(Color(0xFF424242), isDark, ColorSchemeVariant.NEUTRAL)
     val irrDialScheme = colorEngine.generateColorScheme(Color(0xFFE65100), isDark, ColorSchemeVariant.FIDELITY)
 
+    // Dark-mode chart fills adapt the light-mode seed hues to bright, high-chroma HCT tones so
+    // sky ramps and metric charts stay vibrant and legible over dark surfaces without altering light mode.
+    fun darkAdaptedColor(
+        seed: Color,
+        darkTone: Double,
+        darkChroma: Double? = null,
+        lightColor: () -> Color = { vividMetricColor(seed) },
+    ): Color = if (isDark) {
+        val hct = Hct.fromInt(seed.toArgb())
+        Color(Hct.from(hct.hue, darkChroma ?: hct.chroma, darkTone).toInt())
+    } else {
+        lightColor()
+    }
+
     // Opaque base colors (1.0f)
-    val dayBackground = daySkyScheme.primaryContainer
-    val civilTwilight = if (isDark) twilightScheme.primaryContainer else twilightScheme.outlineVariant
-    val nauticalTwilight = if (isDark) twilightScheme.secondaryContainer else twilightScheme.outline
-    val astronomicalTwilight = if (isDark) twilightScheme.surfaceContainerHigh else twilightScheme.onSurfaceVariant
-    val nightBackground = if (isDark) twilightScheme.surfaceContainerLowest else twilightScheme.onSurface
+    val dayBackground = darkAdaptedColor(Color(0xFF4FC3F7), darkTone = 68.0, darkChroma = 38.0) {
+        daySkyScheme.primaryContainer
+    }
+    val civilTwilight = darkAdaptedColor(MaterialColors.BlueGray500, darkTone = 54.0, darkChroma = 28.0) {
+        twilightScheme.outlineVariant
+    }
+    val nauticalTwilight = darkAdaptedColor(MaterialColors.BlueGray500, darkTone = 42.0, darkChroma = 24.0) {
+        twilightScheme.outline
+    }
+    val astronomicalTwilight = darkAdaptedColor(MaterialColors.BlueGray500, darkTone = 30.0, darkChroma = 18.0) {
+        twilightScheme.onSurfaceVariant
+    }
+    val nightBackground = darkAdaptedColor(MaterialColors.BlueGray500, darkTone = 18.0, darkChroma = 12.0) {
+        twilightScheme.onSurface
+    }
     val elapsedDay = vividMetricColor(MaterialColors.Yellow500)
     val elapsedMoon = vividMetricColor(MaterialColors.LightBlueA100)
     val elapsedNight = neutralScheme.outlineVariant
     val elapsedOther = neutralScheme.outlineVariant
-    val moonBackground = moonBgScheme.primaryContainer
+    val moonBackground = darkAdaptedColor(MaterialColors.Purple200, darkTone = 66.0, darkChroma = 34.0) {
+        moonBgScheme.primaryContainer
+    }
 
-    val amZenith = vividMetricColor(Color(0xFF29B6F6))
-    val amHorizon = amHorizonScheme.surfaceContainerHighest
+    val amZenith = darkAdaptedColor(Color(0xFF29B6F6), darkTone = 78.0)
+    val amHorizon = darkAdaptedColor(Color(0xFFCFD8DC), darkTone = 54.0, darkChroma = 12.0) {
+        amHorizonScheme.surfaceContainerHighest
+    }
     val amWave = amWaveScheme.primaryContainer
-    val shadowShort = if (isDark) shadowScheme.outline else shadowScheme.surfaceContainerHighest
-    val shadowLong = if (isDark) shadowScheme.surfaceContainerHigh else shadowScheme.onSurfaceVariant
+    val shadowShort = darkAdaptedColor(Color(0xFF9E9E9E), darkTone = 76.0, darkChroma = 4.0) {
+        shadowScheme.surfaceContainerHighest
+    }
+    val shadowLong = darkAdaptedColor(Color(0xFF616161), darkTone = 42.0, darkChroma = 4.0) {
+        shadowScheme.onSurfaceVariant
+    }
     val shadowDial = if (isDark) shadowScheme.primary else shadowScheme.onSurfaceVariant
-    val luxBright = vividMetricColor(Color(0xFFFFF59D))
-    val luxDim = vividMetricColor(Color(0xFF5C6BC0))
+    val luxBright = darkAdaptedColor(Color(0xFFFFF59D), darkTone = 88.0)
+    val luxDim = darkAdaptedColor(Color(0xFF5C6BC0), darkTone = 62.0)
     val luxWave = luxWaveScheme.primaryContainer
-    val irrLow = vividMetricColor(Color(0xFFFFCC80))
-    val irrMid = vividMetricColor(Color(0xFFFF9800))
-    val irrHigh = vividMetricColor(Color(0xFFE65100))
+    val irrLow = darkAdaptedColor(Color(0xFFFFCC80), darkTone = 84.0)
+    val irrMid = darkAdaptedColor(Color(0xFFFF9800), darkTone = 74.0)
+    val irrHigh = darkAdaptedColor(Color(0xFFE65100), darkTone = 62.0)
     val irrDial = if (isDark) irrDialScheme.primary else irrDialScheme.primaryContainer
 
-    val uvDarkGreen = deepMetricColor(Color(0xFF2E7D32))
-    val uvGreen = vividMetricColor(Color(0xFF4CAF50))
-    val uvYellow = vividMetricColor(Color(0xFFFFEB3B))
-    val uvAmber = vividMetricColor(Color(0xFFFFC107))
-    val uvOrange = vividMetricColor(Color(0xFFFF9800))
-    val uvRed = vividMetricColor(Color(0xFFF44336))
-    val uvDarkRed = deepMetricColor(Color(0xFFB71C1C))
-    val uvPurple = vividMetricColor(Color(0xFF673AB7))
+    val uvDarkGreen = darkAdaptedColor(Color(0xFF2E7D32), darkTone = 64.0) { deepMetricColor(Color(0xFF2E7D32)) }
+    val uvGreen = darkAdaptedColor(Color(0xFF4CAF50), darkTone = 78.0)
+    val uvYellow = darkAdaptedColor(Color(0xFFFFEB3B), darkTone = 88.0)
+    val uvAmber = darkAdaptedColor(Color(0xFFFFC107), darkTone = 78.0)
+    val uvOrange = darkAdaptedColor(Color(0xFFFF9800), darkTone = 73.0)
+    val uvRed = darkAdaptedColor(Color(0xFFF44336), darkTone = 70.0)
+    val uvDarkRed = darkAdaptedColor(Color(0xFFB71C1C), darkTone = 56.0) { deepMetricColor(Color(0xFFB71C1C)) }
+    val uvPurple = darkAdaptedColor(Color(0xFF673AB7), darkTone = 70.0)
 
-    val ct5500 = vividMetricColor(Color(0xFF81D4FA))
-    val ct4000 = vividMetricColor(Color(0xFFFFF59D))
-    val ct3000 = vividMetricColor(Color(0xFFFFB300))
-    val ct2000 = vividMetricColor(Color(0xFFD84315))
+    val ct5500 = darkAdaptedColor(Color(0xFF81D4FA), darkTone = 82.0)
+    val ct4000 = darkAdaptedColor(Color(0xFFFFF59D), darkTone = 88.0)
+    val ct3000 = darkAdaptedColor(Color(0xFFFFB300), darkTone = 76.0)
+    val ct2000 = darkAdaptedColor(Color(0xFFD84315), darkTone = 62.0)
 
     // Standardized chart fill alphas applied once here
     val skyAlpha = ChartAlphas.fillSky(isDark)
