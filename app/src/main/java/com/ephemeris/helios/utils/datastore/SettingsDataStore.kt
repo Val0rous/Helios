@@ -33,19 +33,55 @@ enum class IlluminanceMode(val label: String) {
     }
 }
 
+enum class ColorTempMode(val label: String) {
+    DIRECT("Direct"),
+    GLOBAL("Global"),
+    DIFFUSE("Ambient");
+
+    fun next(): ColorTempMode = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        fun fromName(name: String?): ColorTempMode =
+            entries.firstOrNull { it.name == name } ?: DIRECT
+    }
+}
+
+enum class MoonColorTempMode(val label: String) {
+    DIRECT("Direct"),
+    GLOBAL("Global"),
+    DIFFUSE("Ambient"),
+    PURKINJE("Purkinje");
+
+    fun next(): MoonColorTempMode = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        fun fromName(name: String?): MoonColorTempMode = when (name) {
+            "PHYSICAL" -> DIRECT
+            "PERCEIVED" -> PURKINJE
+            else -> entries.firstOrNull { it.name == name } ?: DIRECT
+        }
+    }
+}
+
 /**
  * Central container for user-configurable app settings.
  *
  * @property useHorizonDip When `true`, lowers the apparent sunrise/sunset/moonrise/moonset horizon
  *   by the geometric dip `0.032° * sqrt(altitude_m)` for elevated observers. Defaults to `false`
  *   (strict sea-level apparent horizon, `-0.833°` for the Sun).
- * @property irradianceMode Selected display mode for the Irradiance card (defaults to [IrradianceMode.DIRECT]).
- * @property illuminanceMode Selected display mode for the Illuminance card (defaults to [IlluminanceMode.GLOBAL]).
+ * @property irradianceMode Selected display mode for the Sun Irradiance card (defaults to [IrradianceMode.DIRECT]).
+ * @property illuminanceMode Selected display mode for the Sun Illuminance card (defaults to [IlluminanceMode.GLOBAL]).
+ * @property colorTempMode Selected display mode for the Sun Color Temp card (defaults to [ColorTempMode.DIRECT]).
+ * @property moonIlluminanceMode Selected display mode for the Moon Illuminance card (defaults to [IlluminanceMode.GLOBAL]).
+ * @property moonColorTempMode Selected display mode for the Moon Color Temp card (defaults to [MoonColorTempMode.DIRECT]).
  */
 data class AppSettings(
     val useHorizonDip: Boolean = false,
     val irradianceMode: IrradianceMode = IrradianceMode.DIRECT,
     val illuminanceMode: IlluminanceMode = IlluminanceMode.GLOBAL,
+    val colorTempMode: ColorTempMode = ColorTempMode.DIRECT,
+    val moonIlluminanceMode: IlluminanceMode = IlluminanceMode.GLOBAL,
+    val moonColorTempMode: MoonColorTempMode = MoonColorTempMode.DIRECT,
 )
 
 /**
@@ -56,6 +92,9 @@ class SettingsDataStore(private val context: Context) {
     private val useHorizonDipKey = booleanPreferencesKey("use_horizon_dip")
     private val irradianceModeKey = stringPreferencesKey("irradiance_mode")
     private val illuminanceModeKey = stringPreferencesKey("illuminance_mode")
+    private val colorTempModeKey = stringPreferencesKey("color_temp_mode")
+    private val moonIlluminanceModeKey = stringPreferencesKey("moon_illuminance_mode")
+    private val moonColorTempModeKey = stringPreferencesKey("moon_color_temp_mode")
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data
         .map { preferences ->
@@ -63,6 +102,9 @@ class SettingsDataStore(private val context: Context) {
                 useHorizonDip = preferences[useHorizonDipKey] ?: false,
                 irradianceMode = IrradianceMode.fromName(preferences[irradianceModeKey]),
                 illuminanceMode = IlluminanceMode.fromName(preferences[illuminanceModeKey]),
+                colorTempMode = ColorTempMode.fromName(preferences[colorTempModeKey]),
+                moonIlluminanceMode = IlluminanceMode.fromName(preferences[moonIlluminanceModeKey]),
+                moonColorTempMode = MoonColorTempMode.fromName(preferences[moonColorTempModeKey]),
             )
         }
 
@@ -81,6 +123,24 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setIlluminanceMode(mode: IlluminanceMode) {
         context.dataStore.edit { preferences ->
             preferences[illuminanceModeKey] = mode.name
+        }
+    }
+
+    suspend fun setColorTempMode(mode: ColorTempMode) {
+        context.dataStore.edit { preferences ->
+            preferences[colorTempModeKey] = mode.name
+        }
+    }
+
+    suspend fun setMoonIlluminanceMode(mode: IlluminanceMode) {
+        context.dataStore.edit { preferences ->
+            preferences[moonIlluminanceModeKey] = mode.name
+        }
+    }
+
+    suspend fun setMoonColorTempMode(mode: MoonColorTempMode) {
+        context.dataStore.edit { preferences ->
+            preferences[moonColorTempModeKey] = mode.name
         }
     }
 }

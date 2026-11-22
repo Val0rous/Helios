@@ -9,6 +9,7 @@ import com.ephemeris.helios.data.SunUiData
 import com.ephemeris.helios.data.TimeRepository
 import com.ephemeris.helios.utils.calc.SunLiveSnapshot
 import com.ephemeris.helios.utils.datastore.AppSettings
+import com.ephemeris.helios.utils.datastore.ColorTempMode
 import com.ephemeris.helios.utils.datastore.IlluminanceMode
 import com.ephemeris.helios.utils.datastore.IrradianceMode
 import com.ephemeris.helios.utils.datastore.SettingsDataStore
@@ -29,6 +30,7 @@ data class SunUiState(
     val sun: SunUiData,
     val irradianceMode: IrradianceMode = IrradianceMode.DIRECT,
     val illuminanceMode: IlluminanceMode = IlluminanceMode.GLOBAL,
+    val colorTempMode: ColorTempMode = ColorTempMode.DIRECT,
 )
 
 class SunViewModel(
@@ -72,6 +74,13 @@ class SunViewModel(
         }
     }
 
+    fun cycleColorTempMode() {
+        val current = uiState.value?.colorTempMode ?: ColorTempMode.DIRECT
+        viewModelScope.launch {
+            settingsDataStore.setColorTempMode(current.next())
+        }
+    }
+
     fun jumpToSolarNoon() {
         val state = uiState.value ?: return
         val solarNoonHours = state.sun.events.solarNoon
@@ -106,6 +115,7 @@ class SunViewModel(
             ),
             irradianceMode = settings.irradianceMode,
             illuminanceMode = settings.illuminanceMode,
+            colorTempMode = settings.colorTempMode,
         )
     }
 }

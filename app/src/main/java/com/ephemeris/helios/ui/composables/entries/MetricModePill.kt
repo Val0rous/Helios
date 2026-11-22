@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Compact Material 3 tonal pill button for iteratively cycling a metric card's measurement mode
- * (e.g., `Direct` → `Ground` → `Diffuse` or `Direct` → `Global` → `Ambient`).
+ * (e.g., `Direct` → `Ground` → `Diffuse`, `Global` → `Direct` → `Ambient`, or lunar `Purkinje`).
  */
 @Composable
 fun MetricModePill(
@@ -41,7 +41,7 @@ fun MetricModePill(
             ),
             maxLines = 1,
             softWrap = false,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
         )
     }
 }

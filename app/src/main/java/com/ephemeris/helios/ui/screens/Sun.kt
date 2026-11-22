@@ -35,6 +35,7 @@ import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.ui.viewmodels.SunViewModel
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.datastore.ColorTempMode
 import com.ephemeris.helios.utils.formatDecimalHours
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.round
@@ -127,14 +128,23 @@ fun Sun(
             )
         }
         item {
+            val (ctMinK, ctMaxK) = when (ui.colorTempMode) {
+                ColorTempMode.DIRECT -> 1800f to 5800f
+                ColorTempMode.GLOBAL -> 3500f to 14000f
+                ColorTempMode.DIFFUSE -> 5500f to 14000f
+            }
             SmallCardRow(
                 disableInnerHorizontalPadding = true,
                 leftFullBleed = true,
                 rightFullBleed = true,
                 leftCard = {
                     ColorTemperature(
-                        currentColorTemp = sun.metrics.colorTemp,
-                        peakColorTemp = sun.dailyPeakMetrics.colorTemp
+                        currentColorTemp = sun.metrics.colorTempFor(ui.colorTempMode),
+                        peakColorTemp = sun.dailyPeakMetrics.colorTempFor(ui.colorTempMode),
+                        minK = ctMinK,
+                        maxK = ctMaxK,
+                        modeLabel = ui.colorTempMode.label,
+                        onToggleMode = viewModel::cycleColorTempMode,
                     )
                 },
                 rightCard = {

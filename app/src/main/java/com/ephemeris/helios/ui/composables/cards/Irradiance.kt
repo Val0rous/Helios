@@ -45,18 +45,29 @@ fun Irradiance(
         IrradianceMode.DIFFUSE -> 120f
     }
 
-    val description = if (mode == IrradianceMode.DIFFUSE) {
-        when {
+    val description = when (mode) {
+        IrradianceMode.DIFFUSE -> when {
             irradianceFloat < 0.001f -> "None"
-            irradianceFloat < 1f -> "Trace"
+            irradianceFloat < 0.5f -> "Trace"
+            irradianceFloat < 4f -> "Twilight"
             irradianceFloat < 10f -> "Faint"
             irradianceFloat < 30f -> "Low"
             irradianceFloat < 60f -> "Moderate"
             irradianceFloat < 90f -> "Bright"
             else -> "Strong"
         }
-    } else {
-        when {
+        IrradianceMode.GLOBAL -> when {
+            irradianceFloat < 0.001f -> "None"
+            irradianceFloat < 0.5f -> "Trace"
+            irradianceFloat < 4f -> "Twilight"
+            irradianceFloat < 100f -> "Very Weak"
+            irradianceFloat < 250f -> "Weak"
+            irradianceFloat < 500f -> "Moderate"
+            irradianceFloat < 800f -> "Strong"
+            irradianceFloat < 1000f -> "Very Strong"
+            else -> "Extreme"
+        }
+        IrradianceMode.DIRECT -> when {
             irradianceFloat < 0.001f -> "None"
             irradianceFloat < 10f -> "Trace"
             irradianceFloat < 100f -> "Very Weak"

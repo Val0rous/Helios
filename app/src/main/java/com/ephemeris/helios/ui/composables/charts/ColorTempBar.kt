@@ -10,83 +10,117 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
+import com.ephemeris.helios.ui.theme.CustomColorScheme
 import com.ephemeris.helios.ui.theme.LocalCustomColors
+
+private val KELVIN_STOPS = floatArrayOf(2000f, 3000f, 4000f, 5500f, 8000f, 11000f, 14000f)
+
+/**
+ * Shared Kelvin-to-Color curve across the full solar/lunar/twilight domain (`1,800 K – 14,000 K`),
+ * ensuring the card glow, gradient slider track, and active thumb dot match seamlessly.
+ */
+fun colorForKelvin(tempK: Float, customColors: CustomColorScheme): Color {
+    val coolSilverBlue = lerp(customColors.ct5500, customColors.moonPath, 0.45f)
+    val deepTwilightBlue = lerp(customColors.moonPath, customColors.luxDim, 0.55f)
+    return when {
+        tempK <= 2000f -> customColors.ct2000
+        tempK <= 3000f -> lerp(customColors.ct2000, customColors.ct3000, (tempK - 2000f) / 1000f)
+        tempK <= 4000f -> lerp(customColors.ct3000, customColors.ct4000, (tempK - 3000f) / 1000f)
+        tempK <= 5500f -> lerp(customColors.ct4000, customColors.ct5500, (tempK - 4000f) / 1500f)
+        tempK <= 8000f -> lerp(customColors.ct5500, coolSilverBlue, (tempK - 5500f) / 2500f)
+        tempK <= 11000f -> lerp(coolSilverBlue, customColors.moonPath, (tempK - 8000f) / 3000f)
+        tempK <= 14000f -> lerp(customColors.moonPath, deepTwilightBlue, (tempK - 11000f) / 3000f)
+        else -> deepTwilightBlue
+    }
+}
 
 @Composable
 fun ColorTempBar(
     colorTemp: Float,
     isNight: Boolean,
     activeColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    minK: Float = 1800f,
+    maxK: Float = 5800f,
+    borderColor: Color = MaterialTheme.colorScheme.surface,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val customColors = LocalCustomColors.current
 
-    // Define our math boundaries
-    val minK = 1800f
-    val maxK = 5800f
-    val rangeK = maxK - minK
+    val rangeK = (maxK - minK).coerceAtLeast(1f)
 
     // Calculate thumb position fraction (0.0 to 1.0)
-    val fraction = if (isNight || colorTemp <= minK) {
+    val fraction = if (isNight || (colorTemp <= minK)) {
         0f
     } else {
-        ((colorTemp - minK) / (maxK - minK)).coerceIn(0f, 1f)
+        ((colorTemp - minK) / rangeK).coerceIn(0f, 1f)
     }
 
-    // Mathematically tie the gradient stops to your GradientHelper's exact Kelvin values!
-    // This perfectly mirrors the verticalGradient logic found in GradientHelper.kt
-    val gradientBrush = Brush.horizontalGradient(
-        0.0f to customColors.ct2000,
-        (3000f - minK) / rangeK to customColors.ct3000,
-        (4000f - minK) / rangeK to customColors.ct4000,
-        (5500f - minK) / rangeK to customColors.ct5500,
-        1.0f to customColors.ct5500 // Cap at ct5500 for the 5800K peak, as in your helper
-    )
+    // Build exact color stops for the active [minK, maxK] domain
+    val gradientStops = buildList {
+        add(0.0f to colorForKelvin(minK, customColors))
+        for (stopK in KELVIN_STOPS) {
+            if (stopK > minK && stopK < maxK) {
+                add(((stopK - minK) / rangeK) to colorForKelvin(stopK, customColors))
+            }
+        }
+        add(1.0f to colorForKelvin(maxK, customColors))
+    }.toTypedArray()
+
+    val gradientBrush = Brush.horizontalGradient(*gradientStops)
 
     Canvas(modifier = modifier.fillMaxSize()) {
+        val borderWidth = 2.5.dp.toPx()
         val trackHeight = 8.dp.toPx()
+        val outerTrackHeight = trackHeight + borderWidth * 2f
         val thumbOuterRadius = 8.dp.toPx()
         val thumbInnerRadius = 5.5.dp.toPx()
 
-        // Center the track vertically in the canvas
-        val trackTop = (size.height - trackHeight) / 2f
-
         val usableWidth = size.width
-        val trackStart = 0f
+        val trackTop = (size.height - trackHeight) / 2f
+        val outerTrackTop = (size.height - outerTrackHeight) / 2f
 
-        // 1. Draw the Background Gradient Track
+        // 1. Draw the Background Gradient Track (surrounded by matching cutout border when active)
         if (isNight) {
             drawRoundRect(
                 color = colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
-                topLeft = Offset(trackStart, trackTop),
+                topLeft = Offset(0f, trackTop),
                 size = Size(usableWidth, trackHeight),
-                cornerRadius = CornerRadius(trackHeight / 2f)
+                cornerRadius = CornerRadius(trackHeight / 2f),
             )
         } else {
+            // Outer capsule border matching the indicator thumb's ring so the slider pops off the card glow
+            drawRoundRect(
+                color = borderColor,
+                topLeft = Offset(0f, outerTrackTop),
+                size = Size(usableWidth, outerTrackHeight),
+                cornerRadius = CornerRadius(outerTrackHeight / 2f),
+            )
+            // Inner gradient track
             drawRoundRect(
                 brush = gradientBrush,
-                topLeft = Offset(trackStart, trackTop),
-                size = Size(usableWidth, trackHeight),
-                cornerRadius = CornerRadius(trackHeight / 2f)
+                topLeft = Offset(borderWidth, trackTop),
+                size = Size((usableWidth - borderWidth * 2f).coerceAtLeast(0f), trackHeight),
+                cornerRadius = CornerRadius(trackHeight / 2f),
             )
         }
 
         // 2. Draw the Indicator Thumb (insetting within track bounds so the outer halo never clips)
         val thumbTravel = (usableWidth - thumbOuterRadius * 2f).coerceAtLeast(0f)
-        val thumbX = trackStart + thumbOuterRadius + (thumbTravel * fraction)
+        val thumbX = thumbOuterRadius + (thumbTravel * fraction)
         val thumbCenter = Offset(thumbX, size.height / 2f)
 
-        if (!isNight && colorTemp > minK) {
-            // 1. Outer cutout ring matching card surface (Google Weather AQI slider style)
+        if (!isNight && colorTemp > 0f) {
+            // Outer cutout ring matching the slider border
             drawCircle(
-                color = colorScheme.surface,
+                color = borderColor,
                 radius = thumbOuterRadius,
                 center = thumbCenter,
             )
 
-            // 2. Inner active-color indicator dot
+            // Inner active-color indicator dot
             drawCircle(
                 color = activeColor,
                 radius = thumbInnerRadius,

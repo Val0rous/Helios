@@ -36,33 +36,86 @@ fun Illuminance(
     @Suppress("UNUSED_PARAMETER") peakIlluminance: Double,
     mode: IlluminanceMode = IlluminanceMode.GLOBAL,
     onToggleMode: () -> Unit = {},
+    isLunar: Boolean = false,
 ) {
-    val luxFloat = currentIlluminance.toFloat()
-    val maxLux = if (mode == IlluminanceMode.DIFFUSE) 10_000f else 100_000f
+    val displayValue = if (isLunar) currentIlluminance * 1000.0 else currentIlluminance
+    val waveValue = displayValue.toFloat()
+    val unitLabel = if (isLunar) "mlx" else "lux"
+    val maxLux = if (isLunar) {
+        if (mode == IlluminanceMode.DIFFUSE) 30f else 300f
+    } else {
+        if (mode == IlluminanceMode.DIFFUSE) 10_000f else 100_000f
+    }
 
-    val description = if (mode == IlluminanceMode.DIFFUSE) {
-        when {
-            luxFloat < 0.001f -> "None"
-            luxFloat < 1f -> "Twilight"
-            luxFloat < 50f -> "Dusk"
-            luxFloat < 400f -> "Dim"
-            luxFloat < 2000f -> "Soft"
-            luxFloat < 6000f -> "Moderate"
-            luxFloat < 10000f -> "Bright"
-            else -> "Very Bright"
+    val description = if (isLunar) {
+        when (mode) {
+            IlluminanceMode.DIFFUSE -> when {
+                waveValue < 0.001f -> "None"
+                waveValue < 0.1f -> "Trace"
+                waveValue < 1f -> "Faint"
+                waveValue < 5f -> "Dim"
+                waveValue < 15f -> "Soft"
+                waveValue < 25f -> "Noticeable"
+                else -> "Bright Glow"
+            }
+            IlluminanceMode.DIRECT -> when {
+                waveValue < 0.001f -> "None"
+                waveValue < 1f -> "Trace"
+                waveValue < 5f -> "Very Faint"
+                waveValue < 25f -> "Faint"
+                waveValue < 80f -> "Dim"
+                waveValue < 160f -> "Soft"
+                waveValue < 250f -> "Bright"
+                else -> "Brilliant"
+            }
+            IlluminanceMode.GLOBAL -> when {
+                waveValue < 0.001f -> "None"
+                waveValue < 0.5f -> "Trace"
+                waveValue < 5f -> "Very Faint"
+                waveValue < 25f -> "Faint"
+                waveValue < 80f -> "Dim"
+                waveValue < 160f -> "Soft"
+                waveValue < 250f -> "Bright"
+                else -> "Brilliant"
+            }
         }
     } else {
-        // Direct / Global Illuminance Scale (Matched to Half-Decade Chart steps)
-        when {
-            luxFloat < 0.001f -> "None"           // Sun below horizon / deep night
-            luxFloat < 10f -> "Very Faint"        // Deep red horizon disk / twilight
-            luxFloat < 100f -> "Faint"            // Golden hour beginning
-            luxFloat < 1000f -> "Soft"            // Low-energy light
-            luxFloat < 10000f -> "Moderate"       // Gentle morning/evening light
-            luxFloat < 30000f -> "Bright"         // Comfortable, clear daylight
-            luxFloat < 60000f -> "Very Bright"    // High sun, casting harsh shadows
-            luxFloat < 105000f -> "Intense"       // Zenith peak overhead
-            else -> "Extreme"                     // High altitude / Reflection spikes
+        when (mode) {
+            IlluminanceMode.DIFFUSE -> when {
+                waveValue < 0.001f -> "Pitch Dark"
+                waveValue < 0.5f -> "Very Dark"
+                waveValue < 5f -> "Dark"
+                waveValue < 50f -> "Very Dim"
+                waveValue < 400f -> "Dim"
+                waveValue < 2000f -> "Soft"
+                waveValue < 6000f -> "Moderate"
+                waveValue < 10000f -> "Bright"
+                else -> "Very Bright"
+            }
+            IlluminanceMode.GLOBAL -> when {
+                waveValue < 0.001f -> "Pitch Dark"
+                waveValue < 0.5f -> "Very Dark"
+                waveValue < 5f -> "Dark"
+                waveValue < 50f -> "Very Dim"
+                waveValue < 400f -> "Dim"
+                waveValue < 2000f -> "Soft"
+                waveValue < 10000f -> "Moderate"
+                waveValue < 30000f -> "Bright"
+                waveValue < 60000f -> "Very Bright"
+                waveValue < 100000f -> "Intense"
+                else -> "Extreme"
+            }
+            IlluminanceMode.DIRECT -> when {
+                waveValue < 0.001f -> "None"           // Sun below horizon / deep night
+                waveValue < 10f -> "Very Faint"        // Deep red horizon disk / twilight
+                waveValue < 100f -> "Faint"            // Golden hour beginning
+                waveValue < 1000f -> "Soft"            // Low-energy light
+                waveValue < 10000f -> "Moderate"       // Gentle morning/evening light
+                waveValue < 30000f -> "Bright"         // Comfortable, clear daylight
+                waveValue < 60000f -> "Very Bright"    // High sun, casting harsh shadows
+                waveValue < 105000f -> "Intense"       // Zenith peak overhead
+                else -> "Extreme"                      // High altitude / Reflection spikes
+            }
         }
     }
 
@@ -75,7 +128,7 @@ fun Illuminance(
     )
 
     IlluminancePill(
-        currentIlluminance = luxFloat,
+        currentIlluminance = waveValue,
         maxLux = maxLux,
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -109,14 +162,14 @@ fun Illuminance(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                     ) {
                         Text(
-                            text = currentIlluminance.printSignificant(),
+                            text = displayValue.printSignificant(),
                             style = valueStyle,
                             maxLines = 1,
                             softWrap = false,
                             modifier = Modifier.alignByBaseline(),
                         )
                         Text(
-                            text = "lux",
+                            text = unitLabel,
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontSize = 14.sp,
                                 lineHeight = 16.sp,
@@ -199,9 +252,10 @@ private fun IlluminanceWavyTilePreview() {
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Illuminance(
-                            currentIlluminance = 105000.0,
-                            peakIlluminance = 105000.0,
+                            currentIlluminance = 0.24,
+                            peakIlluminance = 0.30,
                             mode = IlluminanceMode.GLOBAL,
+                            isLunar = true,
                         )
                     }
                 }
@@ -215,9 +269,9 @@ private fun IlluminanceWavyTilePreview() {
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Illuminance(
-                            currentIlluminance = 0.0,
+                            currentIlluminance = 2.4,
                             peakIlluminance = 85000.0,
-                            mode = IlluminanceMode.DIRECT,
+                            mode = IlluminanceMode.GLOBAL,
                         )
                     }
                 }
@@ -229,9 +283,10 @@ private fun IlluminanceWavyTilePreview() {
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Illuminance(
-                            currentIlluminance = 9800.0,
-                            peakIlluminance = 10500.0,
+                            currentIlluminance = 0.0185,
+                            peakIlluminance = 0.025,
                             mode = IlluminanceMode.DIFFUSE,
+                            isLunar = true,
                         )
                     }
                 }
