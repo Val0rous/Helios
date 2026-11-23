@@ -15,7 +15,10 @@ import com.ephemeris.helios.utils.network.TimeApiClient
 import com.ephemeris.helios.utils.round
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -24,6 +27,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.ZoneId
+import java.time.ZoneOffset
+import kotlin.math.roundToInt
 
 /**
  * Single source of truth for observer coordinates, DataStore persistence,
@@ -37,6 +43,8 @@ class LocationRepository(
     private val altitudeCorrector: AltitudeCorrector,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    private var saveJob: Job? = null
 
     private val _isLoaded = MutableStateFlow(false)
     val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
@@ -66,15 +74,20 @@ class LocationRepository(
             locationService.gpsEvents.collect { event ->
                 when (event) {
                     is GpsEvent.Fix -> {
-                        val realAltitude = altitudeCorrector.getRealAltitude(event.location)
-                        val roundedAltitude = kotlin.math.round(realAltitude * 10.0) / 10.0
+                        val realAltitude = altitudeCorrector.getRealAltitudeOrNull(event.location)
+                        val roundedAltitude = realAltitude?.let { kotlin.math.round(it * 10.0) / 10.0 } ?: 0.0
                         val gpsCoords = Coordinates(
                             latitude = event.location.latitude,
                             longitude = event.location.longitude,
                             altitude = roundedAltitude,
                         )
                         _locationStatus.value = LocationStatus.CURRENT
-                        saveCoordinates(gpsCoords, isFromGPS = true)
+                        saveCoordinates(
+                            newCoordinates = gpsCoords,
+                            isFromGPS = true,
+                            // If the Fused/network fix lacked an altitude sensor reading, fetch DEM elevation
+                            fetchAltitude = realAltitude == null,
+                        )
                     }
                     GpsEvent.Failed -> {
                         onLocationRequestFailed()
@@ -101,47 +114,68 @@ class LocationRepository(
         }
     }
 
-    fun saveCoordinates(newCoordinates: Coordinates, isFromGPS: Boolean = false) {
+    fun saveCoordinates(
+        newCoordinates: Coordinates,
+        isFromGPS: Boolean = false,
+        fetchAltitude: Boolean = !isFromGPS,
+    ) {
         if (!isFromGPS) {
             _locationStatus.value = LocationStatus.DISABLED
         }
 
-        scope.launch {
-            var finalCoords = newCoordinates
-
-            // Fetch Street Address if missing (GeocodingEngine catches offline errors safely)
-            if (finalCoords.locationName == null) {
-                val loc = Location("").apply {
-                    latitude = finalCoords.latitude
-                    longitude = finalCoords.longitude
-                }
-                val fetchedName = geocodingEngine.getStreetAddress(loc)
-                finalCoords = finalCoords.copy(locationName = fetchedName ?: "Unknown location")
-            }
-
-            // Fetch Timezone API if missing (prevents offline crashes)
-            if (finalCoords.timezoneId == null) {
-                try {
-                    val tzResponse = TimeApiClient.getTimezoneForCoordinates(
-                        finalCoords.latitude,
-                        finalCoords.longitude,
-                    )
-                    if (tzResponse != null) {
-                        finalCoords = finalCoords.copy(timezoneId = tzResponse.timezone)
+        // Cancel any slower in-flight lookup so stale manual/map results can never overwrite a newer GPS fix
+        saveJob?.cancel()
+        saveJob = scope.launch {
+            val finalCoords = coroutineScope {
+                val nameDeferred = async {
+                    newCoordinates.locationName ?: run {
+                        val loc = Location("").apply {
+                            latitude = newCoordinates.latitude
+                            longitude = newCoordinates.longitude
+                        }
+                        geocodingEngine.getStreetAddress(loc) ?: "Unknown location"
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
                 }
-            }
 
-            // Fetch elevation ONLY if this didn't come directly from the phone's GPS sensor
-            if (!isFromGPS) {
-                val realAltitude = MapboxElevationEngine.getElevation(
-                    lat = finalCoords.latitude,
-                    lon = finalCoords.longitude,
-                    accessToken = BuildConfig.MAPBOX_ACCESS_TOKEN,
-                ).round(1) ?: finalCoords.altitude
-                finalCoords = finalCoords.copy(altitude = realAltitude)
+                val timezoneDeferred = async {
+                    newCoordinates.timezoneId ?: run {
+                        val fetched = try {
+                            TimeApiClient.getTimezoneForCoordinates(
+                                newCoordinates.latitude,
+                                newCoordinates.longitude,
+                            )?.timezone
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            null
+                        }
+                        fetched ?: if (isFromGPS) {
+                            // Offline GPS fix: device's own timezone is authoritative
+                            ZoneId.systemDefault().id
+                        } else {
+                            // Offline manual location: solar-meridian UTC offset fallback
+                            val offsetHours = (newCoordinates.longitude / 15.0).roundToInt().coerceIn(-12, 14)
+                            ZoneOffset.ofHours(offsetHours).id
+                        }
+                    }
+                }
+
+                val altitudeDeferred = async {
+                    if (fetchAltitude) {
+                        MapboxElevationEngine.getElevation(
+                            lat = newCoordinates.latitude,
+                            lon = newCoordinates.longitude,
+                            accessToken = BuildConfig.MAPBOX_ACCESS_TOKEN,
+                        ).round(1) ?: newCoordinates.altitude
+                    } else {
+                        newCoordinates.altitude
+                    }
+                }
+
+                newCoordinates.copy(
+                    locationName = nameDeferred.await(),
+                    timezoneId = timezoneDeferred.await(),
+                    altitude = altitudeDeferred.await(),
+                )
             }
 
             locationDataStore.saveCoordinates(finalCoords)

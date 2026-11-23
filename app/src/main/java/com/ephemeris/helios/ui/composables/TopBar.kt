@@ -51,7 +51,7 @@ fun TopBar(
     currentTime: ZonedDateTime,
     coordinates: Coordinates?,
     locationStatus: LocationStatus,
-    onSaveCoordinates: (Coordinates, Boolean) -> Unit,
+    onSaveCoordinates: (Coordinates, Boolean, Boolean) -> Unit,
     onLocationClick: () -> Unit,
     isTracking: Boolean,
     onToggleTracking: (Boolean) -> Unit,

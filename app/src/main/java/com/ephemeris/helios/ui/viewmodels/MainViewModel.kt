@@ -28,8 +28,12 @@ class MainViewModel(
 
     val isEphemerisReady: StateFlow<Boolean> = ephemerisRepository.isReady
 
-    fun saveCoordinates(coordinates: Coordinates, isFromGPS: Boolean = false) {
-        locationRepository.saveCoordinates(coordinates, isFromGPS)
+    fun saveCoordinates(
+        coordinates: Coordinates,
+        isFromGPS: Boolean = false,
+        fetchAltitude: Boolean = !isFromGPS,
+    ) {
+        locationRepository.saveCoordinates(coordinates, isFromGPS, fetchAltitude)
     }
 
     fun onLocationRequestStarted() = locationRepository.onLocationRequestStarted()

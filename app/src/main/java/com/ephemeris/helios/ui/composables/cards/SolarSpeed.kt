@@ -113,21 +113,21 @@ fun SolarSpeed(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 26.dp),
+                    .padding(top = 24.dp),
             ) {
                 HeaderEntry(
                     text = stringResource(R.string.velocity),
                     icon = R.drawable.ic_speed_filled,
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    iconSize = 19.dp,
-                    textSize = 15.sp,
-                    spacing = 5.dp,
+                    iconSize = 20.dp,
+                    textSize = 16.sp,
+                    spacing = 6.dp,
                 )
             }
 
             val valueStyle = MaterialTheme.typography.headlineMedium.copy(
-                fontSize = 24.sp,
-                lineHeight = 28.sp,
+                fontSize = 25.5.sp,
+                lineHeight = 32.sp,
                 fontWeight = FontWeight.Black,
                 fontFeatureSettings = "tnum",
                 letterSpacing = (-0.5).sp,
@@ -162,7 +162,7 @@ fun SolarSpeed(
                 Text(
                     text = "/min",
                     style = MaterialTheme.typography.labelLarge.copy(
-                        fontSize = 12.5.sp,
+                        fontSize = 13.sp,
                         lineHeight = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -184,7 +184,7 @@ fun SolarSpeed(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 40.dp),
+                    .padding(bottom = 38.dp),
             )
         }
     }

@@ -7,26 +7,28 @@ import androidx.compose.ui.graphics.Color
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import kotlin.math.abs
 
-private const val MAX_SOLAR_DECLINATION_DEG = 23.436f
+const val MAX_SOLAR_DECLINATION_DEG = 23.436f
+const val MAX_LUNAR_DECLINATION_DEG = 28.72f
 
 /**
  * Full-bleed directional wavy declination fill:
- * - Positive declination (`0° -> +23.44°`, North): warm orange waves rising from bottom to top,
- *   filling the tile completely at the June Solstice.
- * - Zero (`0°`, Equinoxes): completely clear surface.
- * - Negative declination (`0° -> -23.44°`, South): cool blue waves descending from top to bottom,
- *   filling the tile completely at the December Solstice.
+ * - Positive declination (`0° -> +maxDeclinationDeg`, North): warm orange waves rising from bottom to top,
+ *   filling the tile completely at the June Solstice (Sun) or Major Lunar Standstill (Moon).
+ * - Zero (`0°`): completely clear surface.
+ * - Negative declination (`0° -> -maxDeclinationDeg`, South): cool blue waves descending from top to bottom,
+ *   filling the tile completely at the December Solstice (Sun) or Major Lunar Standstill (Moon).
  */
 @Composable
 fun DeclinationPill(
     declination: Float,
     modifier: Modifier = Modifier,
+    maxDeclinationDeg: Float = MAX_SOLAR_DECLINATION_DEG,
     northColor: Color = LocalCustomColors.current.warmWave,
     southColor: Color = LocalCustomColors.current.coolWave,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val isSouth = declination < 0f
-    val fraction = (abs(declination) / MAX_SOLAR_DECLINATION_DEG).coerceIn(0f, 1f)
+    val fraction = (abs(declination) / maxDeclinationDeg.coerceAtLeast(1f)).coerceIn(0f, 1f)
     val fillColor = if (isSouth) southColor else northColor
 
     WavyMetricFill(

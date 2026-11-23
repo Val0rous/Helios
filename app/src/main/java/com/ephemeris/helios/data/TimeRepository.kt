@@ -49,19 +49,23 @@ class TimeRepository(
         // 2. Keep active ZoneId synchronized with the observer's coordinates
         scope.launch {
             locationRepository.coordinates.collect { coords ->
-                val tzId = coords?.timezoneId ?: return@collect
-                try {
-                    val newZone = ZoneId.of(tzId)
-                    if (_currentZoneId.value != newZone) {
-                        _currentZoneId.value = newZone
-                        _currentTime.value = if (_isAutoUpdateEnabled.value) {
-                            ZonedDateTime.now(newZone)
-                        } else {
-                            _currentTime.value.withZoneSameInstant(newZone)
-                        }
+                if (coords == null) return@collect
+                val newZone = coords.timezoneId?.let { tzId ->
+                    try {
+                        ZoneId.of(tzId)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        null
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                } ?: ZoneId.systemDefault()
+
+                if (_currentZoneId.value != newZone) {
+                    _currentZoneId.value = newZone
+                    _currentTime.value = if (_isAutoUpdateEnabled.value) {
+                        ZonedDateTime.now(newZone)
+                    } else {
+                        _currentTime.value.withZoneSameInstant(newZone)
+                    }
                 }
             }
         }

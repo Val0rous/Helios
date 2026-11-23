@@ -13,17 +13,20 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ephemeris.helios.ui.composables.cards.AirMass
 import com.ephemeris.helios.ui.composables.cards.ColorTemperature
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
+import com.ephemeris.helios.ui.composables.cards.Declination
 import com.ephemeris.helios.ui.composables.cards.Illuminance
 import com.ephemeris.helios.ui.composables.cards.LunarDistance
 import com.ephemeris.helios.ui.composables.cards.LunarIllumination
 import com.ephemeris.helios.ui.composables.cards.ShadowRatio
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
+import com.ephemeris.helios.ui.composables.cards.SolarSpeed
 import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
 import com.ephemeris.helios.ui.composables.entries.LunarCulminationEntry
 import com.ephemeris.helios.ui.composables.entries.MoonriseMoonsetEntry
 import com.ephemeris.helios.ui.viewmodels.MoonViewModel
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.datastore.MoonColorTempMode
+import com.ephemeris.helios.utils.datastore.MoonDeclinationMode
 import com.ephemeris.helios.utils.formatDecimalHours
 import com.ephemeris.helios.utils.round
 import org.koin.androidx.compose.koinViewModel
@@ -68,8 +71,8 @@ fun Moon(
                 rightCard = {
                     LunarCulminationEntry(
                         culminationTime = moon.events.culmination.formatDecimalHours(),
-                        culminationAzimuth = moon.events.culminationAzimuth!!.round(),
-                        culminationAltitude = moon.events.culminationAltitude!!.round()
+                        culminationAzimuth = moon.events.culminationAzimuth?.round(),
+                        culminationAltitude = moon.events.culminationAltitude?.round()
                     )
                 },
                 onRightClick = if (moon.events.culmination != null) viewModel::jumpToCulmination else null,
@@ -145,6 +148,38 @@ fun Moon(
                     AirMass(
                         currentAirMass = moon.metrics.airMass,
                         minAirMass = 0.0,
+                    )
+                },
+            )
+        }
+        item {
+            val displayedDeclination = when (ui.declinationMode) {
+                MoonDeclinationMode.GEOCENTRIC -> moon.position.declination
+                MoonDeclinationMode.TOPOCENTRIC -> moon.position.topocentricDeclination
+            }
+            // Prefer upper meridian transit azimuth (strictly 180° South or 0°/360° North) so
+            // near-zenith subtropical transits flip cleanly without distortion from declination drift.
+            // On skipped-transit days, fall back to topocentric declination vs. observer latitude.
+            val lunarCulminationAzimuth = moon.events.transitAzimuth
+                ?: if (ui.coordinates.latitude >= moon.position.topocentricDeclination) 180.0 else 0.0
+            SmallCardRow(
+                disableInnerHorizontalPadding = true,
+                leftFullBleed = true,
+                rightCircular = true,
+                leftCard = {
+                    Declination(
+                        currentDeclinationDeg = displayedDeclination,
+                        currentTime = ui.currentTime,
+                        isLunar = true,
+                        geocentricDeclinationDeg = moon.position.declination,
+                        modeLabel = ui.declinationMode.label,
+                        onToggleMode = viewModel::cycleDeclinationMode,
+                    )
+                },
+                rightCard = {
+                    SolarSpeed(
+                        currentSpeedDegPerMin = moon.position.lunarSpeedDegPerMin,
+                        solarNoonAzimuth = lunarCulminationAzimuth,
                     )
                 },
             )

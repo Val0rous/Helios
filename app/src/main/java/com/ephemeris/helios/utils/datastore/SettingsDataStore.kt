@@ -90,6 +90,18 @@ enum class DistanceUnit(val label: String) {
     }
 }
 
+enum class MoonDeclinationMode(val label: String) {
+    GEOCENTRIC("Geo"),
+    TOPOCENTRIC("Topo");
+
+    fun next(): MoonDeclinationMode = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        fun fromName(name: String?): MoonDeclinationMode =
+            entries.firstOrNull { it.name == name } ?: GEOCENTRIC
+    }
+}
+
 /**
  * Central container for user-configurable app settings.
  *
@@ -101,6 +113,7 @@ enum class DistanceUnit(val label: String) {
  * @property colorTempMode Selected display mode for the Sun Color Temp card (defaults to [ColorTempMode.DIRECT]).
  * @property moonIlluminanceMode Selected display mode for the Moon Illuminance card (defaults to [MoonIlluminanceMode.GLOBAL]).
  * @property moonColorTempMode Selected display mode for the Moon Color Temp card (defaults to [MoonColorTempMode.PURKINJE]).
+ * @property moonDeclinationMode Selected display mode for the Moon Declination card (defaults to [MoonDeclinationMode.GEOCENTRIC]).
  * @property distanceUnit Selected display unit for the Sun Distance card (defaults to [DistanceUnit.AU]).
  */
 data class AppSettings(
@@ -110,6 +123,7 @@ data class AppSettings(
     val colorTempMode: ColorTempMode = ColorTempMode.DIRECT,
     val moonIlluminanceMode: MoonIlluminanceMode = MoonIlluminanceMode.GLOBAL,
     val moonColorTempMode: MoonColorTempMode = MoonColorTempMode.PURKINJE,
+    val moonDeclinationMode: MoonDeclinationMode = MoonDeclinationMode.GEOCENTRIC,
     val distanceUnit: DistanceUnit = DistanceUnit.AU,
 )
 
@@ -124,6 +138,7 @@ class SettingsDataStore(private val context: Context) {
     private val colorTempModeKey = stringPreferencesKey("color_temp_mode")
     private val moonIlluminanceModeKey = stringPreferencesKey("moon_illuminance_mode")
     private val moonColorTempModeKey = stringPreferencesKey("moon_color_temp_mode")
+    private val moonDeclinationModeKey = stringPreferencesKey("moon_declination_mode")
     private val distanceUnitKey = stringPreferencesKey("distance_unit")
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data
@@ -135,6 +150,7 @@ class SettingsDataStore(private val context: Context) {
                 colorTempMode = ColorTempMode.fromName(preferences[colorTempModeKey]),
                 moonIlluminanceMode = MoonIlluminanceMode.fromName(preferences[moonIlluminanceModeKey]),
                 moonColorTempMode = MoonColorTempMode.fromName(preferences[moonColorTempModeKey]),
+                moonDeclinationMode = MoonDeclinationMode.fromName(preferences[moonDeclinationModeKey]),
                 distanceUnit = DistanceUnit.fromName(preferences[distanceUnitKey]),
             )
         }
@@ -172,6 +188,12 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setMoonColorTempMode(mode: MoonColorTempMode) {
         context.dataStore.edit { preferences ->
             preferences[moonColorTempModeKey] = mode.name
+        }
+    }
+
+    suspend fun setMoonDeclinationMode(mode: MoonDeclinationMode) {
+        context.dataStore.edit { preferences ->
+            preferences[moonDeclinationModeKey] = mode.name
         }
     }
 

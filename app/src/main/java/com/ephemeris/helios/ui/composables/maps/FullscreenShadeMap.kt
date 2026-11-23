@@ -5,6 +5,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -63,18 +68,24 @@ fun FullscreenShadeMap(
         }
     }
 
+    val latestLocation by rememberUpdatedState(location)
+    var isProgrammaticMove by remember { mutableStateOf(false) }
+
     // --- TWO-WAY BINDING: MAP TO VIEWMODEL ---
     // Because this watches the center state, delay(500) will constantly reset
     // while the user drags. It only fires when they truly stop moving!
     LaunchedEffect(mapViewportState.cameraState?.center) {
+        if (isProgrammaticMove) return@LaunchedEffect
         delay(500)
+        if (isProgrammaticMove) return@LaunchedEffect
         val center = mapViewportState.cameraState?.center ?: return@LaunchedEffect
         val newTarget = LatLng(center.latitude(), center.longitude())
-        val oldTarget = LatLng(location.latitude, location.longitude)
+        val currentLoc = latestLocation
+        val oldTarget = LatLng(currentLoc.latitude, currentLoc.longitude)
 
         if (SphericalUtil.computeDistanceBetween(oldTarget, newTarget) > 10.0) {
             onMapCenterSettled(
-                location.copy(
+                currentLoc.copy(
                     latitude = newTarget.latitude,
                     longitude = newTarget.longitude,
                     locationName = null, // Forces Geocoding lookup
@@ -92,8 +103,13 @@ fun FullscreenShadeMap(
         val newTarget = LatLng(location.latitude, location.longitude)
 
         if (currentTarget == null || SphericalUtil.computeDistanceBetween(currentTarget, newTarget) > 10.0) {
-            mapViewportState.setCameraOptions {
-                center(Point.fromLngLat(location.longitude, location.latitude))
+            isProgrammaticMove = true
+            try {
+                mapViewportState.setCameraOptions {
+                    center(Point.fromLngLat(location.longitude, location.latitude))
+                }
+            } finally {
+                isProgrammaticMove = false
             }
         }
     }

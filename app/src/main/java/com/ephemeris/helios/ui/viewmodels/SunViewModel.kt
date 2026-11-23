@@ -7,6 +7,7 @@ import com.ephemeris.helios.data.LocationRepository
 import com.ephemeris.helios.data.SunDailyData
 import com.ephemeris.helios.data.SunUiData
 import com.ephemeris.helios.data.TimeRepository
+import com.ephemeris.helios.utils.calc.LocalDayTimeline
 import com.ephemeris.helios.utils.calc.SunLiveSnapshot
 import com.ephemeris.helios.utils.datastore.AppSettings
 import com.ephemeris.helios.utils.datastore.ColorTempMode
@@ -21,9 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.LocalTime
 import java.time.ZonedDateTime
-import kotlin.math.roundToLong
 
 data class SunUiState(
     val currentTime: ZonedDateTime,
@@ -92,17 +91,11 @@ class SunViewModel(
 
     fun jumpToSolarNoon() {
         val state = uiState.value ?: return
-        val solarNoonHours = state.sun.events.solarNoon
-        if (!solarNoonHours.isFinite()) return
+        val solarNoonElapsedHours = state.sun.events.solarNoonElapsedHours
+        if (!solarNoonElapsedHours.isFinite()) return
 
-        val totalSeconds = (solarNoonHours * 3600.0).roundToLong()
-        val dayOffset = Math.floorDiv(totalSeconds, 86_400L)
-        val secondOfDay = Math.floorMod(totalSeconds, 86_400L)
-        val targetTime = ZonedDateTime.of(
-            state.currentTime.toLocalDate().plusDays(dayOffset),
-            LocalTime.ofSecondOfDay(secondOfDay),
-            state.currentTime.zone,
-        )
+        val targetTime = LocalDayTimeline(state.currentTime.toLocalDate(), state.currentTime.zone)
+            .elapsedHourToZonedDateTime(solarNoonElapsedHours)
         timeRepository.travelTo(targetTime)
     }
 

@@ -4,6 +4,7 @@ import com.ephemeris.helios.utils.datastore.MoonColorTempMode
 import com.ephemeris.helios.utils.datastore.MoonIlluminanceMode
 import com.ephemeris.helios.utils.location.Coordinates
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import kotlin.math.*
 
@@ -395,21 +396,59 @@ object MoonMetrics {
         outDirectIlluminance: FloatArray? = null,
         outDiffuseIlluminance: FloatArray? = null,
     ) {
+        calculateMetrics(
+            date = date,
+            hoursCalc = hoursCalc,
+            zoneId = LocalDayTimeline.fixedOffset(date, tzOffsetHours).zoneId,
+            moonElevationsDeg = moonElevationsDeg,
+            distancesKm = distancesKm,
+            observerAltitudeMeters = observerAltitudeMeters,
+            horizonAltDeg = horizonAltDeg,
+            outIlluminance = outIlluminance,
+            outShadowRatio = outShadowRatio,
+            outColorTemp = outColorTemp,
+            outAirMass = outAirMass,
+            outDirectIlluminance = outDirectIlluminance,
+            outDiffuseIlluminance = outDiffuseIlluminance,
+        )
+    }
+
+    /**
+     * DST-aware single-pass batch metrics calculator for 1,441-point daily lunar charts.
+     */
+    fun calculateMetrics(
+        date: LocalDate,
+        hoursCalc: DoubleArray,
+        zoneId: ZoneId,
+        moonElevationsDeg: FloatArray,
+        distancesKm: DoubleArray,
+        observerAltitudeMeters: Double,
+        horizonAltDeg: Double,
+        outIlluminance: FloatArray,
+        outShadowRatio: FloatArray,
+        outColorTemp: FloatArray,
+        outAirMass: FloatArray,
+        outDirectIlluminance: FloatArray? = null,
+        outDiffuseIlluminance: FloatArray? = null,
+    ) {
         val size = moonElevationsDeg.size
         val amElevationModifier = exp(-observerAltitudeMeters / ATMOSPHERE_SCALE_HEIGHT)
+        val timeline = LocalDayTimeline(date, zoneId)
+        val anchorOffset = timeline.startUtcAnchorOffsetHours
+        val dayHours = timeline.durationHours
 
         // Signed phase angle changes smoothly (~-12°/day), so interpolating its unwrapped value
-        // between 00:00 and 24:00 accurately captures Full Moon (0°) and New Moon (180°) crossings.
-        val t0 = calculateJulianCentury(date.year, date.monthValue, date.dayOfMonth, 0.0, tzOffsetHours)
-        val t24 = calculateJulianCentury(date.year, date.monthValue, date.dayOfMonth, 24.0, tzOffsetHours)
+        // between local start-of-day and end-of-day (23h/24h/25h) accurately captures Full/New Moon crossings.
+        val t0 = calculateJulianCentury(date.year, date.monthValue, date.dayOfMonth, 0.0, anchorOffset)
+        val tEnd = calculateJulianCentury(date.year, date.monthValue, date.dayOfMonth, dayHours, anchorOffset)
         val signedPhase0 = calculatePhaseGeometry(t0).signedPhaseAngleDeg
-        var deltaPhase = calculatePhaseGeometry(t24).signedPhaseAngleDeg - signedPhase0
+        var deltaPhase = calculatePhaseGeometry(tEnd).signedPhaseAngleDeg - signedPhase0
         while (deltaPhase > 180.0) deltaPhase -= 360.0
         while (deltaPhase < -180.0) deltaPhase += 360.0
 
         for (i in 0 until size) {
             val moonElevDeg = moonElevationsDeg[i].toDouble()
-            val frac = hoursCalc[i] / 24.0
+            val frac = timeline.wallClockHourToElapsedHour(hoursCalc[i]) / dayHours
             val alphaDeg = foldPhaseAngleToAlpha(signedPhase0 + frac * deltaPhase)
 
             if (moonElevDeg <= horizonAltDeg) {
@@ -474,22 +513,13 @@ object MoonMetrics {
         )
 
         // If the moon does not culminate today (due to the 24h 50m lunar cycle), there is no peak.
-        val culminationDecimalHour = resolvedEvents.culmination ?: return null
+        val culminationElapsedHour = resolvedEvents.culminationElapsedHours ?: return null
 
-        // 2. Convert the decimal hour back into strict hours, minutes, and seconds
-        val hour = culminationDecimalHour.toInt().coerceIn(0, 23)
-        val minutesRemainder = (culminationDecimalHour - hour) * 60.0
-        val minute = minutesRemainder.toInt().coerceIn(0, 59)
-        val second = ((minutesRemainder - minute) * 60.0).toInt().coerceIn(0, 59)
+        // 2. Construct the exact unambiguous ZonedDateTime of the peak (handles 23h/25h DST days)
+        val peakTime = LocalDayTimeline(time.toLocalDate(), time.zone)
+            .elapsedHourToZonedDateTime(culminationElapsedHour)
 
-        // 3. Construct the exact ZonedDateTime of the peak
-        val peakTime = ZonedDateTime.of(
-            time.toLocalDate(),
-            java.time.LocalTime.of(hour, minute, second),
-            time.zone
-        )
-
-        // 4. Run the full physics engine at that exact second
+        // 3. Run the full physics engine at that exact second
         return calculateMetrics(
             time = peakTime,
             coordinates = coordinates

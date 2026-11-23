@@ -50,14 +50,24 @@ class AltitudeCorrector(context: Context) {
         return gpsAltitude - undulation
     }
 
-    fun getRealAltitude(location: Location): Double {
+    /**
+     * Returns the orthometric (mean sea level) altitude in meters if the [location] carries either
+     * a native Android 14+ MSL altitude or a valid ellipsoid altitude (`hasAltitude()`), or `null`
+     * for fixes (such as indoor network-assisted fixes) that lack an altitude measurement.
+     */
+    fun getRealAltitudeOrNull(location: Location): Double? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE &&
             location.hasMslAltitude()
         ) {
             // 1. Android 14+ natively calculates the Geoid correction for you
             return location.mslAltitudeMeters
         }
-        // 2. Fallback for older Android versions (or fixes missing native MSL altitude)
-        return getTrueSeaLevelAltitude(location.latitude, location.longitude, location.altitude)
+        if (location.hasAltitude()) {
+            // 2. Fallback for older Android versions (or fixes missing native MSL altitude)
+            return getTrueSeaLevelAltitude(location.latitude, location.longitude, location.altitude)
+        }
+        return null
     }
+
+    fun getRealAltitude(location: Location): Double = getRealAltitudeOrNull(location) ?: 0.0
 }

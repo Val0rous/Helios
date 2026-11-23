@@ -65,7 +65,7 @@ import java.util.Locale
 fun LocationBottomSheet(
     currentTime: ZonedDateTime,
     coordinates: Coordinates,
-    onSaveCoordinates: (Coordinates, Boolean) -> Unit,
+    onSaveCoordinates: (Coordinates, Boolean, Boolean) -> Unit,
     showBottomSheet: Boolean,
     onShowBottomSheetChange: (Boolean) -> Unit,
     isTracking: Boolean,
@@ -103,16 +103,17 @@ fun LocationBottomSheet(
                         // Local states to hold the text input before saving
                         var latInput by remember { mutableStateOf(coordinates.latitude.toString()) }
                         var lonInput by remember { mutableStateOf(coordinates.longitude.toString()) }
-                        var altInput by remember { mutableStateOf(coordinates.altitude.toString()) }
+                        val initialAltText = remember { coordinates.altitude.toString() }
+                        var altInput by remember { mutableStateOf(initialAltText) }
 
                         // 1. Validation Logic
                         val latDouble = latInput.toDoubleOrNull()
                         val lonDouble = lonInput.toDoubleOrNull()
-                        val altDouble = altInput.toDoubleOrNull()
+                        val altDouble = if (altInput.isBlank()) null else altInput.toDoubleOrNull()
 
                         val isLatError = latDouble == null || latDouble !in -90.0..90.0
                         val isLonError = lonDouble == null || lonDouble !in -180.0..180.0
-                        val isAltError = altDouble == null || altDouble !in -500.0..20000.0
+                        val isAltError = altInput.isNotBlank() && (altDouble == null || altDouble !in -500.0..20000.0)
                         val isSaveEnabled = !isLatError && !isLonError && !isAltError
 
                         // 2. Sanitization Regex: Allows optional minus sign, numbers, and one optional decimal point
@@ -146,8 +147,15 @@ fun LocationBottomSheet(
                                 value = altInput,
                                 onValueChange = { if (it.matches(decimalRegex)) altInput = it },
                                 label = { Text("Altitude (Meters)") },
+                                placeholder = { Text("Auto") },
                                 isError = isAltError,
-                                supportingText = { if (isAltError) Text("Must be between -500m and 20,000m") },
+                                supportingText = {
+                                    if (isAltError) {
+                                        Text("Must be between -500m and 20,000m")
+                                    } else {
+                                        Text("Leave blank or unchanged for automatic elevation")
+                                    }
+                                },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -163,9 +171,12 @@ fun LocationBottomSheet(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Button(
                                     onClick = {
-                                        // Trigger the save callback
-                                        // We know these aren't null because the button is enabled
-                                        onSaveCoordinates(Coordinates(latDouble!!, lonDouble!!, altDouble!!), false)   // false because it's not from GPS
+                                        val altExplicitlyEdited = altInput.isNotBlank() && altInput != initialAltText
+                                        onSaveCoordinates(
+                                            Coordinates(latDouble!!, lonDouble!!, altDouble ?: coordinates.altitude),
+                                            false,
+                                            !altExplicitlyEdited,
+                                        )
                                         // Return to view mode
                                         isEditing = false
                                     },

@@ -7,9 +7,11 @@ import com.ephemeris.helios.data.LocationRepository
 import com.ephemeris.helios.data.MoonDailyData
 import com.ephemeris.helios.data.MoonUiData
 import com.ephemeris.helios.data.TimeRepository
+import com.ephemeris.helios.utils.calc.LocalDayTimeline
 import com.ephemeris.helios.utils.calc.MoonLiveSnapshot
 import com.ephemeris.helios.utils.datastore.AppSettings
 import com.ephemeris.helios.utils.datastore.MoonColorTempMode
+import com.ephemeris.helios.utils.datastore.MoonDeclinationMode
 import com.ephemeris.helios.utils.datastore.MoonIlluminanceMode
 import com.ephemeris.helios.utils.datastore.SettingsDataStore
 import com.ephemeris.helios.utils.location.Coordinates
@@ -18,9 +20,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.time.LocalTime
 import java.time.ZonedDateTime
-import kotlin.math.roundToLong
 
 data class MoonUiState(
     val currentTime: ZonedDateTime,
@@ -28,6 +28,7 @@ data class MoonUiState(
     val moon: MoonUiData,
     val illuminanceMode: MoonIlluminanceMode = MoonIlluminanceMode.GLOBAL,
     val colorTempMode: MoonColorTempMode = MoonColorTempMode.PURKINJE,
+    val declinationMode: MoonDeclinationMode = MoonDeclinationMode.GEOCENTRIC,
 )
 
 class MoonViewModel(
@@ -71,19 +72,20 @@ class MoonViewModel(
         }
     }
 
+    fun cycleDeclinationMode() {
+        val current = uiState.value?.declinationMode ?: MoonDeclinationMode.GEOCENTRIC
+        viewModelScope.launch {
+            settingsDataStore.setMoonDeclinationMode(current.next())
+        }
+    }
+
     fun jumpToCulmination() {
         val state = uiState.value ?: return
-        val culminationHours = state.moon.events.culmination ?: return
-        if (!culminationHours.isFinite()) return
+        val culminationElapsedHours = state.moon.events.culminationElapsedHours ?: return
+        if (!culminationElapsedHours.isFinite()) return
 
-        val totalSeconds = (culminationHours * 3600.0).roundToLong()
-        val dayOffset = Math.floorDiv(totalSeconds, 86_400L)
-        val secondOfDay = Math.floorMod(totalSeconds, 86_400L)
-        val targetTime = ZonedDateTime.of(
-            state.currentTime.toLocalDate().plusDays(dayOffset),
-            LocalTime.ofSecondOfDay(secondOfDay),
-            state.currentTime.zone,
-        )
+        val targetTime = LocalDayTimeline(state.currentTime.toLocalDate(), state.currentTime.zone)
+            .elapsedHourToZonedDateTime(culminationElapsedHours)
         timeRepository.travelTo(targetTime)
     }
 
@@ -104,6 +106,7 @@ class MoonViewModel(
             ),
             illuminanceMode = settings.moonIlluminanceMode,
             colorTempMode = settings.moonColorTempMode,
+            declinationMode = settings.moonDeclinationMode,
         )
     }
 }

@@ -77,7 +77,7 @@ fun getDailyEphemerisData(
     cachedSeasonal: SeasonalBundle? = null,
 ): DayEphemerisData {
     val events = SolarEphemeris.calculateDailyEvents(currentTime, coordinates)
-    val durations = SolarEphemeris.calculateDailyDurations(events, coordinates)
+    val durations = SolarEphemeris.calculateDailyDurations(events, coordinates, time = currentTime)
     val dailyOzone = estimateHistoricalOzone(
         latitude = coordinates.latitude,
         date = currentTime.toLocalDate(),

@@ -185,7 +185,6 @@ class EphemerisRepository(
                             return@collect
                         }
 
-                        val tzOffset = targetTime.offset.totalSeconds / 3600.0
                         val dailyOzone = estimateHistoricalOzone(
                             latitude = coords.latitude,
                             date = localDate,
@@ -214,7 +213,11 @@ class EphemerisRepository(
                         val bundle = coroutineScope {
                             val sunDeferred = async {
                                 val events = SolarEphemeris.calculateDailyEvents(targetTime, coords)
-                                val durations = SolarEphemeris.calculateDailyDurations(events, coords)
+                                val durations = SolarEphemeris.calculateDailyDurations(
+                                    events = events,
+                                    coordinates = coords,
+                                    time = targetTime,
+                                )
                                 val peakMetrics = SunMetrics.calculateMetrics(
                                     sunElevationDeg = events.solarNoonAltitude,
                                     observerAltitudeMeters = coords.altitude,
@@ -223,7 +226,7 @@ class EphemerisRepository(
                                     horizonAltDeg = coords.sunApparentHorizonAlt,
                                 )
                                 currentCoroutineContext().ensureActive()
-                                val (xSun, ySun) = generateSunData(localDate, hoursCalc, coords, tzOffset, dailyOzone)
+                                val (xSun, ySun) = generateSunData(localDate, hoursCalc, coords, targetTime.zone, dailyOzone)
                                 SunDailyData(
                                     events = events,
                                     durations = durations,
@@ -235,7 +238,7 @@ class EphemerisRepository(
                             }
 
                             val moonDeferred = async {
-                                val lunarModel = LunarEphemeris.createDailyModel(localDate, coords, tzOffset)
+                                val lunarModel = LunarEphemeris.createDailyModel(localDate, coords, targetTime.zone)
                                 currentCoroutineContext().ensureActive()
                                 val lunarEvents = lunarModel.calculateDailyEvents()
                                 val lunarPeakMetrics = MoonMetrics.calculatePeakMetrics(
@@ -249,7 +252,7 @@ class EphemerisRepository(
                                     localDate = localDate,
                                     hoursCalc = hoursCalc,
                                     coordinates = coords,
-                                    tzOffset = tzOffset,
+                                    zoneId = targetTime.zone,
                                 )
                                 MoonDailyData(
                                     events = lunarEvents,

@@ -45,6 +45,7 @@ import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.calc.LocalDayTimeline
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.MoonMetrics
 import com.ephemeris.helios.utils.calc.SunMetrics
@@ -52,6 +53,7 @@ import com.ephemeris.helios.utils.charts.toDecimalHour
 import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.round
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZonedDateTime
 
 const val X_SIZE = 1441 // 1440 items (one sampling per minute)
@@ -300,21 +302,24 @@ internal fun generateSunData(
     localDate: LocalDate,
     hoursCalc: DoubleArray,
     coordinates: Coordinates,
-    tzOffset: Double,
+    zoneId: ZoneId,
     dailyOzone: Double
 ): Pair<Map<Charts, FloatArray>, Map<Charts, FloatArray>> {
+    val timeline = LocalDayTimeline(localDate, zoneId)
+    val anchorOffset = timeline.startUtcAnchorOffsetHours
     val elevationCalc = DoubleArray(X_SIZE)
     val azimuthsCalc = FloatArray(X_SIZE)
     val distancesCalc = DoubleArray(X_SIZE)
     val xMap = mutableMapOf<Charts, FloatArray>()
     val yMap = mutableMapOf<Charts, FloatArray>()
     for (i in 0 until X_SIZE) {
+        val elapsedHour = timeline.wallClockHourToElapsedHour(hoursCalc[i])
         val position = SolarEphemeris.getPositionAtHour(
             date = localDate,
-            decimalHour = hoursCalc[i],
+            decimalHour = elapsedHour,
             latitude = coordinates.latitude,
             longitude = coordinates.longitude,
-            tzOffsetHours = tzOffset
+            tzOffsetHours = anchorOffset
         )
         elevationCalc[i] = position.altitude
         azimuthsCalc[i] = position.azimuth.toFloat()
@@ -362,7 +367,7 @@ internal fun generateMoonData(
     localDate: LocalDate,
     hoursCalc: DoubleArray,
     coordinates: Coordinates,
-    tzOffset: Double,
+    zoneId: ZoneId,
 ): Pair<Map<Charts, FloatArray>, Map<Charts, FloatArray>> {
     val elevation = FloatArray(X_SIZE)
     val azimuthsCalc = FloatArray(X_SIZE)
@@ -382,7 +387,7 @@ internal fun generateMoonData(
     MoonMetrics.calculateMetrics(
         date = localDate,
         hoursCalc = hoursCalc,
-        tzOffsetHours = tzOffset,
+        zoneId = zoneId,
         moonElevationsDeg = elevation,
         distancesKm = distancesKm,
         observerAltitudeMeters = coordinates.altitude,

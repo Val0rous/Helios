@@ -10,8 +10,8 @@ import com.ephemeris.helios.utils.EphemerisType
 @Composable
 fun CulminationEntry(
     time: String = "",
-    azimuth: Double,
-    altitude: Double,
+    azimuth: Double?,
+    altitude: Double?,
     type: EphemerisType = EphemerisType.PLANETS
 ) {
     // Todo: make altitude turn red if sun is always below horizon
@@ -20,13 +20,18 @@ fun CulminationEntry(
         EphemerisType.MOON -> R.string.lunar_culmination
         else -> R.string.culmination
     }))
-    TextEntry(text = time, textVariant = "@ $azimuth°", icon = R.drawable.ic_pace, desc = stringResource(when (type) {
-        EphemerisType.SUN -> R.string.solar_noon_time
-        EphemerisType.MOON -> R.string.lunar_culmination_time
-        else -> R.string.culmination_time
-    }))
     TextEntry(
-        text = "$altitude°",
+        text = time,
+        textVariant = if (azimuth != null) "@ $azimuth°" else "",
+        icon = R.drawable.ic_pace,
+        desc = stringResource(when (type) {
+            EphemerisType.SUN -> R.string.solar_noon_time
+            EphemerisType.MOON -> R.string.lunar_culmination_time
+            else -> R.string.culmination_time
+        })
+    )
+    TextEntry(
+        text = if (altitude != null) "$altitude°" else "--°",
         textVariant = "",
         icon = when (type) {
             EphemerisType.SUN -> R.drawable.ic_brightness_7
@@ -47,8 +52,8 @@ fun CulminationEntry(
 @Composable
 fun SolarNoonEntry(
     noonTime: String = "",
-    noonAzimuth: Double,
-    noonAltitude: Double
+    noonAzimuth: Double?,
+    noonAltitude: Double?
 ) {
     CulminationEntry(
         time = noonTime,
@@ -61,8 +66,8 @@ fun SolarNoonEntry(
 @Composable
 fun LunarCulminationEntry(
     culminationTime: String = "",
-    culminationAzimuth: Double,
-    culminationAltitude: Double
+    culminationAzimuth: Double?,
+    culminationAltitude: Double?
 ) {
     CulminationEntry(
         time = culminationTime,

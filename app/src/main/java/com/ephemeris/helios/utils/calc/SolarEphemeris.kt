@@ -10,6 +10,9 @@ import kotlin.math.*
 object SolarEphemeris {
 
     // Target Altitudes (in degrees)
+    const val REFRACTION_HORIZON_DEG = 0.567
+    const val MEAN_SEMI_DIAMETER_DEG = 0.266
+    const val SOLAR_RADIUS_AU = 695_700.0 / 149_597_870.7
     const val ALT_SUNRISE_SUNSET = -0.833
     const val ALT_CIVIL_TWILIGHT = -6.0
     const val ALT_NAUTICAL_TWILIGHT = -12.0
@@ -19,6 +22,10 @@ object SolarEphemeris {
     const val ALT_GOLDEN_HOUR_LOWER = -4.0
     const val ALT_GOLDEN_HOUR_UPPER = 6.0
     const val ALT_PLUTO_TIME = -2.20
+
+    /** Instantaneous geocentric angular semidiameter of the Sun in degrees (~0.262° at aphelion to ~0.271° at perihelion). */
+    fun calculateSemiDiameterDeg(distanceAu: Double): Double =
+        Math.toDegrees(asin((SOLAR_RADIUS_AU / distanceAu).coerceIn(-1.0, 1.0)))
 
     data class SolarPosition(
         val altitude: Double,    // degrees
@@ -66,6 +73,7 @@ object SolarEphemeris {
         val morningPlutoTime: Double?,
         val eveningPlutoTime: Double?,
         val distanceAu: Double,
+        val solarNoonElapsedHours: Double = solarNoon,
     )
 
     data class DailyDurations(
@@ -89,80 +97,176 @@ object SolarEphemeris {
 
     /**
      * Calculates all daily events (sunrise, sunset, twilights) in decimal hours, using iterative refinement for continuous accuracy.
+     *
+     * @param useInstantaneousSemidiameter When `true`, computes sunrise/sunset using the Sun's
+     *   instantaneous distance-based angular semidiameter (`~0.262°..0.271°`) instead of the fixed
+     *   mean `0.266°` (`-0.833°` total with standard `34'` refraction). Defaults to `false`.
      */
     fun calculateDailyEvents(
         time: ZonedDateTime,
         coordinates: Coordinates,
-        prefs: LightPhasePreferences = LightPhasePreferences()
+        prefs: LightPhasePreferences = LightPhasePreferences(),
+        useInstantaneousSemidiameter: Boolean = false,
     ): DailyEvents {
         val latitude = coordinates.latitude
         val longitude = coordinates.longitude
         val latRad = Math.toRadians(latitude)
         val date = time.toLocalDate()
-        val tzOffsetHours = time.offset.totalSeconds / 3600.0
+        val timeline = LocalDayTimeline(date, time.zone)
+        val tzOffsetHours = timeline.startUtcAnchorOffsetHours
+        val dayHours = timeline.durationHours
 
-        val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
-
-        // Inject the dynamic horizon into the user's preferences
-        val prefs = prefs.copy(apparentHorizonAlt = dynamicSunriseSunsetAlt)
-
-        // 1. Iterative Solar Noon (Meeus)
+        // 1. Iterative Solar Noon (Meeus) in continuous elapsed hours since local start-of-day
         var exactSolarNoon = 12.0 - (longitude / 15.0) + tzOffsetHours
         for (i in 1..2) {
             val t = calculateJulianCentury(date, exactSolarNoon, tzOffsetHours)
             val params = calculateSolarParams(t)
             exactSolarNoon = 12.0 - (longitude / 15.0) - (params.eotMinutes / 60.0) + tzOffsetHours
         }
+        val noonPos = getPositionAtHour(date, exactSolarNoon, latitude, longitude, tzOffsetHours)
+
+        val dynamicSunriseSunsetAlt = if (useInstantaneousSemidiameter) {
+            -(REFRACTION_HORIZON_DEG + calculateSemiDiameterDeg(noonPos.distanceAu)) - coordinates.horizonDipDeg
+        } else {
+            coordinates.sunApparentHorizonAlt
+        }
+
+        // Inject the dynamic horizon into the user's preferences
+        val prefs = prefs.copy(apparentHorizonAlt = dynamicSunriseSunsetAlt)
+
+        fun refineSolarCrossing(
+            startHour: Double,
+            endHour: Double,
+            isRising: Boolean,
+            signedAlt: (Double) -> Double,
+        ): Double {
+            var low = startHour
+            var high = endHour
+            for (i in 0..15) {
+                val mid = (low + high) / 2.0
+                if (signedAlt(mid) > 0.0) {
+                    if (isRising) high = mid else low = mid
+                } else {
+                    if (isRising) low = mid else high = mid
+                }
+            }
+            return (low + high) / 2.0
+        }
+
+        // Fallback scanner for polar / grazing crossings (handles exact ±90° poles, single-crossing
+        // polar transition days, and arbitrarily brief grazing sunrise/sunset touches around solar noon/midnight).
+        fun scanPolarEventTimes(signedAlt: (Double) -> Double): Pair<Double?, Double?> {
+            var riseHour: Double? = null
+            var setHour: Double? = null
+
+            val stepMinutes = 10
+            val stepHours = stepMinutes / 60.0
+            val totalMinutes = (dayHours * 60.0).roundToInt()
+            val numSamples = (totalMinutes / stepMinutes) + 1
+            val signed = DoubleArray(numSamples)
+            signed[0] = signedAlt(0.0)
+
+            for (idx in 1 until numSamples) {
+                val h = min(idx * stepHours, dayHours)
+                val prevH = (idx - 1) * stepHours
+                val curr = signedAlt(h)
+                signed[idx] = curr
+                val prev = signed[idx - 1]
+                if (prev < 0.0 && curr >= 0.0) {
+                    riseHour = refineSolarCrossing(prevH, h, isRising = true, signedAlt = signedAlt)
+                } else if (prev > 0.0 && curr <= 0.0) {
+                    setHour = refineSolarCrossing(prevH, h, isRising = false, signedAlt = signedAlt)
+                }
+            }
+
+            // Guarantee even a <10-minute grazing touch at solar noon or midnight is captured
+            if (riseHour == null && setHour == null) {
+                val normalizedNoon = ((exactSolarNoon % 24.0) + 24.0) % 24.0
+                val normalizedMidnight = ((normalizedNoon + 12.0) % 24.0)
+                if (signed[0] < 0.0 && normalizedNoon in 0.0..dayHours && signedAlt(normalizedNoon) >= 0.0) {
+                    val leftGrid = (floor(normalizedNoon / stepHours) * stepHours).coerceAtLeast(0.0)
+                    val rightGrid = (ceil(normalizedNoon / stepHours) * stepHours).coerceAtMost(dayHours)
+                    riseHour = refineSolarCrossing(leftGrid, normalizedNoon, isRising = true, signedAlt = signedAlt)
+                    setHour = refineSolarCrossing(normalizedNoon, rightGrid, isRising = false, signedAlt = signedAlt)
+                } else if (signed[0] >= 0.0 && normalizedMidnight in 0.0..dayHours && signedAlt(normalizedMidnight) < 0.0) {
+                    val leftGrid = (floor(normalizedMidnight / stepHours) * stepHours).coerceAtLeast(0.0)
+                    val rightGrid = (ceil(normalizedMidnight / stepHours) * stepHours).coerceAtMost(dayHours)
+                    setHour = refineSolarCrossing(leftGrid, normalizedMidnight, isRising = false, signedAlt = signedAlt)
+                    riseHour = refineSolarCrossing(normalizedMidnight, rightGrid, isRising = true, signedAlt = signedAlt)
+                }
+            }
+
+            return Pair(riseHour, setHour)
+        }
 
         // 2. The Iterative Event Engine for finding specific altitude times
-        fun findPreciseEventTimes(targetAltDeg: Double): Pair<Double, Double>? {
-            val targetAltRad = Math.toRadians(targetAltDeg)
+        fun findPreciseEventTimes(
+            targetAltDeg: Double,
+            dynamicSunHorizon: Boolean = false,
+        ): Pair<Double?, Double?> {
+            fun targetAt(distanceAu: Double): Double = if (dynamicSunHorizon) {
+                -(REFRACTION_HORIZON_DEG + calculateSemiDiameterDeg(distanceAu)) - coordinates.horizonDipDeg
+            } else {
+                targetAltDeg
+            }
+
+            fun signedAltAt(hour: Double): Double {
+                val pos = getPositionAtHour(date, hour, latitude, longitude, tzOffsetHours)
+                return pos.altitude - targetAt(pos.distanceAu)
+            }
+
+            // Near exact poles, cos(lat) approaches 0 so use the continuous topocentric scanner directly
+            if (abs(latitude) >= 89.5) {
+                return scanPolarEventTimes(::signedAltAt)
+            }
 
             // Start with rough guesses: 6 AM for morning, 6 PM for evening
             var dawnEstimate = 6.0
             var duskEstimate = 18.0
+            var nearPolarGrazing = false
 
             // Iterate 3 times for sub-second convergence
             for (i in 1..3) {
-                // Refine Dawn
                 val dawnT = calculateJulianCentury(date, dawnEstimate, tzOffsetHours)
                 val dawnParams = calculateSolarParams(dawnT)
-                val dawnCosOmega = (sin(targetAltRad) - sin(latRad) * sin(dawnParams.declinationRad)) / (cos(latRad) * cos(dawnParams.declinationRad))
+                val dawnTargetRad = Math.toRadians(targetAt(dawnParams.distanceAu))
+                val dawnCosOmega = (sin(dawnTargetRad) - sin(latRad) * sin(dawnParams.declinationRad)) /
+                    (cos(latRad) * cos(dawnParams.declinationRad))
 
-                if (dawnCosOmega < -1.0 || dawnCosOmega > 1.0) return null // Polar day/night
+                val duskT = calculateJulianCentury(date, duskEstimate, tzOffsetHours)
+                val duskParams = calculateSolarParams(duskT)
+                val duskTargetRad = Math.toRadians(targetAt(duskParams.distanceAu))
+                val duskCosOmega = (sin(duskTargetRad) - sin(latRad) * sin(duskParams.declinationRad)) /
+                    (cos(latRad) * cos(duskParams.declinationRad))
+
+                // Near grazing or polar transition thresholds (|cosOmega| > 0.995), switch to the
+                // continuous polar scanner so we never produce NaN or miss a brief grazing arch
+                if (abs(dawnCosOmega) > 0.995 || abs(duskCosOmega) > 0.995) {
+                    nearPolarGrazing = true
+                    break
+                }
 
                 val dawnOmegaDeg = Math.toDegrees(acos(dawnCosOmega))
                 val dawnSolarNoonAtThatMoment = 12.0 - (longitude / 15.0) - (dawnParams.eotMinutes / 60.0) + tzOffsetHours
                 dawnEstimate = dawnSolarNoonAtThatMoment - (dawnOmegaDeg / 15.0)
-
-                // Refine Dusk
-                val duskT = calculateJulianCentury(date, duskEstimate, tzOffsetHours)
-                val duskParams = calculateSolarParams(duskT)
-                val duskCosOmega = (sin(targetAltRad) - sin(latRad) * sin(duskParams.declinationRad)) / (cos(latRad) * cos(duskParams.declinationRad))
 
                 val duskOmegaDeg = Math.toDegrees(acos(duskCosOmega))
                 val duskSolarNoonAtThatMoment = 12.0 - (longitude / 15.0) - (duskParams.eotMinutes / 60.0) + tzOffsetHours
                 duskEstimate = duskSolarNoonAtThatMoment + (duskOmegaDeg / 15.0)
             }
 
+            if (nearPolarGrazing) {
+                return scanPolarEventTimes(::signedAltAt)
+            }
+
             return Pair(dawnEstimate, duskEstimate)
         }
 
-//        // Old helper to find hour angle for a specific altitude
-//        fun getEventOffsets(targetAltDeg: Double): Pair<Double, Double>? {
-//            val targetAltRad = Math.toRadians(targetAltDeg)
-//            val cosOmega = (sin(targetAltRad) - sin(latRad) * sin(declination)) / (cos(latRad) * cos(declination))
-//
-//            // Check if the sun actually reaches this altitude (Polar day/night check)
-//            if (cosOmega < -1.0 || cosOmega > 1.0) return null
-//
-//            val omegaDeg = Math.toDegrees(acos(cosOmega))
-//            val offsetHours = omegaDeg / 15.0
-//            return Pair(exactSolarNoon - offsetHours, exactSolarNoon + offsetHours)
-//        }
-
         // Use the dynamically adjusted altitude for Sunrise/Sunset ONLY!
-        val sun = findPreciseEventTimes(dynamicSunriseSunsetAlt)
+        val sun = findPreciseEventTimes(
+            targetAltDeg = dynamicSunriseSunsetAlt,
+            dynamicSunHorizon = useInstantaneousSemidiameter,
+        )
         val civil = findPreciseEventTimes(ALT_CIVIL_TWILIGHT)
         val nautical = findPreciseEventTimes(ALT_NAUTICAL_TWILIGHT)
         val astro = findPreciseEventTimes(ALT_ASTRONOMICAL_TWILIGHT)
@@ -181,24 +285,22 @@ object SolarEphemeris {
 
         val pluto = findPreciseEventTimes(ALT_PLUTO_TIME)
 
-        // 3. Populate Azimuths for core events
-        val noonPos = getPositionAtHour(date, exactSolarNoon, latitude, longitude, tzOffsetHours)
+        // 3. Populate Azimuths for core events (evaluated on continuous elapsed timeline)
+        val sunrisePos = sun.first?.let { getPositionAtHour(date, it, latitude, longitude, tzOffsetHours) }
+        val sunsetPos = sun.second?.let { getPositionAtHour(date, it, latitude, longitude, tzOffsetHours) }
 
-        val sunrisePos = sun?.first?.let { getPositionAtHour(date, it, latitude, longitude, tzOffsetHours) }
-        val sunsetPos = sun?.second?.let { getPositionAtHour(date, it, latitude, longitude, tzOffsetHours) }
-
-        val dayLength = getExactDayLength(sun?.first, sun?.second, noonPos.altitude, dynamicSunriseSunsetAlt)
+        val dayLength = getExactDayLength(sun.first, sun.second, noonPos.altitude, dynamicSunriseSunsetAlt, dayHours)
 
         // 4. Iterative Solar Midnight
         // Start with a rough 12h guess based on noon
-        var exactSolarMidnight = (exactSolarNoon + 12.0) % 24.0
+        var exactSolarMidnight = ((exactSolarNoon + 12.0) % 24.0 + 24.0) % 24.0
         // Refine it using the exact Equation of Time at midnight
         for (i in 1..2) {
             val midnightT = calculateJulianCentury(date, exactSolarMidnight, tzOffsetHours)
             val midnightParams = calculateSolarParams(midnightT)
 
             // The formula is the exact same as Solar Noon, just with +12.0 hours added to the baseline
-            exactSolarMidnight = (12.0 - (longitude / 15.0) - (midnightParams.eotMinutes / 60.0) + tzOffsetHours + 12.0) % 24.0
+            exactSolarMidnight = ((12.0 - (longitude / 15.0) - (midnightParams.eotMinutes / 60.0) + tzOffsetHours + 12.0) % 24.0 + 24.0) % 24.0
         }
 
         // Now calculate the exact altitude at that precise second
@@ -207,124 +309,150 @@ object SolarEphemeris {
         val midnightSinAlt = sin(latRad) * sin(midnightParams.declinationRad) + cos(latRad) * cos(midnightParams.declinationRad) * cos(Math.toRadians(0.0 - 180.0))
         val solarMidnightAltitude = Math.toDegrees(asin(midnightSinAlt.coerceIn(-1.0, 1.0)))
 
+        fun Double.toWallClock(): Double = timeline.elapsedHourToWallClockHour(this)
+        fun Double?.toWallClock(): Double? = this?.let { timeline.elapsedHourToWallClockHour(it) }
+
         return DailyEvents(
-            solarNoon = exactSolarNoon,
+            solarNoon = exactSolarNoon.toWallClock(),
             solarNoonAltitude = noonPos.altitude,
             solarNoonAzimuth = noonPos.azimuth,
-            sunrise = sun?.first, sunriseAzimuth = sunrisePos?.azimuth,
-            sunset = sun?.second, sunsetAzimuth = sunsetPos?.azimuth,
-            dawnCivil = civil?.first, duskCivil = civil?.second,
-            dawnNautical = nautical?.first, duskNautical = nautical?.second,
-            dawnAstronomical = astro?.first, duskAstronomical = astro?.second,
+            sunrise = sun.first.toWallClock(), sunriseAzimuth = sunrisePos?.azimuth,
+            sunset = sun.second.toWallClock(), sunsetAzimuth = sunsetPos?.azimuth,
+            dawnCivil = civil.first.toWallClock(), duskCivil = civil.second.toWallClock(),
+            dawnNautical = nautical.first.toWallClock(), duskNautical = nautical.second.toWallClock(),
+            dawnAstronomical = astro.first.toWallClock(), duskAstronomical = astro.second.toWallClock(),
             dayLength = dayLength,
-            solarMidnight = exactSolarMidnight,
+            solarMidnight = exactSolarMidnight.toWallClock(),
             solarMidnightAltitude = solarMidnightAltitude,
             solarMidnightAzimuth = (noonPos.azimuth + 180.0) % 360.0,
-            dawnGoldenLower = goldenLower?.first, dawnGoldenUpper = goldenUpper?.first,
-            duskGoldenUpper = goldenUpper?.second, duskGoldenLower = goldenLower?.second,
-            dawnPinkLower = pinkLower?.first, dawnPinkUpper = pinkUpper?.first,
-            duskPinkUpper = pinkUpper?.second, duskPinkLower = pinkLower?.second,
-            dawnBlueLower = blueLower?.first, dawnBlueUpper = blueUpper?.first,
-            duskBlueUpper = blueUpper?.second, duskBlueLower = blueLower?.second,
-            dawnAlpenglowLower = alpenglowLower?.first, dawnAlpenglowUpper = alpenglowUpper?.first,
-            duskAlpenglowUpper = alpenglowUpper?.second, duskAlpenglowLower = alpenglowLower?.second,
-            morningPlutoTime = pluto?.first, eveningPlutoTime = pluto?.second,
-            distanceAu = noonPos.distanceAu
+            dawnGoldenLower = goldenLower.first.toWallClock(), dawnGoldenUpper = goldenUpper.first.toWallClock(),
+            duskGoldenUpper = goldenUpper.second.toWallClock(), duskGoldenLower = goldenLower.second.toWallClock(),
+            dawnPinkLower = pinkLower.first.toWallClock(), dawnPinkUpper = pinkUpper.first.toWallClock(),
+            duskPinkUpper = pinkUpper.second.toWallClock(), duskPinkLower = pinkLower.second.toWallClock(),
+            dawnBlueLower = blueLower.first.toWallClock(), dawnBlueUpper = blueUpper.first.toWallClock(),
+            duskBlueUpper = blueUpper.second.toWallClock(), duskBlueLower = blueLower.second.toWallClock(),
+            dawnAlpenglowLower = alpenglowLower.first.toWallClock(), dawnAlpenglowUpper = alpenglowUpper.first.toWallClock(),
+            duskAlpenglowUpper = alpenglowUpper.second.toWallClock(), duskAlpenglowLower = alpenglowLower.second.toWallClock(),
+            morningPlutoTime = pluto.first.toWallClock(), eveningPlutoTime = pluto.second.toWallClock(),
+            distanceAu = noonPos.distanceAu,
+            solarNoonElapsedHours = exactSolarNoon,
         )
     }
 
     fun calculateDailyDurations(
         events: DailyEvents,
         coordinates: Coordinates,
-        prefs: LightPhasePreferences = LightPhasePreferences()
+        prefs: LightPhasePreferences = LightPhasePreferences(),
+        time: ZonedDateTime? = null,
     ): DailyDurations {
         val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
 
         // Inject the dynamic horizon into the user's preferences
         val prefs = prefs.copy(apparentHorizonAlt = dynamicSunriseSunsetAlt)
+        val timeline = time?.let { LocalDayTimeline(it.toLocalDate(), it.zone) }
+        val dayHours = timeline?.durationHours ?: 24.0
+        fun toElapsed(wallHour: Double?): Double? =
+            wallHour?.let { timeline?.wallClockHourToElapsedHour(it) ?: it }
+        val noonElapsed = events.solarNoonElapsedHours
+        val midnightElapsed = timeline?.wallClockHourToElapsedHour(events.solarMidnight)
+            ?: events.solarMidnight
 
         val civilDurations = calculatePhaseDuration(
             lowerBoundAlt = ALT_CIVIL_TWILIGHT,
             upperBoundAlt = dynamicSunriseSunsetAlt,
-            morningLowerTime = events.dawnCivil,
-            eveningLowerTime = events.duskCivil,
-            morningUpperTime = events.sunrise,
-            eveningUpperTime = events.sunset,
-            solarNoon = events.solarNoon,
+            morningLowerTime = toElapsed(events.dawnCivil),
+            eveningLowerTime = toElapsed(events.duskCivil),
+            morningUpperTime = toElapsed(events.sunrise),
+            eveningUpperTime = toElapsed(events.sunset),
+            solarNoon = noonElapsed,
             solarNoonAltitude = events.solarNoonAltitude,
-            solarMidnightAltitude = events.solarMidnightAltitude
+            solarMidnightAltitude = events.solarMidnightAltitude,
+            solarMidnight = midnightElapsed,
+            dayDurationHours = dayHours,
         )
 
         val nauticalDurations = calculatePhaseDuration(
             lowerBoundAlt = ALT_NAUTICAL_TWILIGHT,
             upperBoundAlt = ALT_CIVIL_TWILIGHT,
-            morningLowerTime = events.dawnNautical,
-            eveningLowerTime = events.duskNautical,
-            morningUpperTime = events.dawnCivil,
-            eveningUpperTime = events.duskCivil,
-            solarNoon = events.solarNoon,
+            morningLowerTime = toElapsed(events.dawnNautical),
+            eveningLowerTime = toElapsed(events.duskNautical),
+            morningUpperTime = toElapsed(events.dawnCivil),
+            eveningUpperTime = toElapsed(events.duskCivil),
+            solarNoon = noonElapsed,
             solarNoonAltitude = events.solarNoonAltitude,
-            solarMidnightAltitude = events.solarMidnightAltitude
+            solarMidnightAltitude = events.solarMidnightAltitude,
+            solarMidnight = midnightElapsed,
+            dayDurationHours = dayHours,
         )
 
         val astronomicalDurations = calculatePhaseDuration(
             lowerBoundAlt = ALT_ASTRONOMICAL_TWILIGHT,
             upperBoundAlt = ALT_NAUTICAL_TWILIGHT,
-            morningLowerTime = events.dawnAstronomical,
-            eveningLowerTime = events.duskAstronomical,
-            morningUpperTime = events.dawnNautical,
-            eveningUpperTime = events.duskNautical,
-            solarNoon = events.solarNoon,
+            morningLowerTime = toElapsed(events.dawnAstronomical),
+            eveningLowerTime = toElapsed(events.duskAstronomical),
+            morningUpperTime = toElapsed(events.dawnNautical),
+            eveningUpperTime = toElapsed(events.duskNautical),
+            solarNoon = noonElapsed,
             solarNoonAltitude = events.solarNoonAltitude,
-            solarMidnightAltitude = events.solarMidnightAltitude
+            solarMidnightAltitude = events.solarMidnightAltitude,
+            solarMidnight = midnightElapsed,
+            dayDurationHours = dayHours,
         )
 
         val goldenDurations = calculatePhaseDuration(
             lowerBoundAlt = prefs.goldenHourRange.start,
             upperBoundAlt = prefs.goldenHourRange.endInclusive,
-            morningLowerTime = events.dawnGoldenLower,
-            eveningLowerTime = events.duskGoldenLower,
-            morningUpperTime = events.dawnGoldenUpper,
-            eveningUpperTime = events.duskGoldenUpper,
-            solarNoon = events.solarNoon,
+            morningLowerTime = toElapsed(events.dawnGoldenLower),
+            eveningLowerTime = toElapsed(events.duskGoldenLower),
+            morningUpperTime = toElapsed(events.dawnGoldenUpper),
+            eveningUpperTime = toElapsed(events.duskGoldenUpper),
+            solarNoon = noonElapsed,
             solarNoonAltitude = events.solarNoonAltitude,
-            solarMidnightAltitude = events.solarMidnightAltitude
+            solarMidnightAltitude = events.solarMidnightAltitude,
+            solarMidnight = midnightElapsed,
+            dayDurationHours = dayHours,
         )
 
         val pinkDurations = calculatePhaseDuration(
             lowerBoundAlt = prefs.pinkHourRange.start,
             upperBoundAlt = prefs.pinkHourRange.endInclusive,
-            morningLowerTime = events.dawnPinkLower,
-            eveningLowerTime = events.duskPinkLower,
-            morningUpperTime = events.dawnPinkUpper,
-            eveningUpperTime = events.duskPinkUpper,
-            solarNoon = events.solarNoon,
+            morningLowerTime = toElapsed(events.dawnPinkLower),
+            eveningLowerTime = toElapsed(events.duskPinkLower),
+            morningUpperTime = toElapsed(events.dawnPinkUpper),
+            eveningUpperTime = toElapsed(events.duskPinkUpper),
+            solarNoon = noonElapsed,
             solarNoonAltitude = events.solarNoonAltitude,
-            solarMidnightAltitude = events.solarMidnightAltitude
+            solarMidnightAltitude = events.solarMidnightAltitude,
+            solarMidnight = midnightElapsed,
+            dayDurationHours = dayHours,
         )
 
         val blueDurations = calculatePhaseDuration(
             lowerBoundAlt = prefs.blueHourRange.start,
             upperBoundAlt = prefs.blueHourRange.endInclusive,
-            morningLowerTime = events.dawnBlueLower,
-            eveningLowerTime = events.duskBlueLower,
-            morningUpperTime = events.dawnBlueUpper,
-            eveningUpperTime = events.duskBlueUpper,
-            solarNoon = events.solarNoon,
+            morningLowerTime = toElapsed(events.dawnBlueLower),
+            eveningLowerTime = toElapsed(events.duskBlueLower),
+            morningUpperTime = toElapsed(events.dawnBlueUpper),
+            eveningUpperTime = toElapsed(events.duskBlueUpper),
+            solarNoon = noonElapsed,
             solarNoonAltitude = events.solarNoonAltitude,
-            solarMidnightAltitude = events.solarMidnightAltitude
+            solarMidnightAltitude = events.solarMidnightAltitude,
+            solarMidnight = midnightElapsed,
+            dayDurationHours = dayHours,
         )
 
         val alpenglowDurations = calculatePhaseDuration(
             lowerBoundAlt = prefs.alpenglowRange.start,
             upperBoundAlt = prefs.alpenglowRange.endInclusive,
-            morningLowerTime = events.dawnAlpenglowLower,
-            eveningLowerTime = events.duskAlpenglowLower,
-            morningUpperTime = events.dawnAlpenglowUpper,
-            eveningUpperTime = events.duskAlpenglowUpper,
-            solarNoon = events.solarNoon,
+            morningLowerTime = toElapsed(events.dawnAlpenglowLower),
+            eveningLowerTime = toElapsed(events.duskAlpenglowLower),
+            morningUpperTime = toElapsed(events.dawnAlpenglowUpper),
+            eveningUpperTime = toElapsed(events.duskAlpenglowUpper),
+            solarNoon = noonElapsed,
             solarNoonAltitude = events.solarNoonAltitude,
-            solarMidnightAltitude = events.solarMidnightAltitude
+            solarMidnightAltitude = events.solarMidnightAltitude,
+            solarMidnight = midnightElapsed,
+            dayDurationHours = dayHours,
         )
 
         val nightDurations = calculatePhaseDuration(
@@ -332,11 +460,13 @@ object SolarEphemeris {
             upperBoundAlt = ALT_ASTRONOMICAL_TWILIGHT, // -18.0
             morningLowerTime = null, // Never crosses -90
             eveningLowerTime = null,
-            morningUpperTime = events.dawnAstronomical,
-            eveningUpperTime = events.duskAstronomical,
-            solarNoon = events.solarNoon,
+            morningUpperTime = toElapsed(events.dawnAstronomical),
+            eveningUpperTime = toElapsed(events.duskAstronomical),
+            solarNoon = noonElapsed,
             solarNoonAltitude = events.solarNoonAltitude,
-            solarMidnightAltitude = events.solarMidnightAltitude
+            solarMidnightAltitude = events.solarMidnightAltitude,
+            solarMidnight = midnightElapsed,
+            dayDurationHours = dayHours,
         )
 
         return DailyDurations(
@@ -375,10 +505,10 @@ object SolarEphemeris {
         // Delta T (Terrestrial Time - Universal Time) in seconds.
         // Roughly ~69 seconds for the 2020s. Crucial for sub-minute accuracy.
         val deltaT = calculateDeltaT(date.year, date.monthValue)
-        // Convert Local Timme to UTC, then add Delta T to achieve Terrestrial Time (TT)
+        // Convert Local Time to UTC, then add Delta T to achieve Terrestrial Time (TT)
         val utcDecimalHour = decimalHour - tzOffsetHours
         val ttDecimalHour = utcDecimalHour + (deltaT / 3600.0)
-        val jdExact = jdMidnight + (utcDecimalHour / 24.0)
+        val jdExact = jdMidnight + (ttDecimalHour / 24.0)
 
         return (jdExact - 2451545.0) / 36525.0
     }
@@ -582,23 +712,34 @@ object SolarEphemeris {
         sunriseHours: Double?,
         sunsetHours: Double?,
         solarNoonAltitude: Double,
-        sunriseSunsetAltThreshold: Double
+        sunriseSunsetAltThreshold: Double,
+        dayDurationHours: Double = 24.0,
     ): Double {
-        // 1. Handle edge cases (Polar day/night)
-        if (sunriseHours == null || sunsetHours == null) {
+        // 1. Handle edge cases (Polar day/night & single-crossing transition days)
+        if (sunriseHours == null && sunsetHours == null) {
             return if (solarNoonAltitude > sunriseSunsetAltThreshold) {
-                24.0 // Polar Day (Midnight Sun)
+                dayDurationHours // Polar Day (Midnight Sun)
             } else {
                 0.0 // Polar Night
             }
         }
+        if (sunriseHours != null && sunsetHours == null) {
+            // Rose during the day and did not set before midnight (entering Polar Day)
+            return (dayDurationHours - (((sunriseHours % dayDurationHours) + dayDurationHours) % dayDurationHours))
+                .coerceIn(0.0, dayDurationHours)
+        }
+        if (sunriseHours == null && sunsetHours != null) {
+            // Up since midnight and set without rising again (entering Polar Night)
+            return (((sunsetHours % dayDurationHours) + dayDurationHours) % dayDurationHours)
+                .coerceIn(0.0, dayDurationHours)
+        }
 
         // 2. Calculate raw duration
-        var durationHours = sunsetHours - sunriseHours
+        var durationHours = sunsetHours!! - sunriseHours!!
 
         // 3. Handle midnight wrap-around (if sunset spills into the next day mathematically)
         if (durationHours < 0) {
-            durationHours += 24.0
+            durationHours += dayDurationHours
         }
 
         return durationHours
@@ -606,7 +747,7 @@ object SolarEphemeris {
 
     /**
      * Universally calculates the duration of any solar phase (Twilights, Golden Hour, Night).
-     * Flawlessly handles Polar Day, Polar Night, and mid-phase intersections.
+     * Flawlessly handles Polar Day, Polar Night, DST transition days, and mid-phase intersections.
      */
     fun calculatePhaseDuration(
         lowerBoundAlt: Double,
@@ -617,7 +758,9 @@ object SolarEphemeris {
         eveningUpperTime: Double?,
         solarNoon: Double,
         solarNoonAltitude: Double,
-        solarMidnightAltitude: Double
+        solarMidnightAltitude: Double,
+        solarMidnight: Double = (solarNoon + 12.0) % 24.0,
+        dayDurationHours: Double = 24.0,
     ): PhaseDurations {
         val mStart = morningLowerTime
         val mEnd = morningUpperTime
@@ -627,19 +770,17 @@ object SolarEphemeris {
         // Case 1: Standard Day (Crosses both upper and lower boundaries)
         if (mStart != null && mEnd != null && eStart != null && eEnd != null) {
             return PhaseDurations(
-                morning = (mEnd - mStart + 24.0) % 24.0,
-                evening = (eEnd - eStart + 24.0) % 24.0
+                morning = (mEnd - mStart + dayDurationHours) % dayDurationHours,
+                evening = (eEnd - eStart + dayDurationHours) % dayDurationHours
             )
         }
-
-        val solarMidnight = (solarNoon + 12.0) % 24.0
 
         // Case 2: Peaks inside the phase (Crosses lower, but never reaches upper)
         // Splits the continuous phase at Solar Noon
         if (mStart != null && eEnd != null && mEnd == null && eStart == null) {
             return PhaseDurations(
-                morning = (solarNoon - mStart + 24.0) % 24.0,
-                evening = (eEnd - solarNoon + 24.0) % 24.0
+                morning = (solarNoon - mStart + dayDurationHours) % dayDurationHours,
+                evening = (eEnd - solarNoon + dayDurationHours) % dayDurationHours
             )
         }
 
@@ -647,8 +788,8 @@ object SolarEphemeris {
         // Splits the continuous phase at Solar Midnight
         if (mEnd != null && eStart != null && mStart == null && eEnd == null) {
             return PhaseDurations(
-                morning = (mEnd - solarMidnight + 24.0) % 24.0,
-                evening = (solarMidnight - eStart + 24.0) % 24.0
+                morning = (mEnd - solarMidnight + dayDurationHours) % dayDurationHours,
+                evening = (solarMidnight - eStart + dayDurationHours) % dayDurationHours
             )
         }
 
@@ -658,8 +799,8 @@ object SolarEphemeris {
             return PhaseDurations(0.0, 0.0) // Missed the phase entirely
         }
 
-        // The sun's 24-hour cycle is permanently trapped inside this phase (e.g., Twilight all day)
-        return PhaseDurations(12.0, 12.0)
+        // The sun's cycle is permanently trapped inside this phase (e.g., Twilight all day)
+        return PhaseDurations(dayDurationHours / 2.0, dayDurationHours / 2.0)
     }
 
     /**

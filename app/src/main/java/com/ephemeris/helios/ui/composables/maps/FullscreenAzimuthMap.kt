@@ -10,7 +10,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -78,18 +82,23 @@ fun FullscreenAzimuthMap(
         position = CameraPosition.fromLatLngZoom(centerCoordinates, 10f)
     }
 
+    val latestLocation by rememberUpdatedState(location)
+    var isProgrammaticMove by remember { mutableStateOf(false) }
+
     // --- TWO-WAY BINDING: MAP TO VIEWMODEL ---
     // Watch the user panning the map. When they stop, wait 500ms and update the ViewModel
     LaunchedEffect(cameraPositionState.isMoving) {
-        if (!cameraPositionState.isMoving) {
+        if (!cameraPositionState.isMoving && !isProgrammaticMove) {
             delay(500) // The Debounce
+            if (isProgrammaticMove) return@LaunchedEffect
             val newTarget = cameraPositionState.position.target
-            val oldTarget = LatLng(location.latitude, location.longitude)
+            val currentLoc = latestLocation
+            val oldTarget = LatLng(currentLoc.latitude, currentLoc.longitude)
 
             // Only trigger a heavy re-calculation if they actually panned away (e.g. > 10 meters)
             if (SphericalUtil.computeDistanceBetween(oldTarget, newTarget) > 10.0) {
                 onMapCenterSettled(
-                    location.copy(
+                    currentLoc.copy(
                         latitude = newTarget.latitude,
                         longitude = newTarget.longitude,
                         locationName = null, // Null forces ViewModel to fetch new Geocoded Address!
@@ -102,12 +111,17 @@ fun FullscreenAzimuthMap(
 
     // --- TWO-WAY BINDING: VIEWMODEL TO MAP ---
     // If the global location updates externally (e.g. user hits the GPS button in the TopBar),
-    // animate the camera back to the new GPS location.
+    // animate the camera back to the new GPS location without re-triggering onMapCenterSettled.
     LaunchedEffect(location.latitude, location.longitude) {
         val currentTarget = cameraPositionState.position.target
         val newTarget = LatLng(location.latitude, location.longitude)
         if (SphericalUtil.computeDistanceBetween(currentTarget, newTarget) > 10.0) {
-            cameraPositionState.animate(CameraUpdateFactory.newLatLng(newTarget))
+            isProgrammaticMove = true
+            try {
+                cameraPositionState.animate(CameraUpdateFactory.newLatLng(newTarget))
+            } finally {
+                isProgrammaticMove = false
+            }
         }
     }
 
