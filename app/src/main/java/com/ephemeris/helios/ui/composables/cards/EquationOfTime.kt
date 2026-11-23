@@ -153,9 +153,9 @@ fun EquationOfTime(
             Text(
                 text = buildAnnotatedString {
                     append("$sign$mins")
-                    withStyle(unitSpan) { append("m ") }
+                    withStyle(unitSpan) { append("\u2009m ") }
                     append("$secs")
-                    withStyle(unitSpan) { append("s") }
+                    withStyle(unitSpan) { append("\u2009s") }
                 },
                 style = valueStyle,
                 maxLines = 1,

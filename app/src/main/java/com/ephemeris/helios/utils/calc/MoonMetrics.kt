@@ -13,8 +13,6 @@ object MoonMetrics {
     private const val ATMOSPHERE_SCALE_HEIGHT = 8434.0
     private const val MOON_SEMI_DIAMETER_DEG = 0.258
     private const val AIR_MASS_AT_ZERO = 1.0 / (0.50572 * 0.0521265083015075) // 6.07995^-1.6364 ≈ 0.0521265 -> AM ≈ 37.92
-    // Clear-sky scattered horizon fraction matching SunMetrics (~0.28% of exo-atmospheric flux at 0°)
-    private const val TWILIGHT_HORIZON_SCATTER_RATIO = 0.00282
     private const val ASTRONOMICAL_TWILIGHT_DEG = -18.0
 
     enum class LunarPhase(val displayName: String) {
@@ -165,7 +163,7 @@ object MoonMetrics {
             1.0 / amDenominator
         } else {
             val absElev = abs(altitudeDeg)
-            AIR_MASS_AT_ZERO + (10.0 * absElev) + (5.0 * absElev * absElev)
+            AIR_MASS_AT_ZERO + (14.891 * absElev) + (5.0 * absElev * absElev)
         }
         return relativeAirMass * elevationModifier
     }
@@ -194,10 +192,13 @@ object MoonMetrics {
         amElevationModifier: Double,
     ): LunarIlluminanceComponents {
         val exoAtmosphericLux = computeExoAtmosphericLux(alphaDeg, distanceKm)
+        val sinElev = sin(Math.toRadians(moonElevDeg))
+        val smoothSinElev = SunMetrics.smoothDiffuseSinElev(sinElev)
+        val altScale = SunMetrics.smoothTwilightAltitudeScale(sinElev, amElevationModifier)
 
         if (moonElevDeg <= horizonAltDeg) {
             val twilightDiffuse = if (moonElevDeg > ASTRONOMICAL_TWILIGHT_DEG) {
-                TWILIGHT_HORIZON_SCATTER_RATIO * exoAtmosphericLux * exp(0.8 * moonElevDeg) * amElevationModifier
+                0.271 * exoAtmosphericLux * smoothSinElev * altScale
             } else {
                 0.0
             }
@@ -208,21 +209,16 @@ object MoonMetrics {
             )
         }
 
-        val posSinElev = max(0.0, sin(Math.toRadians(moonElevDeg)))
+        val posSinElev = max(0.0, sinElev)
         val beamTransmittance = 0.74.pow(actualAirMass)
         val directLux = exoAtmosphericLux * beamTransmittance
         val directHorizontalLux = directLux * posSinElev
 
-        val skyDiffuse = max(
+        // Unified C∞-smooth Liu-Jordan clear-sky + lunar twilight scatter (zero kink at 0°)
+        val diffuseLux = max(
             0.0,
-            (0.271 - 0.2939 * beamTransmittance) * exoAtmosphericLux * posSinElev,
+            (0.271 - 0.2939 * beamTransmittance) * exoAtmosphericLux * smoothSinElev * altScale,
         )
-        val horizonScatter = if (moonElevDeg >= 0.0) {
-            TWILIGHT_HORIZON_SCATTER_RATIO * exoAtmosphericLux * exp(-0.18 * moonElevDeg) * amElevationModifier
-        } else {
-            TWILIGHT_HORIZON_SCATTER_RATIO * exoAtmosphericLux * exp(0.8 * moonElevDeg) * amElevationModifier
-        }
-        val diffuseLux = skyDiffuse + horizonScatter
         val globalLux = directHorizontalLux + diffuseLux
 
         return LunarIlluminanceComponents(

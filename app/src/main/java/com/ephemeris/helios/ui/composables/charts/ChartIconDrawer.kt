@@ -101,6 +101,7 @@ fun DrawScope.paintIcon(
             }
         }
         // Protect the boolean checks against NaN! (Night metrics are 0f or NaN)
+        className.contains("UvIntensity") -> currentY.isFinite() && currentY >= 0.01f
         className.contains("Shadows") -> currentY.isFinite() && currentY > 0f
         className.contains("ColorTemperature") -> currentY.isFinite() && currentY >= 1800f
         className.contains("AirMass") -> currentY.isFinite() && currentY > 0f

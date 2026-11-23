@@ -188,6 +188,8 @@ class EphemerisRepository(
                         val dailyOzone = estimateHistoricalOzone(
                             latitude = coords.latitude,
                             date = localDate,
+                            longitude = coords.longitude,
+                            altitudeMeters = coords.altitude,
                         )
 
                         val seasonalKey = SeasonalCacheKey(

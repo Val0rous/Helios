@@ -81,6 +81,8 @@ fun getDailyEphemerisData(
     val dailyOzone = estimateHistoricalOzone(
         latitude = coordinates.latitude,
         date = currentTime.toLocalDate(),
+        longitude = coordinates.longitude,
+        altitudeMeters = coordinates.altitude,
     )
 
     val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
@@ -121,6 +123,8 @@ fun getSunLiveSnapshot(
     val dailyOzone = estimateHistoricalOzone(
         latitude = coordinates.latitude,
         date = currentTime.toLocalDate(),
+        longitude = coordinates.longitude,
+        altitudeMeters = coordinates.altitude,
     )
 
     val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
