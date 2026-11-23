@@ -1,6 +1,5 @@
 package com.ephemeris.helios.ui.composables.cards
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,8 +15,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalLocale
@@ -76,9 +73,6 @@ fun UvIntensity(
         rawFillColor
     }
 
-    // Flat vertical fill fraction: 0 = empty, 11+ = full
-    val fillFraction = if (isZero) 0f else (currentUvIntensity.toFloat() / 11f).coerceIn(0f, 1f)
-
     // Always 1 decimal place (e.g. "9.0"), except plain "0" when there is no UV
     val valueText = if (isZero) {
         "0"
@@ -87,29 +81,19 @@ fun UvIntensity(
     }
 
     Box(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .then(if (fillColor != Color.Transparent) Modifier.background(fillColor) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
-        // 1. Flat vertical discrete-color fill (clipped cleanly by the parent DecalobeShape Card)
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            if (fillFraction > 0f && fillColor != Color.Transparent) {
-                val fillTop = size.height * (1f - fillFraction)
-                drawRect(
-                    color = fillColor,
-                    topLeft = Offset(0f, fillTop),
-                    size = Size(size.width, size.height - fillTop),
-                )
-            }
-        }
-
-        // 2. Semicircle 5-circle UV tier indicator nestled inside the bottom 5 lobes
+        // 1. Semicircle 5-circle UV tier indicator nestled inside the bottom 5 lobes
         UvCircleIndicator(
             currentUv = uvFloat,
             borderColor = surfaceColor,
             modifier = Modifier.fillMaxSize(),
         )
 
-        // 3. Centered title, big value, and description inside the semicircle bowl
+        // 2. Centered title, big value, and description inside the semicircle bowl
         Box(
             modifier = Modifier
                 .fillMaxSize()

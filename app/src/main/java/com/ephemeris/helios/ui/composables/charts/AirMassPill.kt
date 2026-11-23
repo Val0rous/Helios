@@ -29,7 +29,7 @@ fun AirMassPill(
         else -> {
             val minAm = 0.60
             val maxAm = 50.0
-            (ln(currentAirMass.toDouble() / minAm) / ln(maxAm / minAm)).toFloat().coerceIn(0.01f, 0.99f)
+            (ln(currentAirMass.toDouble() / minAm) / ln(maxAm / minAm)).toFloat().coerceIn(0f, 1f)
         }
     }
 

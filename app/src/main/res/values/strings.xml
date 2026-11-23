@@ -20,6 +20,8 @@
     <string name="sun_distance">Sun Distance</string>
     <string name="moon_distance">Moon Distance</string>
     <string name="illumination">Illumination</string>
+    <string name="velocity">Velocity</string>
+    <string name="declination">Declination</string>
     <string name="eq_of_time">Eq. of Time</string>
     <string name="equation_of_time">Equation of Time</string>
 

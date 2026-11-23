@@ -16,15 +16,17 @@ import kotlin.math.ceil
 /**
  * Full-bleed static wavy liquid fill container inspired by Google Weather's Humidity tile.
  *
- * Draws a symmetric cubic-Bézier wave centered on the middle peak (`waveCycles = 4.7f` gives
- * 5 full peaks with the outer two valleys softly cropped at the card edges) rising from the
- * bottom edge to [fraction] (`0f..1f`), with foreground [content] rendered cleanly above it.
+ * Draws a symmetric cubic-Bézier wave centered on the middle lobe rising from the bottom edge
+ * (or descending from the top edge when [fromTop] is `true`) to [fraction] (`0f..1f`), with
+ * smooth amplitude tapering at both `0%..5%` and `95%..100%` and foreground [content] rendered
+ * cleanly above it.
  */
 @Composable
 fun WavyMetricFill(
     fraction: Float,
     fillColor: Color,
     modifier: Modifier = Modifier,
+    fromTop: Boolean = false,
     waveAmplitude: Dp = 3.dp,
     waveCycles: Float = 4.5f,
     waveRoundness: Float = 0.52f,
@@ -48,28 +50,44 @@ fun WavyMetricFill(
             val height = size.height
             if ((width <= 0f) || (height <= 0f)) return@Canvas
 
-            val ampPx = waveAmplitude.toPx()
+            // Taper wave amplitude smoothly near both 0% and 100% so fills rise cleanly out of
+            // the origin edge and flatten seamlessly into the opposite edge without popping.
+            val edgeDistance = minOf(clamped, 1f - clamped)
+            val ampPx = waveAmplitude.toPx() * (edgeDistance / 0.05f).coerceIn(0f, 1f)
             // Keep wave crests gracefully inside the card bounds for both tiny and near-full fills.
-            val baseY = ((height - (2f * ampPx)) * (1f - clamped)) + ampPx
-            val peakY = (baseY - ampPx).coerceIn(0f, height)
-            val valleyY = (baseY + ampPx).coerceIn(0f, height)
+            val baseY = if (fromTop) {
+                ((height - (2f * ampPx)) * clamped) + ampPx
+            } else {
+                ((height - (2f * ampPx)) * (1f - clamped)) + ampPx
+            }
+            val crestY = if (fromTop) {
+                (baseY + ampPx).coerceIn(0f, height)
+            } else {
+                (baseY - ampPx).coerceIn(0f, height)
+            }
+            val troughY = if (fromTop) {
+                (baseY - ampPx).coerceIn(0f, height)
+            } else {
+                (baseY + ampPx).coerceIn(0f, height)
+            }
 
             val halfWave = width / (waveCycles * 2f)
             val centerX = width / 2f
-            // Peak #3 sits at index 0 (dead-center); even indices are peaks, odd indices are valleys.
+            // Center lobe sits at index 0 (dead-center); even indices are crests, odd indices are troughs.
             val halfWavesFromCenter = ceil(centerX / halfWave).toInt() + 1
             val startIndex = -halfWavesFromCenter
             val controlOffset = halfWave * waveRoundness
+            val anchorY = if (fromTop) 0f else height
 
             val wavePath = Path().apply {
                 val startX = centerX + (startIndex * halfWave)
                 var prevX = startX
-                var prevY = if ((startIndex % 2) == 0) peakY else valleyY
+                var prevY = if ((startIndex % 2) == 0) crestY else troughY
                 moveTo(prevX, prevY)
 
                 for (idx in (startIndex + 1)..halfWavesFromCenter) {
                     val nextX = centerX + (idx * halfWave)
-                    val nextY = if ((idx % 2) == 0) peakY else valleyY
+                    val nextY = if ((idx % 2) == 0) crestY else troughY
                     cubicTo(
                         x1 = prevX + controlOffset,
                         y1 = prevY,
@@ -82,8 +100,8 @@ fun WavyMetricFill(
                     prevY = nextY
                 }
 
-                lineTo(prevX, height)
-                lineTo(startX, height)
+                lineTo(prevX, anchorY)
+                lineTo(startX, anchorY)
                 close()
             }
 

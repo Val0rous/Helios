@@ -147,6 +147,9 @@ data class CustomColorScheme(
     val irrMid: Color,
     val irrHigh: Color,
     val irrDial: Color,
+    // Directional warm/cool tile fills (Declination & Velocity)
+    val warmWave: Color,
+    val coolWave: Color,
 
     // UV Index slices
     val uvDarkGreen: Color,
@@ -225,6 +228,8 @@ private fun buildCustomColorScheme(
     val amHorizonScheme = colorEngine.generateColorScheme(Color(0xFFCFD8DC), isDark, ColorSchemeVariant.FIDELITY)
     val amWaveScheme = colorEngine.generateColorScheme(Color(0xFF29B6F6), isDark, ColorSchemeVariant.TONAL_SPOT)
     val luxWaveScheme = colorEngine.generateColorScheme(Color(0xFFFFF59D), isDark, ColorSchemeVariant.TONAL_SPOT)
+    val warmWaveScheme = colorEngine.generateColorScheme(Color(0xFFFF8C00), isDark, ColorSchemeVariant.TONAL_SPOT)
+    val coolWaveScheme = colorEngine.generateColorScheme(Color(0xFF1976D2), isDark, ColorSchemeVariant.TONAL_SPOT)
     val shadowScheme = colorEngine.generateColorScheme(Color(0xFF424242), isDark, ColorSchemeVariant.NEUTRAL)
     val irrDialScheme = colorEngine.generateColorScheme(Color(0xFFE65100), isDark, ColorSchemeVariant.FIDELITY)
 
@@ -285,6 +290,8 @@ private fun buildCustomColorScheme(
     val irrMid = darkAdaptedColor(Color(0xFFFF9800), darkTone = 74.0)
     val irrHigh = darkAdaptedColor(Color(0xFFE65100), darkTone = 62.0)
     val irrDial = if (isDark) irrDialScheme.primary else irrDialScheme.primaryContainer
+    val warmWave = warmWaveScheme.primaryContainer
+    val coolWave = coolWaveScheme.primaryContainer
 
     val uvDarkGreen = darkAdaptedColor(Color(0xFF2E7D32), darkTone = 64.0) { deepMetricColor(Color(0xFF2E7D32)) }
     val uvGreen = darkAdaptedColor(Color(0xFF4CAF50), darkTone = 78.0)
@@ -383,6 +390,8 @@ private fun buildCustomColorScheme(
         irrMid = irrMid,
         irrHigh = irrHigh,
         irrDial = irrDial,
+        warmWave = warmWave,
+        coolWave = coolWave,
 
         uvDarkGreen = uvDarkGreen,
         uvGreen = uvGreen,

@@ -163,7 +163,7 @@ fun Sun(
             SmallCardRow(
                 disableInnerHorizontalPadding = true,
                 leftFullBleed = true,
-                forceSquare = true,
+                rightCircular = true,
                 leftCard = {
                     SolarDistance(
                         currentDistanceAu = sun.position.distanceAu,
@@ -175,7 +175,8 @@ fun Sun(
                 },
                 rightCard = {
                     SolarSpeed(
-                        currentSpeedDegPerMin = sun.metrics.solarSpeed
+                        currentSpeedDegPerMin = sun.metrics.solarSpeed,
+                        solarNoonAzimuth = sun.events.solarNoonAzimuth,
                     )
                 }
             )
@@ -183,12 +184,13 @@ fun Sun(
         item {
             SmallCardRow(
                 disableInnerHorizontalPadding = true,
+                leftFullBleed = true,
                 rightFullBleed = true,
-                forceSquare = true,
                 leftCard = {
                     Declination(
                         currentDeclinationDeg = sun.position.declination,
-                        currentTime = ui.currentTime
+                        currentTime = ui.currentTime,
+                        seasonalEvents = sun.seasonalEvents,
                     )
                 },
                 rightCard = {

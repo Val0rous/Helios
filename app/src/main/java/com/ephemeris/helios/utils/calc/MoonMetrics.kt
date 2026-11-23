@@ -280,24 +280,36 @@ object MoonMetrics {
         )
         val decimalHour = time.hour + (time.minute / 60.0) + (time.second / 3600.0)
         val tzOffsetHours = time.offset.totalSeconds / 3600.0
-        val t = calculateJulianCentury(time.year, time.monthValue, time.dayOfMonth, decimalHour, tzOffsetHours)
+        val ttJdExact = calculateTtJulianDay(time.year, time.monthValue, time.dayOfMonth, decimalHour, tzOffsetHours)
+        val t = (ttJdExact - 2451545.0) / 36525.0
 
-        val (normalizedD, signedPhaseAngleDeg) = calculatePhaseGeometry(t)
-        val alphaDeg = foldPhaseAngleToAlpha(signedPhaseAngleDeg)
+        // Full Meeus Ch. 47 (Moon) & Ch. 25 (Sun) geocentric ecliptic coordinates for exact
+        // apparent elongation (Δλ = 0° at true New Moon, 180° at true Full Moon; solar aberration -0.00569°).
+        val moonEcliptic = LunarEphemeris.calculateGeocentricEcliptic(t)
+        val sunEcliptic = SolarEphemeris.calculateEcliptic(t)
+        var trueElongationDeg = (moonEcliptic.longitudeDeg - (sunEcliptic.trueLongitudeDeg - 0.00569)) % 360.0
+        if (trueElongationDeg < 0.0) trueElongationDeg += 360.0
 
-        // Wrap signed phase angle into (-180°, 180°]: positive = waxing (New -> Full), negative = waning (Full -> New)
-        var wrappedSignedPhase = signedPhaseAngleDeg % 360.0
-        if (wrappedSignedPhase > 180.0) wrappedSignedPhase -= 360.0
-        if (wrappedSignedPhase <= -180.0) wrappedSignedPhase += 360.0
-        val isWaxing = wrappedSignedPhase > 0.0
-
-        val illuminationFraction = (1.0 + cos(Math.toRadians(alphaDeg))) / 2.0
+        // Exact 3D phase angle & illuminated fraction (Meeus Chapter 48, Eqs. 48.1–48.3)
+        val psiRad = acos(
+            (cos(Math.toRadians(moonEcliptic.latitudeDeg)) * cos(Math.toRadians(trueElongationDeg)))
+                .coerceIn(-1.0, 1.0),
+        )
+        val sunDistanceKm = sunEcliptic.distanceAu * AU_TO_KM
+        val phaseAngleRad = atan2(
+            sunDistanceKm * sin(psiRad),
+            moonEcliptic.distanceKm - sunDistanceKm * cos(psiRad),
+        )
+        val alphaDeg = Math.toDegrees(phaseAngleRad)
+        val illuminationFraction = (1.0 + cos(phaseAngleRad)) / 2.0
         val illuminationPercent = illuminationFraction * 100.0
 
-        // Moon Age (Synodic Month = 29.530588853 days)
-        val ageDays = (normalizedD / 360.0) * 29.530588853
+        // True waxing/waning & Moon Age anchored to exact Meeus Chapter 49 New Moon instant
+        val isWaxing = trueElongationDeg < 180.0
+        val lastNewMoonJde = calculateLastNewMoonJde(ttJdExact)
+        val ageDays = (ttJdExact - lastNewMoonJde).coerceAtLeast(0.0)
 
-        val phase = when (normalizedD) {
+        val phase = when (trueElongationDeg) {
             in 0.0..<6.0, in 354.0..360.0 -> LunarPhase.NEW_MOON
             in 6.0..<84.0 -> LunarPhase.WAXING_CRESCENT
             in 84.0..<96.0 -> LunarPhase.FIRST_QUARTER
@@ -346,9 +358,9 @@ object MoonMetrics {
         }
 
         return LunarMetricsResult(
-            illuminationPercent = round(illuminationPercent * 10) / 10.0,
+            illuminationPercent = illuminationPercent,
             isWaxing = isWaxing,
-            ageDays = round(ageDays * 100) / 100.0,
+            ageDays = ageDays,
             phase = phase,
             distanceKm = round(position.distanceKm),
             angularDiameterDegrees = round(angularDiameterDegrees * 1000) / 1000.0,
@@ -484,7 +496,106 @@ object MoonMetrics {
         )
     }
 
-    private fun calculateJulianCentury(year: Int, month: Int, day: Int, decimalHour: Double, tzOffsetHours: Double): Double {
+    private const val AU_TO_KM = 149_597_870.7
+    private const val NEW_MOON_EPOCH_JDE = 2451550.09766
+    private const val SYNODIC_MONTH_DAYS = 29.530588861
+
+    /**
+     * Returns the Julian Ephemeris Day (TT) of the most recent true New Moon at or before [ttJdExact]
+     * using Meeus Chapter 49 (*Phases of the Moon*, 2nd ed., pp. 349–352, accurate to ~1 minute).
+     */
+    internal fun calculateLastNewMoonJde(ttJdExact: Double): Double {
+        var k = floor((ttJdExact - NEW_MOON_EPOCH_JDE) / SYNODIC_MONTH_DAYS).toLong()
+        var jde = calculateNewMoonJde(k)
+        while (jde > ttJdExact) {
+            k -= 1L
+            jde = calculateNewMoonJde(k)
+        }
+        var nextJde = calculateNewMoonJde(k + 1L)
+        while (nextJde <= ttJdExact) {
+            k += 1L
+            jde = nextJde
+            nextJde = calculateNewMoonJde(k + 1L)
+        }
+        return jde
+    }
+
+    /**
+     * Evaluates the true New Moon instant (JDE in TT) for integer lunation index [k]
+     * (`k = 0` is the New Moon of 2000 Jan 6, Meeus Chapter 49).
+     */
+    internal fun calculateNewMoonJde(k: Long): Double {
+        val kd = k.toDouble()
+        val t = kd / 1236.85
+        val t2 = t * t
+        val t3 = t2 * t
+        val t4 = t3 * t
+
+        // Mean New Moon (Meeus Eq. 49.1)
+        val jde0 = NEW_MOON_EPOCH_JDE +
+            SYNODIC_MONTH_DAYS * kd +
+            0.00015437 * t2 -
+            0.000000150 * t3 +
+            0.00000000073 * t4
+
+        val e = 1.0 - 0.002516 * t - 0.0000074 * t2
+        val e2 = e * e
+
+        // Fundamental arguments in radians (Meeus Eqs. 49.4–49.7)
+        val m = Math.toRadians(2.5534 + 29.10535670 * kd - 0.0000014 * t2 - 0.00000011 * t3)
+        val mPrime = Math.toRadians(201.5643 + 385.81693528 * kd + 0.0107582 * t2 + 0.00001238 * t3 - 0.000000058 * t4)
+        val f = Math.toRadians(160.7108 + 390.67050284 * kd - 0.0016118 * t2 - 0.00000227 * t3 + 0.000000011 * t4)
+        val omega = Math.toRadians(124.7746 - 1.56375588 * kd + 0.0020672 * t2 + 0.00000215 * t3)
+
+        // Principal New Moon periodic corrections (days, Meeus p. 351)
+        val principalCorrection =
+            -0.40720 * sin(mPrime) +
+            0.17241 * e * sin(m) +
+            0.01608 * sin(2.0 * mPrime) +
+            0.01039 * sin(2.0 * f) +
+            0.00739 * e * sin(mPrime - m) -
+            0.00514 * e * sin(mPrime + m) +
+            0.00208 * e2 * sin(2.0 * m) -
+            0.00111 * sin(mPrime - 2.0 * f) -
+            0.00057 * sin(mPrime + 2.0 * f) +
+            0.00056 * e * sin(2.0 * mPrime + m) -
+            0.00042 * sin(3.0 * mPrime) +
+            0.00042 * e * sin(m + 2.0 * f) +
+            0.00038 * e * sin(m - 2.0 * f) -
+            0.00024 * e * sin(2.0 * mPrime - m) -
+            0.00017 * sin(omega) -
+            0.00007 * sin(mPrime + 2.0 * m) +
+            0.00004 * sin(2.0 * mPrime - 2.0 * f) +
+            0.00004 * sin(3.0 * m) +
+            0.00003 * sin(mPrime + m - 2.0 * f) +
+            0.00003 * sin(2.0 * mPrime + 2.0 * f) -
+            0.00003 * sin(mPrime + m + 2.0 * f) +
+            0.00003 * sin(mPrime - m + 2.0 * f) -
+            0.00002 * sin(mPrime - m - 2.0 * f) -
+            0.00002 * sin(3.0 * mPrime + m) +
+            0.00002 * sin(4.0 * mPrime)
+
+        // Planetary arguments A1..A14 (days, Meeus pp. 351–352)
+        val planetaryCorrection =
+            0.000325 * sin(Math.toRadians(299.77 + 0.107408 * kd - 0.009173 * t2)) +
+            0.000165 * sin(Math.toRadians(251.88 + 0.016321 * kd)) +
+            0.000164 * sin(Math.toRadians(251.83 + 26.651886 * kd)) +
+            0.000126 * sin(Math.toRadians(349.42 + 36.412478 * kd)) +
+            0.000110 * sin(Math.toRadians(84.66 + 18.206239 * kd)) +
+            0.000062 * sin(Math.toRadians(141.74 + 53.303771 * kd)) +
+            0.000060 * sin(Math.toRadians(207.14 + 2.453732 * kd)) +
+            0.000056 * sin(Math.toRadians(154.84 + 7.306860 * kd)) +
+            0.000047 * sin(Math.toRadians(34.52 + 27.261239 * kd)) +
+            0.000042 * sin(Math.toRadians(207.19 + 0.121824 * kd)) +
+            0.000040 * sin(Math.toRadians(291.34 + 1.844379 * kd)) +
+            0.000037 * sin(Math.toRadians(161.72 + 24.198154 * kd)) +
+            0.000035 * sin(Math.toRadians(239.56 + 25.513099 * kd)) +
+            0.000023 * sin(Math.toRadians(331.55 + 3.592518 * kd))
+
+        return jde0 + principalCorrection + planetaryCorrection
+    }
+
+    private fun calculateTtJulianDay(year: Int, month: Int, day: Int, decimalHour: Double, tzOffsetHours: Double): Double {
         var y = year
         var m = month
         if (m <= 2) {
@@ -498,7 +609,11 @@ object MoonMetrics {
         val utcDecimalHour = decimalHour - tzOffsetHours
         val jdExact = jdMidnight + (utcDecimalHour / 24.0)
         val deltaTSeconds = calculateDeltaT(year, month)
-        val ttJdExact = jdExact + (deltaTSeconds / 86400.0)
+        return jdExact + (deltaTSeconds / 86400.0)
+    }
+
+    private fun calculateJulianCentury(year: Int, month: Int, day: Int, decimalHour: Double, tzOffsetHours: Double): Double {
+        val ttJdExact = calculateTtJulianDay(year, month, day, decimalHour, tzOffsetHours)
         return (ttJdExact - 2451545.0) / 36525.0
     }
 }

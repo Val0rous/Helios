@@ -187,11 +187,83 @@ object LunarEphemeris {
         )
     }
 
+    internal data class GeocentricEcliptic(
+        val longitudeDeg: Double,
+        val latitudeDeg: Double,
+        val distanceKm: Double,
+    )
+
     private data class GeocentricLunarCoords(
         val raRad: Double,
         val decRad: Double,
         val distanceKm: Double,
     )
+
+    /**
+     * Evaluates geocentric lunar ecliptic coordinates (Meeus Chapter 47, full Table 47.A & 47.B)
+     * for Julian Century [t] (TT since J2000.0).
+     */
+    internal fun calculateGeocentricEcliptic(t: Double): GeocentricEcliptic {
+        val t2 = t * t
+        val t3 = t2 * t
+        val t4 = t3 * t
+
+        // 1. Mean Elements of the Moon (Degrees, Meeus Eqs. 47.1–47.5)
+        val lPrime = (218.3164477 + 481267.88123421 * t - 0.0015786 * t2 + t3 / 538841.0 - t4 / 65194000.0) % 360.0
+        val d = (297.8501921 + 445267.1114034 * t - 0.0018819 * t2 + t3 / 545868.0 - t4 / 113065000.0) % 360.0
+        val m = (357.5291092 + 35999.0502909 * t - 0.0001536 * t2 + t3 / 24490000.0) % 360.0
+        val mPrime = (134.9633964 + 477198.8675055 * t + 0.0087414 * t2 + t3 / 69699.0 - t4 / 14712000.0) % 360.0
+        val f = (93.2720950 + 483202.0175233 * t - 0.0036539 * t2 - t3 / 3526000.0 + t4 / 863310000.0) % 360.0
+
+        // Eccentricity factor for terms involving Earth's mean anomaly M (Meeus Eq. 47.6)
+        val e = 1.0 - 0.002516 * t - 0.0000074 * t2
+        val e2 = e * e
+
+        // 2. Sum the Perturbations (Meeus Table 47.A & 47.B)
+        var sumL = 0.0
+        var sumR = 0.0
+        for (term in LUNAR_LONGITUDE_TERMS) {
+            val mCoeff = abs(term[1])
+            val eFactor = when (mCoeff) {
+                1.0 -> e
+                2.0 -> e2
+                else -> 1.0
+            }
+            val angleRad = Math.toRadians(term[0] * d + term[1] * m + term[2] * mPrime + term[3] * f)
+            sumL += term[4] * eFactor * sin(angleRad)
+            sumR += term[5] * eFactor * cos(angleRad)
+        }
+
+        var sumB = 0.0
+        for (term in LUNAR_LATITUDE_TERMS) {
+            val mCoeff = abs(term[1])
+            val eFactor = when (mCoeff) {
+                1.0 -> e
+                2.0 -> e2
+                else -> 1.0
+            }
+            val angleRad = Math.toRadians(term[0] * d + term[1] * m + term[2] * mPrime + term[3] * f)
+            sumB += term[4] * eFactor * sin(angleRad)
+        }
+
+        // Additive planetary / Venus / Jupiter / Earth-flattening corrections (Meeus p. 338)
+        val a1Rad = Math.toRadians(119.75 + 131.849 * t)
+        val a2Rad = Math.toRadians(53.09 + 479264.290 * t)
+        val a3Rad = Math.toRadians(313.45 + 481266.484 * t)
+        val lPrimeRad = Math.toRadians(lPrime)
+        val fRad = Math.toRadians(f)
+        sumL += 3958.0 * sin(a1Rad) + 1962.0 * sin(lPrimeRad - fRad) + 318.0 * sin(a2Rad)
+        sumB += -2235.0 * sin(lPrimeRad) + 382.0 * sin(a3Rad) + 175.0 * sin(a1Rad - fRad) +
+            175.0 * sin(a1Rad + fRad) + 127.0 * sin(lPrimeRad - Math.toRadians(mPrime)) -
+            115.0 * sin(lPrimeRad + Math.toRadians(mPrime))
+
+        // 3. Geocentric Ecliptic Coordinates
+        val trueLongitudeDeg = lPrime + (sumL / 1000000.0)
+        val trueLatitudeDeg = sumB / 1000000.0
+        val distanceKm = 385000.56 + (sumR / 1000.0)
+
+        return GeocentricEcliptic(trueLongitudeDeg, trueLatitudeDeg, distanceKm)
+    }
 
     private fun calculateGeocentricAtHour(
         date: LocalDate,
@@ -199,36 +271,10 @@ object LunarEphemeris {
         tzOffsetHours: Double,
     ): GeocentricLunarCoords {
         val t = calculateJulianCentury(date.year, date.monthValue, date.dayOfMonth, decimalHour, tzOffsetHours)
+        val ecliptic = calculateGeocentricEcliptic(t)
 
-        // 1. Mean Elements of the Moon (Degrees)
-        val lPrime = (218.3164477 + 481267.88123421 * t) % 360.0
-        val d = (297.8501921 + 445267.1114034 * t) % 360.0
-        val m = (357.5291092 + 35999.0502909 * t) % 360.0
-        val mPrime = (134.9633964 + 477198.8675055 * t) % 360.0
-        val f = (93.2720950 + 483202.0175233 * t) % 360.0
-
-        // 2. Sum the Perturbations (The chaotic gravity of the Sun and Earth)
-        var sumL = 0.0
-        var sumR = 0.0
-        for (term in LUNAR_LONGITUDE_TERMS) {
-            val angleRad = Math.toRadians(term[0] * d + term[1] * m + term[2] * mPrime + term[3] * f)
-            sumL += term[4] * sin(angleRad)
-            sumR += term[5] * cos(angleRad)
-        }
-
-        var sumB = 0.0
-        for (term in LUNAR_LATITUDE_TERMS) {
-            val angleRad = Math.toRadians(term[0] * d + term[1] * m + term[2] * mPrime + term[3] * f)
-            sumB += term[4] * sin(angleRad)
-        }
-
-        // 3. Geocentric Ecliptic Coordinates
-        val trueLongitudeDeg = lPrime + (sumL / 1000000.0)
-        val trueLatitudeDeg = sumB / 1000000.0
-        val distanceKm = 385000.56 + (sumR / 1000.0)
-
-        val lambdaRad = Math.toRadians(trueLongitudeDeg)
-        val betaRad = Math.toRadians(trueLatitudeDeg)
+        val lambdaRad = Math.toRadians(ecliptic.longitudeDeg)
+        val betaRad = Math.toRadians(ecliptic.latitudeDeg)
 
         // 4. Ecliptic to Equatorial (Right Ascension & Declination)
         val epsilonDeg = 23.439291 - 0.0130042 * t
@@ -237,7 +283,7 @@ object LunarEphemeris {
         val raRad = atan2(sin(lambdaRad) * cos(epsRad) - tan(betaRad) * sin(epsRad), cos(lambdaRad))
         val decRad = asin(sin(betaRad) * cos(epsRad) + cos(betaRad) * sin(epsRad) * sin(lambdaRad))
 
-        return GeocentricLunarCoords(raRad, decRad, distanceKm)
+        return GeocentricLunarCoords(raRad, decRad, ecliptic.distanceKm)
     }
 
     /**

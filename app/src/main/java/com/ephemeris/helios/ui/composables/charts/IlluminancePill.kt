@@ -6,29 +6,39 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import kotlin.math.log10
+import kotlin.math.pow
 
 /**
- * Full-bleed wavy illuminance fill using a smooth base-10 logarithmic scale
- * (`log10(value + 1) / log10(maxValue + 1)`).
- * - Strictly 0% fill (no waves) at `<= 0`.
+ * Full-bleed wavy illuminance fill using a human-perception logarithmic scale starting at a
+ * visual visibility threshold [minLux]:
+ * - Strictly 0% fill (no lingering bottom waves) at `<= minLux` (too dark for the human eye,
+ *   e.g. deep astronomical twilight / starlight floor).
  * - Completely filled tile (waves disappear) at `>= maxLux`.
- * - Waves visible across the entire positive range (`0 < value < maxLux`), including sub-1
- *   twilight lux and lunar millilux.
+ * - Smooth perceptual progression (`(log10(v / minLux) / log10(maxLux / minLux))^1.4`) across
+ *   the visible range so deep nautical twilight still shows a gentle wave while bright daylight
+ *   or Full Moon fills the tile naturally.
  */
 @Composable
 fun IlluminancePill(
     currentIlluminance: Float,
     modifier: Modifier = Modifier,
+    minLux: Float = 0.01f,
     maxLux: Float = 100_000f,
     fillColor: Color = LocalCustomColors.current.luxWave,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
+    val safeMin = minLux.coerceAtLeast(1e-6f)
     val fraction = when {
-        currentIlluminance <= 0f -> 0f
+        currentIlluminance <= safeMin -> 0f
         currentIlluminance >= maxLux -> 1f
         else -> {
-            val maxLog = log10(maxLux.coerceAtLeast(1f) + 1f)
-            (log10(currentIlluminance + 1f) / maxLog).coerceIn(0.01f, 0.99f)
+            val logRange = log10(maxLux / safeMin)
+            if (logRange <= 0f) {
+                0f
+            } else {
+                val normalized = (log10(currentIlluminance / safeMin) / logRange).coerceIn(0f, 1f)
+                normalized.pow(1.4f).coerceIn(0f, 1f)
+            }
         }
     }
 

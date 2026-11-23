@@ -20,11 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -89,9 +86,9 @@ fun SolarDistance(
         else -> "Furthest"
     }
 
-    // Both AU (e.g., "0.9885", "1.0167") and km (e.g., "147.95 mln", "152.09 mln") use 5 digits + dot
+    // AU always displays 5 decimal places (e.g., "0.98850", "1.01671"); km displays mln with 2 decimals
     val formattedNumber = if (distanceUnit == DistanceUnit.AU) {
-        String.format(locale, "%.4f", currentDistanceAu)
+        String.format(locale, "%.5f", currentDistanceAu)
     } else {
         String.format(locale, "%.2f", currentDistanceKm / 1_000_000.0)
     }
@@ -130,32 +127,37 @@ fun SolarDistance(
                 .align(Alignment.CenterStart),
         ) {
             val valueStyle = MaterialTheme.typography.headlineMedium.copy(
-                fontSize = 28.sp,
+                fontSize = 25.5.sp,
                 lineHeight = 32.sp,
                 fontWeight = FontWeight.Black,
                 fontFeatureSettings = "tnum",
+                letterSpacing = (-0.5).sp,
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
-            Text(
-                text = buildAnnotatedString {
-                    append(formattedNumber)
-                    if (distanceUnit == DistanceUnit.KM) {
-                        withStyle(
-                            SpanStyle(
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                        ) {
-                            append(" mln")
-                        }
-                    }
-                },
-                style = valueStyle,
-                maxLines = 1,
-                softWrap = false,
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = formattedNumber,
+                    style = valueStyle,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.alignByBaseline(),
+                )
+                Text(
+                    text = if (distanceUnit == DistanceUnit.AU) "AU" else "mln km",
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontSize = 13.sp,
+                        lineHeight = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.alignByBaseline(),
+                )
+            }
 
             /*
             // Formats with commas (e.g., 149,597,870)
@@ -233,7 +235,7 @@ private fun SolarDistanceTilePreview() {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     SolarDistance(
-                        currentDistanceAu = 0.9833,
+                        currentDistanceAu = 0.98329,
                         currentDistanceKm = 147_100_000.0,
                         currentTime = perihelionTime,
                         distanceUnit = DistanceUnit.AU,
@@ -246,7 +248,7 @@ private fun SolarDistanceTilePreview() {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     SolarDistance(
-                        currentDistanceAu = 0.9890,
+                        currentDistanceAu = 0.98904,
                         currentDistanceKm = 147_950_000.0,
                         currentTime = novTime,
                         distanceUnit = DistanceUnit.KM,
@@ -261,7 +263,7 @@ private fun SolarDistanceTilePreview() {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     SolarDistance(
-                        currentDistanceAu = 1.0001,
+                        currentDistanceAu = 1.00014,
                         currentDistanceKm = 149_610_000.0,
                         currentTime = meanTime,
                         distanceUnit = DistanceUnit.AU,
@@ -274,7 +276,7 @@ private fun SolarDistanceTilePreview() {
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
                     SolarDistance(
-                        currentDistanceAu = 1.0167,
+                        currentDistanceAu = 1.01671,
                         currentDistanceKm = 152_090_000.0,
                         currentTime = aphelionTime,
                         distanceUnit = DistanceUnit.KM,

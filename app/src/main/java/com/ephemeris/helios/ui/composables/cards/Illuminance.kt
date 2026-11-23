@@ -17,8 +17,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +41,12 @@ fun Illuminance(
     val displayValue = if (isLunar) currentIlluminance * 1000.0 else currentIlluminance
     val waveValue = displayValue.toFloat()
     val unitLabel = if (isLunar) "mlx" else "lux"
+    // Human-eye visibility floor (same units as waveValue):
+    // - Moon (mlx): 2 mlx (~0.002 lux, natural starlight + airglow ceiling) hides pre-moonrise
+    //   lunar twilight and invisible near-New-Moon crescents.
+    // - Sun (lux): 0.01 lux (~-13.2°, astronomical/nautical twilight border) hides pitch-dark
+    //   astronomical twilight while keeping deep nautical twilight clearly visible.
+    val minLux = if (isLunar) 2f else 0.01f
     val maxLux = if (isLunar) {
         if (mode == IlluminanceMode.DIFFUSE) 30f else 300f
     } else {
@@ -129,6 +135,7 @@ fun Illuminance(
 
     IlluminancePill(
         currentIlluminance = waveValue,
+        minLux = minLux,
         maxLux = maxLux,
         modifier = Modifier.fillMaxSize(),
     ) {
@@ -153,60 +160,57 @@ fun Illuminance(
                 )
             }
 
-            // Center the value + description pair vertically between the top header and the
-            // bottom-left tonal pill so whitespace stays balanced above and below.
-            Layout(
-                modifier = Modifier.fillMaxSize(),
-                content = {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(
-                            text = displayValue.printSignificant(),
-                            style = valueStyle,
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.alignByBaseline(),
-                        )
-                        Text(
-                            text = unitLabel,
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontSize = 14.sp,
-                                lineHeight = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                            maxLines = 1,
-                            softWrap = false,
-                            modifier = Modifier.alignByBaseline(),
-                        )
-                    }
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                    )
-                },
-            ) { measurables, constraints ->
-                val loose = constraints.copy(minWidth = 0, minHeight = 0)
-                val valuePlaceable = measurables[0].measure(loose)
-                val descPlaceable = measurables[1].measure(loose)
-                val gapPx = 2.dp.roundToPx()
-                val groupHeight = valuePlaceable.height + gapPx + descPlaceable.height
-                val valueY = ((constraints.maxHeight - groupHeight) / 2 + 5.dp.roundToPx()).coerceAtLeast(0)
-                val descY = valueY + valuePlaceable.height + gapPx
-                layout(constraints.maxWidth, constraints.maxHeight) {
-                    valuePlaceable.placeRelative(0, valueY)
-                    descPlaceable.placeRelative(0, descY)
-                }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.align(Alignment.CenterStart),
+            ) {
+                Text(
+                    text = displayValue.printSignificant(),
+                    style = valueStyle,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.alignByBaseline(),
+                )
+                Text(
+                    text = unitLabel,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontSize = 14.sp,
+                        lineHeight = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier.alignByBaseline(),
+                )
             }
 
-            MetricModePill(
-                label = mode.label,
-                onClick = onToggleMode,
-                modifier = Modifier.align(Alignment.BottomStart),
-            )
+            // Description at bottom-left, with mode tonal pill at bottom-right
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomStart),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .padding(end = 4.dp),
+                )
+                MetricModePill(
+                    label = mode.label,
+                    onClick = onToggleMode,
+                )
+            }
         }
     }
 

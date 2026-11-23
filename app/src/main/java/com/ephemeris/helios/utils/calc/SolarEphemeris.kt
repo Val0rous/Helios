@@ -428,6 +428,29 @@ object SolarEphemeris {
         return SolarParams(declinationRad, eotMinutes, distanceAu)
     }
 
+    internal data class SolarEcliptic(
+        val trueLongitudeDeg: Double,
+        val distanceAu: Double,
+    )
+
+    /**
+     * Evaluates geometric true solar ecliptic longitude (degrees) and Earth–Sun radius vector (AU)
+     * for Julian Century [t] (TT since J2000.0, Meeus Chapter 25).
+     */
+    internal fun calculateEcliptic(t: Double): SolarEcliptic {
+        val l0 = (280.46646 + 36000.76983 * t + 0.0003032 * t * t) % 360.0
+        val m = 357.52911 + 35999.05029 * t - 0.0001537 * t * t
+        val mRad = Math.toRadians(m)
+        val e = 0.016708634 - 0.000042037 * t - 0.0000001267 * t * t
+        val c = (1.914602 - 0.004817 * t - 0.000014 * t * t) * sin(mRad) +
+            (0.019993 - 0.000101 * t) * sin(2 * mRad) +
+            0.000289 * sin(3 * mRad)
+        val sunTrueLong = l0 + c
+        val vRad = mRad + Math.toRadians(c)
+        val distanceAu = (1.000001018 * (1.0 - e * e)) / (1.0 + e * cos(vRad))
+        return SolarEcliptic(sunTrueLong, distanceAu)
+    }
+
     /**
      * Lightweight Earth–Sun radius vector evaluation in Astronomical Units (AU) for a given instant.
      */

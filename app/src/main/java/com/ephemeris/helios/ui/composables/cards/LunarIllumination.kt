@@ -64,7 +64,7 @@ fun LunarIllumination(
     val discBorderColor = customColors.moonBorder.copy(alpha = if (isDarkSurface) 0.85f else 0.9f)
 
     val formattedPercent = String.format(locale, "%.2f", illuminationPercent.coerceIn(0.0, 100.0))
-    val formattedAge = String.format(locale, "Day %.1f", ageDays.coerceIn(0.0, 29.53))
+    val formattedAge = String.format(locale, "Day %.2f", ageDays.coerceAtLeast(0.0))
 
     Box(
         modifier = modifier
@@ -192,7 +192,7 @@ private fun LunarIlluminationCircularTilePreview() {
                     LunarIllumination(
                         illuminationPercent = 18.45,
                         phase = MoonMetrics.LunarPhase.WAXING_CRESCENT,
-                        ageDays = 4.2,
+                        ageDays = 4.24,
                         moonPhase = MoonPhaseAppearance(0.1845f, isWaxing = true),
                     )
                 }
@@ -206,7 +206,7 @@ private fun LunarIlluminationCircularTilePreview() {
                     LunarIllumination(
                         illuminationPercent = 100.00,
                         phase = MoonMetrics.LunarPhase.FULL_MOON,
-                        ageDays = 14.8,
+                        ageDays = 14.82,
                         moonPhase = MoonPhaseAppearance(1.0f, isWaxing = true),
                     )
                 }
@@ -222,7 +222,7 @@ private fun LunarIlluminationCircularTilePreview() {
                     LunarIllumination(
                         illuminationPercent = 50.00,
                         phase = MoonMetrics.LunarPhase.FIRST_QUARTER,
-                        ageDays = 7.4,
+                        ageDays = 7.43,
                         moonPhase = MoonPhaseAppearance(0.5f, isWaxing = true),
                     )
                 }
@@ -236,7 +236,7 @@ private fun LunarIlluminationCircularTilePreview() {
                     LunarIllumination(
                         illuminationPercent = 74.28,
                         phase = MoonMetrics.LunarPhase.WANING_GIBBOUS,
-                        ageDays = 19.6,
+                        ageDays = 19.65,
                         moonPhase = MoonPhaseAppearance(0.7428f, isWaxing = false),
                     )
                 }
