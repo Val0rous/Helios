@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
 import com.ephemeris.helios.ui.theme.HeliosTheme
+import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.formatDecimalHours
 import com.ephemeris.helios.utils.formatDuration
 import java.time.LocalTime
@@ -150,8 +151,13 @@ internal fun formatDecimalHourRange(
     }
 }
 
-private fun isHourInInterval(currentHour: Double, startHour: Double, endHour: Double): Boolean {
+internal fun isHourInInterval(currentHour: Double, startHour: Double, endHour: Double): Boolean {
     val cur = normalizeHour24(currentHour)
+    if (endHour >= 24.0 && startHour < 24.0) {
+        val start = normalizeHour24(startHour)
+        val extraAfterMidnight = endHour - 24.0
+        return cur >= start || (extraAfterMidnight > 0.0 && cur <= extraAfterMidnight)
+    }
     val start = normalizeHour24(startHour)
     val end = normalizeHour24(endHour)
     return if (start <= end) {
@@ -159,6 +165,34 @@ private fun isHourInInterval(currentHour: Double, startHour: Double, endHour: Do
     } else {
         // Overnight interval wrapping across midnight (e.g., 22:15 – 02:45 or 23:10 – 00:40)
         cur >= start || cur <= end
+    }
+}
+
+/**
+ * Converts exact [SolarEphemeris.PhaseInterval]s (0, 1, 2, or 3 intervals per calendar day)
+ * into display [LightPhaseInterval]s with active-time detection at [currentTime].
+ */
+fun resolveLightPhaseIntervals(
+    phaseIntervals: List<SolarEphemeris.PhaseInterval>,
+    currentTime: ZonedDateTime,
+): List<LightPhaseInterval> {
+    val currentHour = currentTime.hour +
+        currentTime.minute / 60.0 +
+        currentTime.second / 3600.0
+    return phaseIntervals.map { phase ->
+        val isActive = when {
+            phase.isAllDay -> true
+            phase.startHour != null && phase.endHour != null ->
+                isHourInInterval(currentHour, phase.startHour, phase.endHour)
+            else -> false
+        }
+        LightPhaseInterval(
+            startHour = phase.startHour,
+            endHour = phase.endHour,
+            durationHours = phase.durationHours,
+            isActive = isActive,
+            isAllDay = phase.isAllDay,
+        )
     }
 }
 
@@ -312,6 +346,7 @@ fun GoldenHour(
     eveningDuration: Double,
     currentTime: ZonedDateTime,
     modifier: Modifier = Modifier,
+    phaseIntervals: List<SolarEphemeris.PhaseInterval>? = null,
 ) {
     LightPhaseCard(
         titleRes = R.string.golden_hour,
@@ -319,15 +354,16 @@ fun GoldenHour(
         tintSeed = Color(0xFFFFB300),
         lightAccent = Color(0xFF8C5200),
         darkAccent = Color(0xFFFFCA28),
-        intervals = resolveLightPhaseIntervals(
-            dawnLower = dawnLower,
-            dawnUpper = dawnUpper,
-            duskUpper = duskUpper,
-            duskLower = duskLower,
-            morningDuration = morningDuration,
-            eveningDuration = eveningDuration,
-            currentTime = currentTime,
-        ),
+        intervals = phaseIntervals?.let { resolveLightPhaseIntervals(it, currentTime) }
+            ?: resolveLightPhaseIntervals(
+                dawnLower = dawnLower,
+                dawnUpper = dawnUpper,
+                duskUpper = duskUpper,
+                duskLower = duskLower,
+                morningDuration = morningDuration,
+                eveningDuration = eveningDuration,
+                currentTime = currentTime,
+            ),
         modifier = modifier,
     )
 }
@@ -342,6 +378,7 @@ fun BlueHour(
     eveningDuration: Double,
     currentTime: ZonedDateTime,
     modifier: Modifier = Modifier,
+    phaseIntervals: List<SolarEphemeris.PhaseInterval>? = null,
 ) {
     LightPhaseCard(
         titleRes = R.string.blue_hour,
@@ -349,15 +386,16 @@ fun BlueHour(
         tintSeed = Color(0xFF1E88E5),
         lightAccent = Color(0xFF0D47A1),
         darkAccent = Color(0xFF64B5F6),
-        intervals = resolveLightPhaseIntervals(
-            dawnLower = dawnLower,
-            dawnUpper = dawnUpper,
-            duskUpper = duskUpper,
-            duskLower = duskLower,
-            morningDuration = morningDuration,
-            eveningDuration = eveningDuration,
-            currentTime = currentTime,
-        ),
+        intervals = phaseIntervals?.let { resolveLightPhaseIntervals(it, currentTime) }
+            ?: resolveLightPhaseIntervals(
+                dawnLower = dawnLower,
+                dawnUpper = dawnUpper,
+                duskUpper = duskUpper,
+                duskLower = duskLower,
+                morningDuration = morningDuration,
+                eveningDuration = eveningDuration,
+                currentTime = currentTime,
+            ),
         modifier = modifier,
     )
 }
@@ -372,6 +410,7 @@ fun PinkHour(
     eveningDuration: Double,
     currentTime: ZonedDateTime,
     modifier: Modifier = Modifier,
+    phaseIntervals: List<SolarEphemeris.PhaseInterval>? = null,
 ) {
     LightPhaseCard(
         titleRes = R.string.pink_hour,
@@ -379,15 +418,16 @@ fun PinkHour(
         tintSeed = Color(0xFFEC407A),
         lightAccent = Color(0xFFAD1457),
         darkAccent = Color(0xFFF48FB1),
-        intervals = resolveLightPhaseIntervals(
-            dawnLower = dawnLower,
-            dawnUpper = dawnUpper,
-            duskUpper = duskUpper,
-            duskLower = duskLower,
-            morningDuration = morningDuration,
-            eveningDuration = eveningDuration,
-            currentTime = currentTime,
-        ),
+        intervals = phaseIntervals?.let { resolveLightPhaseIntervals(it, currentTime) }
+            ?: resolveLightPhaseIntervals(
+                dawnLower = dawnLower,
+                dawnUpper = dawnUpper,
+                duskUpper = duskUpper,
+                duskLower = duskLower,
+                morningDuration = morningDuration,
+                eveningDuration = eveningDuration,
+                currentTime = currentTime,
+            ),
         modifier = modifier,
     )
 }
@@ -402,6 +442,7 @@ fun Alpenglow(
     eveningDuration: Double,
     currentTime: ZonedDateTime,
     modifier: Modifier = Modifier,
+    phaseIntervals: List<SolarEphemeris.PhaseInterval>? = null,
 ) {
     LightPhaseCard(
         titleRes = R.string.alpenglow,
@@ -409,15 +450,16 @@ fun Alpenglow(
         tintSeed = Color(0xFFE53935),
         lightAccent = Color(0xFFB71C1C),
         darkAccent = Color(0xFFFF8A80),
-        intervals = resolveLightPhaseIntervals(
-            dawnLower = dawnLower,
-            dawnUpper = dawnUpper,
-            duskUpper = duskUpper,
-            duskLower = duskLower,
-            morningDuration = morningDuration,
-            eveningDuration = eveningDuration,
-            currentTime = currentTime,
-        ),
+        intervals = phaseIntervals?.let { resolveLightPhaseIntervals(it, currentTime) }
+            ?: resolveLightPhaseIntervals(
+                dawnLower = dawnLower,
+                dawnUpper = dawnUpper,
+                duskUpper = duskUpper,
+                duskLower = duskLower,
+                morningDuration = morningDuration,
+                eveningDuration = eveningDuration,
+                currentTime = currentTime,
+            ),
         modifier = modifier,
     )
 }
@@ -468,12 +510,14 @@ fun LightPhaseCard(
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = surfaceColor.copy(alpha = if (isDarkSurface) 0.40f else 0.62f),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxSize(),
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 14.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 10.dp, vertical = 10.dp),
                         ) {
                             Text(
                                 text = "None today",
@@ -508,7 +552,7 @@ fun LightPhaseCard(
                         surfaceColor = surfaceColor,
                         isDarkSurface = isDarkSurface,
                         density = IntervalDensity.SINGLE,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
 
@@ -558,14 +602,14 @@ fun LightPhaseCard(
     }
 }
 
-private enum class IntervalDensity {
+internal enum class IntervalDensity {
     SINGLE,
     DOUBLE,
     COMPACT,
 }
 
 @Composable
-private fun LightPhaseIntervalChip(
+internal fun LightPhaseIntervalChip(
     interval: LightPhaseInterval,
     tintSeed: Color,
     accentColor: Color,
@@ -620,17 +664,24 @@ private fun LightPhaseIntervalChip(
         buildAnnotatedString { append("All day") }
     } else {
         val (startStr, endStr) = formatDecimalHourRange(interval.startHour, interval.endHour, locale)
-        buildAnnotatedString {
-            append(startStr)
-            withStyle(
-                SpanStyle(
-                    color = onSurfaceVariant.copy(alpha = if (interval.isActive) 0.85f else 0.65f),
-                    fontWeight = FontWeight.Medium,
-                ),
-            ) {
-                append("\u2009–\u2009")
+        val sameMinute = interval.startHour.toRoundedLocalTime() != null &&
+            interval.startHour.toRoundedLocalTime() == interval.endHour.toRoundedLocalTime() &&
+            interval.durationHours < 1.0
+        if (sameMinute) {
+            buildAnnotatedString { append(interval.startHour.formatDecimalHours()) }
+        } else {
+            buildAnnotatedString {
+                append(startStr)
+                withStyle(
+                    SpanStyle(
+                        color = onSurfaceVariant.copy(alpha = if (interval.isActive) 0.85f else 0.65f),
+                        fontWeight = FontWeight.Medium,
+                    ),
+                ) {
+                    append("\u2009–\u2009")
+                }
+                append(endStr)
             }
-            append(endStr)
         }
     }
 
@@ -649,7 +700,7 @@ private fun LightPhaseIntervalChip(
                 alignment = Alignment.CenterVertically,
             ),
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(horizontal = 8.dp, vertical = verticalPadding),
         ) {
             // Identical weight & sizing regardless of active state so highlighting never shifts or shrinks times

@@ -23,18 +23,18 @@ import com.ephemeris.helios.ui.composables.cards.GoldenHour
 import com.ephemeris.helios.ui.composables.cards.Illuminance
 import com.ephemeris.helios.ui.composables.cards.Irradiance
 import com.ephemeris.helios.ui.composables.cards.PinkHour
+import com.ephemeris.helios.ui.composables.cards.PlutoTime
 import com.ephemeris.helios.ui.composables.cards.ShadowRatio
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.cards.SolarDistance
 import com.ephemeris.helios.ui.composables.cards.SolarSpeed
+import com.ephemeris.helios.ui.composables.cards.TwilightCard
 import com.ephemeris.helios.ui.composables.cards.UvIntensity
 import com.ephemeris.helios.ui.composables.charts.DecalobeShape
 import com.ephemeris.helios.ui.composables.entries.NightEntry
-import com.ephemeris.helios.ui.composables.entries.PlutoTimeEntry
 import com.ephemeris.helios.ui.composables.entries.SeasonalEntry
 import com.ephemeris.helios.ui.composables.entries.SolarNoonEntry
 import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
-import com.ephemeris.helios.ui.composables.entries.TwilightEntry
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.viewmodels.SunViewModel
 import com.ephemeris.helios.utils.Charts
@@ -219,17 +219,19 @@ fun Sun(
                         morningDuration = sun.durations.goldenHour.morning,
                         eveningDuration = sun.durations.goldenHour.evening,
                         currentTime = ui.currentTime,
+                        phaseIntervals = sun.events.goldenIntervals,
                     )
                 },
                 rightCard = {
-                    BlueHour(
-                        dawnLower = sun.events.dawnBlueLower,
-                        dawnUpper = sun.events.dawnBlueUpper,
-                        duskUpper = sun.events.duskBlueUpper,
-                        duskLower = sun.events.duskBlueLower,
-                        morningDuration = sun.durations.blueHour.morning,
-                        eveningDuration = sun.durations.blueHour.evening,
+                    Alpenglow(
+                        dawnLower = sun.events.dawnAlpenglowLower,
+                        dawnUpper = sun.events.dawnAlpenglowUpper,
+                        duskUpper = sun.events.duskAlpenglowUpper,
+                        duskLower = sun.events.duskAlpenglowLower,
+                        morningDuration = sun.durations.alpenglow.morning,
+                        eveningDuration = sun.durations.alpenglow.evening,
                         currentTime = ui.currentTime,
+                        phaseIntervals = sun.events.alpenglowIntervals,
                     )
                 },
             )
@@ -249,57 +251,51 @@ fun Sun(
                         morningDuration = sun.durations.pinkHour.morning,
                         eveningDuration = sun.durations.pinkHour.evening,
                         currentTime = ui.currentTime,
+                        phaseIntervals = sun.events.pinkIntervals,
                     )
                 },
                 rightCard = {
-                    Alpenglow(
-                        dawnLower = sun.events.dawnAlpenglowLower,
-                        dawnUpper = sun.events.dawnAlpenglowUpper,
-                        duskUpper = sun.events.duskAlpenglowUpper,
-                        duskLower = sun.events.duskAlpenglowLower,
-                        morningDuration = sun.durations.alpenglow.morning,
-                        eveningDuration = sun.durations.alpenglow.evening,
+                    BlueHour(
+                        dawnLower = sun.events.dawnBlueLower,
+                        dawnUpper = sun.events.dawnBlueUpper,
+                        duskUpper = sun.events.duskBlueUpper,
+                        duskLower = sun.events.duskBlueLower,
+                        morningDuration = sun.durations.blueHour.morning,
+                        eveningDuration = sun.durations.blueHour.evening,
                         currentTime = ui.currentTime,
+                        phaseIntervals = sun.events.blueIntervals,
                     )
                 },
             )
         }
 
         item {
-            SmallCardRow(
-                leftCard = {
-                    TwilightEntry(
-                        title = R.string.dawn,
-                        subtitle = R.string.start,
-                        civilTime = sun.events.dawnCivil.formatDecimalHours(),
-                        civilDuration = sun.durations.civilTwilight.morning.formatDuration(),
-                        nauticalTime = sun.events.dawnNautical.formatDecimalHours(),
-                        nauticalDuration = sun.durations.nauticalTwilight.morning.formatDuration(),
-                        astroTime = sun.events.dawnAstronomical.formatDecimalHours(),
-                        astroDuration = sun.durations.astronomicalTwilight.morning.formatDuration(),
-                        nightTime = "",
-                        nightDuration = ""
-                    )
-                },
-                rightCard = {
-                    TwilightEntry(
-                        title = R.string.dusk,
-                        subtitle = R.string.end,
-                        civilTime = sun.events.duskCivil.formatDecimalHours(),
-                        civilDuration = sun.durations.civilTwilight.evening.formatDuration(),
-                        nauticalTime = sun.events.duskNautical.formatDecimalHours(),
-                        nauticalDuration = sun.durations.nauticalTwilight.evening.formatDuration(),
-                        astroTime = sun.events.duskAstronomical.formatDecimalHours(),
-                        astroDuration = sun.durations.astronomicalTwilight.evening.formatDuration(),
-                        nightTime = "",
-                        nightDuration = ""
-                    )
-                }
+            TwilightCard(
+                sunrise = sun.events.sunrise,
+                sunset = sun.events.sunset,
+                dawnCivil = sun.events.dawnCivil,
+                duskCivil = sun.events.duskCivil,
+                dawnNautical = sun.events.dawnNautical,
+                duskNautical = sun.events.duskNautical,
+                dawnAstronomical = sun.events.dawnAstronomical,
+                duskAstronomical = sun.events.duskAstronomical,
+                civilMorningDuration = sun.durations.civilTwilight.morning,
+                civilEveningDuration = sun.durations.civilTwilight.evening,
+                nauticalMorningDuration = sun.durations.nauticalTwilight.morning,
+                nauticalEveningDuration = sun.durations.nauticalTwilight.evening,
+                astroMorningDuration = sun.durations.astronomicalTwilight.morning,
+                astroEveningDuration = sun.durations.astronomicalTwilight.evening,
+                currentTime = ui.currentTime,
+                civilIntervals = sun.events.civilIntervals,
+                nauticalIntervals = sun.events.nauticalIntervals,
+                astroIntervals = sun.events.astroIntervals,
             )
         }
 
         item {
             SmallCardRow(
+                rightFullBleed = true,
+                forceSquare = true,
                 leftCard = {
                     NightEntry(
                         duration = sun.durations.night.total.formatDuration(true),
@@ -309,9 +305,15 @@ fun Sun(
                     )
                 },
                 rightCard = {
-                    PlutoTimeEntry(
-                        morningTime = sun.events.morningPlutoTime.formatDecimalHours(),
-                        eveningTime = sun.events.eveningPlutoTime.formatDecimalHours()
+                    PlutoTime(
+                        dawnLower = sun.events.dawnPlutoLower,
+                        dawnUpper = sun.events.dawnPlutoUpper,
+                        duskUpper = sun.events.duskPlutoUpper,
+                        duskLower = sun.events.duskPlutoLower,
+                        morningDuration = sun.durations.plutoTime.morning,
+                        eveningDuration = sun.durations.plutoTime.evening,
+                        currentTime = ui.currentTime,
+                        phaseIntervals = sun.events.plutoIntervals,
                     )
                 }
             )

@@ -22,6 +22,9 @@ object SolarEphemeris {
     const val ALT_GOLDEN_HOUR_LOWER = -4.0
     const val ALT_GOLDEN_HOUR_UPPER = 6.0
     const val ALT_PLUTO_TIME = -2.20
+    /** Narrow illumination band around [ALT_PLUTO_TIME] (~84–140 lux, Pluto's mean-to-perihelion noon). */
+    const val ALT_PLUTO_TIME_LOWER = -2.50
+    const val ALT_PLUTO_TIME_UPPER = -1.90
 
     /** Instantaneous geocentric angular semidiameter of the Sun in degrees (~0.262° at aphelion to ~0.271° at perihelion). */
     fun calculateSemiDiameterDeg(distanceAu: Double): Double =
@@ -34,6 +37,21 @@ object SolarEphemeris {
         val declination: Double, // degrees
         val eotMinutes: Double,  // Equation of Time
         val solarSpeedDegPerMin: Double // Instantaneous vertical speed
+    )
+
+    enum class PhaseDirection {
+        RISING,
+        SETTING,
+        CONTINUOUS,
+    }
+
+    data class PhaseInterval(
+        val startHour: Double?,
+        val endHour: Double?,
+        val durationHours: Double,
+        val direction: PhaseDirection,
+        val isAllDay: Boolean = false,
+        val wrapsMidnight: Boolean = false,
     )
 
     data class DailyEvents(
@@ -74,6 +92,18 @@ object SolarEphemeris {
         val eveningPlutoTime: Double?,
         val distanceAu: Double,
         val solarNoonElapsedHours: Double = solarNoon,
+        val dawnPlutoLower: Double? = null,
+        val dawnPlutoUpper: Double? = null,
+        val duskPlutoUpper: Double? = null,
+        val duskPlutoLower: Double? = null,
+        val civilIntervals: List<PhaseInterval> = emptyList(),
+        val nauticalIntervals: List<PhaseInterval> = emptyList(),
+        val astroIntervals: List<PhaseInterval> = emptyList(),
+        val goldenIntervals: List<PhaseInterval> = emptyList(),
+        val pinkIntervals: List<PhaseInterval> = emptyList(),
+        val blueIntervals: List<PhaseInterval> = emptyList(),
+        val alpenglowIntervals: List<PhaseInterval> = emptyList(),
+        val plutoIntervals: List<PhaseInterval> = emptyList(),
     )
 
     data class DailyDurations(
@@ -85,7 +115,7 @@ object SolarEphemeris {
         val blueHour: PhaseDurations,
         val pinkHour: PhaseDurations,
         val alpenglow: PhaseDurations,
-//        val plutoTime: PhaseDurations // Pluto Time is an exact lux threshold (-2.20deg), not a phase, so it has no duration
+        val plutoTime: PhaseDurations = PhaseDurations(0.0, 0.0),
     )
 
     data class PhaseDurations(
@@ -284,6 +314,8 @@ object SolarEphemeris {
         val alpenglowUpper = findPreciseEventTimes(prefs.alpenglowRange.endInclusive)
 
         val pluto = findPreciseEventTimes(ALT_PLUTO_TIME)
+        val plutoLower = findPreciseEventTimes(ALT_PLUTO_TIME_LOWER)
+        val plutoUpper = findPreciseEventTimes(ALT_PLUTO_TIME_UPPER)
 
         // 3. Populate Azimuths for core events (evaluated on continuous elapsed timeline)
         val sunrisePos = sun.first?.let { getPositionAtHour(date, it, latitude, longitude, tzOffsetHours) }
@@ -312,6 +344,186 @@ object SolarEphemeris {
         fun Double.toWallClock(): Double = timeline.elapsedHourToWallClockHour(this)
         fun Double?.toWallClock(): Double? = this?.let { timeline.elapsedHourToWallClockHour(it) }
 
+        // 5. Shared exact solar-altitude band scanner over [0, dayHours]
+        // Captures 0, 1, 2, or 3 intervals per calendar day (including Scandinavian midnight-split
+        // twilights, continuous overnight/midday bands, polar transitions, and 23h/25h DST days).
+        val scanStepHours = 10.0 / 60.0
+        val sampleGrid = mutableListOf<Double>()
+        var cursor = 0.0
+        while (cursor < dayHours - 1e-6) {
+            sampleGrid.add(cursor)
+            cursor += scanStepHours
+        }
+        sampleGrid.add(dayHours)
+        val noonInDay = ((exactSolarNoon % dayHours) + dayHours) % dayHours
+        val midnightInDay = ((exactSolarMidnight % dayHours) + dayHours) % dayHours
+        if (noonInDay > 1e-4 && noonInDay < dayHours - 1e-4) sampleGrid.add(noonInDay)
+        if (midnightInDay > 1e-4 && midnightInDay < dayHours - 1e-4) sampleGrid.add(midnightInDay)
+        sampleGrid.sort()
+
+        val sampleHours = DoubleArray(sampleGrid.size)
+        val sampleAlts = DoubleArray(sampleGrid.size)
+        val sampleSunHorizons = DoubleArray(sampleGrid.size)
+        for (idx in sampleGrid.indices) {
+            val h = sampleGrid[idx]
+            val pos = getPositionAtHour(date, h, latitude, longitude, tzOffsetHours)
+            sampleHours[idx] = h
+            sampleAlts[idx] = pos.altitude
+            sampleSunHorizons[idx] = if (useInstantaneousSemidiameter) {
+                -(REFRACTION_HORIZON_DEG + calculateSemiDiameterDeg(pos.distanceAu)) - coordinates.horizonDipDeg
+            } else {
+                dynamicSunriseSunsetAlt
+            }
+        }
+
+        fun findBandIntervals(
+            lowerAltDeg: Double,
+            upperAltDeg: Double,
+            dynamicUpperSunHorizon: Boolean = false,
+        ): List<PhaseInterval> {
+            fun upperAtPos(pos: SolarPosition): Double = if (dynamicUpperSunHorizon) {
+                -(REFRACTION_HORIZON_DEG + calculateSemiDiameterDeg(pos.distanceAu)) - coordinates.horizonDipDeg
+            } else {
+                upperAltDeg
+            }
+
+            fun bisectBoundary(h0: Double, h1: Double, signedFn: (Double) -> Double): Double {
+                val f0 = signedFn(h0)
+                var lo = h0
+                var hi = h1
+                repeat(16) {
+                    val mid = (lo + hi) * 0.5
+                    val fm = signedFn(mid)
+                    if ((f0 <= 0.0 && fm <= 0.0) || (f0 > 0.0 && fm > 0.0)) {
+                        lo = mid
+                    } else {
+                        hi = mid
+                    }
+                }
+                return (lo + hi) * 0.5
+            }
+
+            val rawStarts = mutableListOf<Double>()
+            val rawEnds = mutableListOf<Double>()
+
+            for (i in 0 until sampleHours.lastIndex) {
+                val h0 = sampleHours[i]
+                val h1 = sampleHours[i + 1]
+                if (h1 - h0 <= 1e-7) continue
+
+                val a0 = sampleAlts[i]
+                val a1 = sampleAlts[i + 1]
+                val u0 = if (dynamicUpperSunHorizon) sampleSunHorizons[i] else upperAltDeg
+                val u1 = if (dynamicUpperSunHorizon) sampleSunHorizons[i + 1] else upperAltDeg
+
+                val cuts = mutableListOf(h0, h1)
+
+                val dl0 = a0 - lowerAltDeg
+                val dl1 = a1 - lowerAltDeg
+                if ((dl0 < 0.0 && dl1 > 0.0) || (dl0 > 0.0 && dl1 < 0.0)) {
+                    cuts.add(
+                        bisectBoundary(h0, h1) { h ->
+                            getPositionAtHour(date, h, latitude, longitude, tzOffsetHours).altitude - lowerAltDeg
+                        },
+                    )
+                }
+
+                val du0 = a0 - u0
+                val du1 = a1 - u1
+                if ((du0 < 0.0 && du1 > 0.0) || (du0 > 0.0 && du1 < 0.0)) {
+                    cuts.add(
+                        bisectBoundary(h0, h1) { h ->
+                            val p = getPositionAtHour(date, h, latitude, longitude, tzOffsetHours)
+                            p.altitude - upperAtPos(p)
+                        },
+                    )
+                }
+
+                cuts.sort()
+                for (k in 0 until cuts.lastIndex) {
+                    val s = cuts[k]
+                    val e = cuts[k + 1]
+                    if (e - s <= 1e-6) continue
+                    val midPos = getPositionAtHour(date, (s + e) * 0.5, latitude, longitude, tzOffsetHours)
+                    val upperMid = upperAtPos(midPos)
+                    if (midPos.altitude >= lowerAltDeg && midPos.altitude <= upperMid) {
+                        if (rawEnds.isNotEmpty() && abs(s - rawEnds.last()) <= 1e-4) {
+                            rawEnds[rawEnds.lastIndex] = e
+                        } else {
+                            rawStarts.add(s)
+                            rawEnds.add(e)
+                        }
+                    }
+                }
+            }
+
+            if (rawStarts.isEmpty()) return emptyList()
+
+            // Trapped inside the band all day (e.g. exact poles during equinox)
+            if (rawStarts.size == 1 && rawStarts[0] <= 1e-4 && rawEnds[0] >= dayHours - 1e-4) {
+                return listOf(
+                    PhaseInterval(
+                        startHour = null,
+                        endHour = null,
+                        durationHours = dayHours,
+                        direction = PhaseDirection.CONTINUOUS,
+                        isAllDay = true,
+                    ),
+                )
+            }
+
+            // Single continuous overnight band split only by clock midnight (e.g. Scandinavia midsummer
+            // Nautical twilight: 23:25 – 24:00 + 00:00 – 02:35 -> unified 23:25 – 02:35)
+            if (rawStarts.size == 2 && rawStarts[0] <= 1e-4 && rawEnds[1] >= dayHours - 1e-4) {
+                val startElapsed = rawStarts[1]
+                val endElapsed = rawEnds[0]
+                val totalDuration = (dayHours - startElapsed) + endElapsed
+                return listOf(
+                    PhaseInterval(
+                        startHour = startElapsed.toWallClock(),
+                        endHour = endElapsed.toWallClock(),
+                        durationHours = totalDuration,
+                        direction = PhaseDirection.CONTINUOUS,
+                        wrapsMidnight = true,
+                    ),
+                )
+            }
+
+            return rawStarts.indices.map { idx ->
+                val s = rawStarts[idx]
+                val e = rawEnds[idx]
+                val eps = minOf(0.01, (e - s) * 0.25)
+                val startSpeed = getPositionAtHour(date, s + eps, latitude, longitude, tzOffsetHours).solarSpeedDegPerMin
+                val endSpeed = getPositionAtHour(date, e - eps, latitude, longitude, tzOffsetHours).solarSpeedDegPerMin
+                val direction = when {
+                    startSpeed > 0.0 && endSpeed > 0.0 -> PhaseDirection.RISING
+                    startSpeed < 0.0 && endSpeed < 0.0 -> PhaseDirection.SETTING
+                    else -> PhaseDirection.CONTINUOUS
+                }
+                val startWall = if (s <= 1e-4) 0.0 else s.toWallClock()
+                val endWall = if (e >= dayHours - 1e-4) 24.0 else e.toWallClock()
+                PhaseInterval(
+                    startHour = startWall,
+                    endHour = endWall,
+                    durationHours = (e - s).coerceAtLeast(0.0),
+                    direction = direction,
+                )
+            }
+        }
+
+        val civilIntervals = findBandIntervals(
+            lowerAltDeg = ALT_CIVIL_TWILIGHT,
+            upperAltDeg = dynamicSunriseSunsetAlt,
+            dynamicUpperSunHorizon = useInstantaneousSemidiameter,
+        )
+        val nauticalIntervals = findBandIntervals(ALT_NAUTICAL_TWILIGHT, ALT_CIVIL_TWILIGHT)
+        val astroIntervals = findBandIntervals(ALT_ASTRONOMICAL_TWILIGHT, ALT_NAUTICAL_TWILIGHT)
+        val goldenIntervals = findBandIntervals(prefs.goldenHourRange.start, prefs.goldenHourRange.endInclusive)
+        val pinkIntervals = findBandIntervals(prefs.pinkHourRange.start, prefs.pinkHourRange.endInclusive)
+        val blueIntervals = findBandIntervals(prefs.blueHourRange.start, prefs.blueHourRange.endInclusive)
+        val alpenglowIntervals = findBandIntervals(prefs.alpenglowRange.start, prefs.alpenglowRange.endInclusive)
+        val plutoIntervals = findBandIntervals(ALT_PLUTO_TIME_LOWER, ALT_PLUTO_TIME_UPPER)
+
         return DailyEvents(
             solarNoon = exactSolarNoon.toWallClock(),
             solarNoonAltitude = noonPos.altitude,
@@ -336,6 +548,16 @@ object SolarEphemeris {
             morningPlutoTime = pluto.first.toWallClock(), eveningPlutoTime = pluto.second.toWallClock(),
             distanceAu = noonPos.distanceAu,
             solarNoonElapsedHours = exactSolarNoon,
+            dawnPlutoLower = plutoLower.first.toWallClock(), dawnPlutoUpper = plutoUpper.first.toWallClock(),
+            duskPlutoUpper = plutoUpper.second.toWallClock(), duskPlutoLower = plutoLower.second.toWallClock(),
+            civilIntervals = civilIntervals,
+            nauticalIntervals = nauticalIntervals,
+            astroIntervals = astroIntervals,
+            goldenIntervals = goldenIntervals,
+            pinkIntervals = pinkIntervals,
+            blueIntervals = blueIntervals,
+            alpenglowIntervals = alpenglowIntervals,
+            plutoIntervals = plutoIntervals,
         )
     }
 
@@ -469,6 +691,20 @@ object SolarEphemeris {
             dayDurationHours = dayHours,
         )
 
+        val plutoDurations = calculatePhaseDuration(
+            lowerBoundAlt = ALT_PLUTO_TIME_LOWER,
+            upperBoundAlt = ALT_PLUTO_TIME_UPPER,
+            morningLowerTime = toElapsed(events.dawnPlutoLower),
+            eveningLowerTime = toElapsed(events.duskPlutoLower),
+            morningUpperTime = toElapsed(events.dawnPlutoUpper),
+            eveningUpperTime = toElapsed(events.duskPlutoUpper),
+            solarNoon = noonElapsed,
+            solarNoonAltitude = events.solarNoonAltitude,
+            solarMidnightAltitude = events.solarMidnightAltitude,
+            solarMidnight = midnightElapsed,
+            dayDurationHours = dayHours,
+        )
+
         return DailyDurations(
             civilTwilight = civilDurations,
             nauticalTwilight = nauticalDurations,
@@ -477,7 +713,8 @@ object SolarEphemeris {
             goldenHour = goldenDurations,
             blueHour = blueDurations,
             pinkHour = pinkDurations,
-            alpenglow = alpenglowDurations
+            alpenglow = alpenglowDurations,
+            plutoTime = plutoDurations,
         )
     }
 
