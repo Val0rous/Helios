@@ -24,6 +24,8 @@ import com.ephemeris.helios.utils.Charts
 fun SolarDistanceBar(
     distanceAu: Float,
     modifier: Modifier = Modifier,
+    showTrackBorder: Boolean = false,
+    borderColor: Color = MaterialTheme.colorScheme.surface,
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val isDarkSurface = colorScheme.surface.luminance() < 0.5f
@@ -48,7 +50,9 @@ fun SolarDistanceBar(
     val rimColor = if (isDarkSurface) Color(0xFF4FC3F7) else Color(0xFF1565C0)
 
     Canvas(modifier = modifier.fillMaxSize()) {
+        val borderWidth = if (showTrackBorder) 2.dp.toPx() else 0f
         val trackHeight = 8.dp.toPx()
+        val outerTrackHeight = trackHeight + borderWidth * 2f
         val sunIconSize = 20.dp.toPx()
         val sunGap = 8.dp.toPx()
         val earthSize = 18.dp.toPx()
@@ -56,6 +60,7 @@ fun SolarDistanceBar(
 
         val centerY = size.height / 2f
         val trackTop = centerY - trackHeight / 2f
+        val outerTrackTop = centerY - outerTrackHeight / 2f
         val trackStart = sunIconSize + sunGap
         val trackWidth = (size.width - trackStart).coerceAtLeast(0f)
 
@@ -67,8 +72,8 @@ fun SolarDistanceBar(
             0.62f to neutralColor,
             0.82f to lerp(farColor, neutralColor, 0.35f),
             1.00f to farColor,
-            startX = trackStart,
-            endX = size.width,
+            startX = trackStart + borderWidth,
+            endX = size.width - borderWidth,
         )
 
         // Draw Sun Icon at the left (Perihelion side)
@@ -77,10 +82,18 @@ fun SolarDistanceBar(
         }
 
         // 1. Draw the symmetric Red -> Neutral -> Blue Gradient Track
+        if (showTrackBorder) {
+            drawRoundRect(
+                color = borderColor,
+                topLeft = Offset(trackStart, outerTrackTop),
+                size = Size(trackWidth, outerTrackHeight),
+                cornerRadius = CornerRadius(outerTrackHeight / 2f),
+            )
+        }
         drawRoundRect(
             brush = gradientBrush,
-            topLeft = Offset(trackStart, trackTop),
-            size = Size(trackWidth, trackHeight),
+            topLeft = Offset(trackStart + borderWidth, trackTop),
+            size = Size((trackWidth - borderWidth * 2f).coerceAtLeast(0f), trackHeight),
             cornerRadius = CornerRadius(trackHeight / 2f),
         )
 
@@ -91,7 +104,7 @@ fun SolarDistanceBar(
 
         // Surface cutout ring so the track breaks cleanly around Earth
         drawCircle(
-            color = colorScheme.surface,
+            color = borderColor,
             radius = thumbCutoutRadius,
             center = thumbCenter,
         )

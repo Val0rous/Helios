@@ -79,10 +79,11 @@ fun SolarSpeed(
     // Align horizontal travel with observer's sky view:
     // - Sun culminating in the South (90°..270°): moves Left -> Right (East on left, West on right).
     // - Sun culminating in the North (270°..90°): moves Right -> Left (East on right, West on left).
-    // Vertical tilt scales linearly from 0° at 0°/min to ±90° at the equatorial ±0.25°/min cap.
+    // Vertical tilt follows arcsin(dh/dt / 0.25°/min) so the arrow inclination matches the physical path angle.
     val normalizedNoonAz = ((solarNoonAzimuth % 360.0) + 360.0) % 360.0
     val movesLeftToRight = (normalizedNoonAz in 90.0..270.0)
-    val tiltDeg = (speedFloat / MAX_SOLAR_SPEED_DEG_PER_MIN).coerceIn(-1f, 1f) * 90f
+    val speedRatio = (speedFloat / MAX_SOLAR_SPEED_DEG_PER_MIN).coerceIn(-1f, 1f).toDouble()
+    val tiltDeg = Math.toDegrees(asin(speedRatio)).toFloat()
     val arrowAngleDeg = if (movesLeftToRight) -tiltDeg else 180f + tiltDeg
 
     // Speed-proportional arrow tint anchored to the universal ±0.25°/min equatorial ceiling

@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -71,12 +72,17 @@ fun SolarDistance(
     onToggleUnit: () -> Unit = {},
 ) {
     val locale = LocalLocale.current.platformLocale
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val isDarkSurface = surfaceColor.luminance() < 0.5f
     val au = currentDistanceAu
+
+    val isPerihelion = isWithin24hOfPerihelion(au, currentTime)
+    val isAphelion = isWithin24hOfAphelion(au, currentTime)
 
     // Exact 24h peak detection for Perihelion/Aphelion, with concise orbital proximity tiers
     val description = when {
-        isWithin24hOfPerihelion(au, currentTime) -> "Perihelion"
-        isWithin24hOfAphelion(au, currentTime) -> "Aphelion"
+        isPerihelion -> "Perihelion"
+        isAphelion -> "Aphelion"
         au < 0.9855 -> "Closest"
         au < 0.992 -> "Very Close"
         au < 0.998 -> "Closer"
@@ -84,6 +90,17 @@ fun SolarDistance(
         au < 1.008 -> "Further"
         au <= 1.0145 -> "Very Far"
         else -> "Furthest"
+    }
+
+    // Flat Material-compliant tint only during notable extremes (Perihelion / Aphelion / Closest / Furthest)
+    val perihelionColor = Color(0xFFD32F2F)
+    val aphelionColor = Color(0xFF0288D1)
+    val tintColor: Color? = when {
+        isPerihelion -> perihelionColor.copy(alpha = if (isDarkSurface) 0.24f else 0.20f)
+        isAphelion -> aphelionColor.copy(alpha = if (isDarkSurface) 0.24f else 0.20f)
+        au < 0.9855 -> perihelionColor.copy(alpha = if (isDarkSurface) 0.14f else 0.11f)
+        au > 1.0145 -> aphelionColor.copy(alpha = if (isDarkSurface) 0.14f else 0.11f)
+        else -> null
     }
 
     // AU always displays 5 decimal places (e.g., "0.98850", "1.01671"); km displays mln with 2 decimals
@@ -103,6 +120,7 @@ fun SolarDistance(
     Box(
         modifier = modifier
             .fillMaxSize()
+            .then(if (tintColor != null) Modifier.background(tintColor) else Modifier)
             .padding(horizontal = 14.dp, vertical = 14.dp),
     ) {
         Box(
@@ -171,6 +189,8 @@ fun SolarDistance(
 
             SolarDistanceBar(
                 distanceAu = currentDistanceAu.toFloat(),
+                showTrackBorder = tintColor != null,
+                borderColor = surfaceColor,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(20.dp),
