@@ -13,19 +13,22 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.AirMass
+import com.ephemeris.helios.ui.composables.cards.Alpenglow
+import com.ephemeris.helios.ui.composables.cards.BlueHour
 import com.ephemeris.helios.ui.composables.cards.ColorTemperature
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.Declination
 import com.ephemeris.helios.ui.composables.cards.EquationOfTime
+import com.ephemeris.helios.ui.composables.cards.GoldenHour
 import com.ephemeris.helios.ui.composables.cards.Illuminance
 import com.ephemeris.helios.ui.composables.cards.Irradiance
+import com.ephemeris.helios.ui.composables.cards.PinkHour
 import com.ephemeris.helios.ui.composables.cards.ShadowRatio
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.cards.SolarDistance
 import com.ephemeris.helios.ui.composables.cards.SolarSpeed
 import com.ephemeris.helios.ui.composables.cards.UvIntensity
 import com.ephemeris.helios.ui.composables.charts.DecalobeShape
-import com.ephemeris.helios.ui.composables.entries.DurationEntry
 import com.ephemeris.helios.ui.composables.entries.NightEntry
 import com.ephemeris.helios.ui.composables.entries.PlutoTimeEntry
 import com.ephemeris.helios.ui.composables.entries.SeasonalEntry
@@ -33,7 +36,6 @@ import com.ephemeris.helios.ui.composables.entries.SolarNoonEntry
 import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
 import com.ephemeris.helios.ui.composables.entries.TwilightEntry
 import com.ephemeris.helios.ui.theme.LocalCustomColors
-import com.ephemeris.helios.ui.theme.MaterialColors
 import com.ephemeris.helios.ui.viewmodels.SunViewModel
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.datastore.ColorTempMode
@@ -202,64 +204,64 @@ fun Sun(
                 }
             )
         }
-        val goldenHourColor = MaterialColors.Amber500
-        val blueHourColor = MaterialColors.Blue700
         item {
             SmallCardRow(
+                disableInnerHorizontalPadding = true,
+                leftFullBleed = true,
+                rightFullBleed = true,
+                forceSquare = true,
                 leftCard = {
-                    DurationEntry(
-                        title = R.string.golden_hour,
-                        color = goldenHourColor,
-                        morningStartTime = sun.events.dawnGoldenLower.formatDecimalHours(),
-                        morningEndTime = sun.events.dawnGoldenUpper.formatDecimalHours(),
-                        morningDuration = sun.durations.goldenHour.morning.formatDuration(),
-                        eveningStartTime = sun.events.duskGoldenUpper.formatDecimalHours(),
-                        eveningEndTime = sun.events.duskGoldenLower.formatDecimalHours(),
-                        eveningDuration = sun.durations.goldenHour.evening.formatDuration()
+                    GoldenHour(
+                        dawnLower = sun.events.dawnGoldenLower,
+                        dawnUpper = sun.events.dawnGoldenUpper,
+                        duskUpper = sun.events.duskGoldenUpper,
+                        duskLower = sun.events.duskGoldenLower,
+                        morningDuration = sun.durations.goldenHour.morning,
+                        eveningDuration = sun.durations.goldenHour.evening,
+                        currentTime = ui.currentTime,
                     )
                 },
                 rightCard = {
-                    DurationEntry(
-                        title = R.string.blue_hour,
-                        color = blueHourColor,
-                        morningStartTime = sun.events.dawnBlueLower.formatDecimalHours(),
-                        morningEndTime = sun.events.dawnBlueUpper.formatDecimalHours(),
-                        morningDuration = sun.durations.blueHour.morning.formatDuration(),
-                        eveningStartTime = sun.events.duskBlueUpper.formatDecimalHours(),
-                        eveningEndTime = sun.events.duskBlueLower.formatDecimalHours(),
-                        eveningDuration = sun.durations.blueHour.evening.formatDuration()
+                    BlueHour(
+                        dawnLower = sun.events.dawnBlueLower,
+                        dawnUpper = sun.events.dawnBlueUpper,
+                        duskUpper = sun.events.duskBlueUpper,
+                        duskLower = sun.events.duskBlueLower,
+                        morningDuration = sun.durations.blueHour.morning,
+                        eveningDuration = sun.durations.blueHour.evening,
+                        currentTime = ui.currentTime,
                     )
-                }
+                },
             )
         }
-        val pinkHourColor = MaterialColors.Pink500
-        val alpenglowColor = MaterialColors.Red700
         item {
             SmallCardRow(
+                disableInnerHorizontalPadding = true,
+                leftFullBleed = true,
+                rightFullBleed = true,
+                forceSquare = true,
                 leftCard = {
-                    DurationEntry(
-                        title = R.string.pink_hour,
-                        color = pinkHourColor,
-                        morningStartTime = sun.events.dawnPinkLower.formatDecimalHours(),
-                        morningEndTime = sun.events.dawnPinkUpper.formatDecimalHours(),
-                        morningDuration = sun.durations.pinkHour.morning.formatDuration(),
-                        eveningStartTime = sun.events.duskPinkUpper.formatDecimalHours(),
-                        eveningEndTime = sun.events.duskPinkLower.formatDecimalHours(),
-                        eveningDuration = sun.durations.pinkHour.evening.formatDuration()
+                    PinkHour(
+                        dawnLower = sun.events.dawnPinkLower,
+                        dawnUpper = sun.events.dawnPinkUpper,
+                        duskUpper = sun.events.duskPinkUpper,
+                        duskLower = sun.events.duskPinkLower,
+                        morningDuration = sun.durations.pinkHour.morning,
+                        eveningDuration = sun.durations.pinkHour.evening,
+                        currentTime = ui.currentTime,
                     )
                 },
                 rightCard = {
-                    DurationEntry(
-                        title = R.string.alpenglow,
-                        color = alpenglowColor,
-                        morningStartTime = sun.events.dawnAlpenglowLower.formatDecimalHours(),
-                        morningEndTime = sun.events.dawnAlpenglowUpper.formatDecimalHours(),
-                        morningDuration = sun.durations.alpenglow.morning.formatDuration(),
-                        eveningStartTime = sun.events.duskAlpenglowUpper.formatDecimalHours(),
-                        eveningEndTime = sun.events.duskAlpenglowLower.formatDecimalHours(),
-                        eveningDuration = sun.durations.alpenglow.evening.formatDuration()
+                    Alpenglow(
+                        dawnLower = sun.events.dawnAlpenglowLower,
+                        dawnUpper = sun.events.dawnAlpenglowUpper,
+                        duskUpper = sun.events.duskAlpenglowUpper,
+                        duskLower = sun.events.duskAlpenglowLower,
+                        morningDuration = sun.durations.alpenglow.morning,
+                        eveningDuration = sun.durations.alpenglow.evening,
+                        currentTime = ui.currentTime,
                     )
-                }
+                },
             )
         }
 
