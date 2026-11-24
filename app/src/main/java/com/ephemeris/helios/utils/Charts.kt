@@ -50,7 +50,7 @@ sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serial
 
     sealed class Sun(label: Int, icon: Int, filledIcon: Int) : Charts(label, icon, filledIcon) {
         sealed class Daily(label: Int, icon: Int, filledIcon: Int) : Sun(label, icon, filledIcon) {
-            object Elevation: Daily(R.string.elevation, R.drawable.ic_sunny, R.drawable.ic_sunny_filled) // Altitude
+            object Elevation: Daily(R.string.elevation, R.drawable.ic_area_chart, R.drawable.ic_area_chart_filled) // Altitude
             object Irradiance: Daily(R.string.irradiance, R.drawable.ic_bolt, R.drawable.ic_bolt_filled) // Energy
             object UvIntensity: Daily(R.string.uv_intensity, R.drawable.ic_beach_access, R.drawable.ic_beach_access_filled) // Intensity, UV
             object Trajectory: Daily(R.string.trajectory, R.drawable.ic_explore, R.drawable.ic_explore_filled) // Path
@@ -67,7 +67,7 @@ sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serial
 
     sealed class Moon(label: Int, icon: Int, filledIcon: Int) : Charts(label, icon, filledIcon) {
         sealed class Daily(label: Int, icon: Int, filledIcon: Int) : Moon(label, icon, filledIcon) {
-            object Elevation : Daily(R.string.elevation, R.drawable.ic_nightlight, R.drawable.ic_nightlight_filled) // Altitude
+            object Elevation : Daily(R.string.elevation, R.drawable.ic_area_chart, R.drawable.ic_area_chart_filled) // Altitude
             object Trajectory : Daily(R.string.trajectory, R.drawable.ic_explore, R.drawable.ic_explore_filled) // Azimuth
             object Illuminance : Daily(R.string.illuminance, R.drawable.ic_lightbulb, R.drawable.ic_lightbulb_filled)
             object Shadows : Daily(R.string.shadows, R.drawable.ic_ev_shadow, R.drawable.ic_ev_shadow_filled)
@@ -82,7 +82,7 @@ sealed class Charts(val label: Int, val icon: Int, val filledIcon: Int) : Serial
 
     sealed class SunMoonCombo(label: Int, icon: Int, filledIcon: Int) : Charts(label, icon, filledIcon) {
         sealed class Daily(label: Int, icon: Int, filledIcon: Int) : SunMoonCombo(label, icon, filledIcon) {
-            object Elevation : Daily(R.string.elevation, R.drawable.ic_routine, R.drawable.ic_routine_filled)   // Altitude
+            object Elevation : Daily(R.string.elevation, R.drawable.ic_area_chart, R.drawable.ic_area_chart_filled) // Altitude
             object Trajectory : Daily(R.string.trajectory, R.drawable.ic_explore, R.drawable.ic_explore_filled) // Azimuth
 
             companion object {

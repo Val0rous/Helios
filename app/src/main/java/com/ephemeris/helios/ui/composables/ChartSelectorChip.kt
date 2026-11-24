@@ -15,7 +15,6 @@ import androidx.compose.material3.ToggleButtonDefaults
 import androidx.compose.material3.ToggleButtonShapes
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -46,10 +45,7 @@ fun ChartSelectorChip(
         Icon(
             painter = painterResource(id = if (isSelected) chartType.filledIcon else chartType.icon),
             contentDescription = null,
-            modifier = when (chartType) {
-                Charts.Moon.Daily.Elevation -> iconModifier.rotate(-25f)
-                else -> iconModifier
-            },
+            modifier = iconModifier,
         )
         Spacer(Modifier.width(6.dp))
         Text(
