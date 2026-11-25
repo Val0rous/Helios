@@ -50,7 +50,6 @@ import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.MoonMetrics
 import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.charts.toDecimalHour
-import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.round
 import java.time.LocalDate
 import java.time.ZoneId
@@ -108,7 +107,6 @@ data class ChartArrays(
 fun DailyPathCard(
     currentTime: ZonedDateTime,
     coordinates: Coordinates,
-    dayLength: Double,
     currentAltitude: Double,
     currentAzimuth: Double,
     phase: String = "",
@@ -208,30 +206,13 @@ fun DailyPathCard(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val daylengthText = when (type) {
-                    is Charts.Sun -> R.string.day_length
-                    is Charts.Moon -> R.string.duration
-                    else -> R.string.uptime
-                }
-                CustomColumn(stringResource(daylengthText), dayLength.formatDuration(true))
-                CustomVerticalDivider()
                 CustomColumn(stringResource(R.string.altitude), "${currentAltitude.round()}°")
                 CustomVerticalDivider()
                 CustomColumn(stringResource(R.string.azimuth), "${currentAzimuth.round()}°")
-            }
-            CustomHorizontalDivider()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min)
-                    .padding(top = 8.dp, bottom = 9.dp, start = 40.dp),
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-//                if (phase != "") {
-//                    CustomVerticalDivider()
-                    CustomRow(stringResource(R.string.phase), phase)
-//                }
+                if (type is Charts.Sun && phase.isNotBlank()) {
+                    CustomVerticalDivider()
+                    CustomColumn(stringResource(R.string.phase), phase)
+                }
             }
         }
     }

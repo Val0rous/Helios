@@ -104,6 +104,7 @@ object SolarEphemeris {
         val blueIntervals: List<PhaseInterval> = emptyList(),
         val alpenglowIntervals: List<PhaseInterval> = emptyList(),
         val plutoIntervals: List<PhaseInterval> = emptyList(),
+        val riseSetEvents: List<RiseSetEvent> = emptyList(),
     )
 
     data class DailyDurations(
@@ -524,6 +525,67 @@ object SolarEphemeris {
         val alpenglowIntervals = findBandIntervals(prefs.alpenglowRange.start, prefs.alpenglowRange.endInclusive)
         val plutoIntervals = findBandIntervals(ALT_PLUTO_TIME_LOWER, ALT_PLUTO_TIME_UPPER)
 
+        // 6. Chronological horizon-crossing scanner over [0, dayHours]
+        // Captures 0, 1, 2, or 3 sunrise/sunset crossings per local calendar day (e.g., arctic
+        // Set -> Rise -> Set or Rise -> Set -> Rise days) with exact per-event azimuths.
+        fun signedSunAltAt(hour: Double): Double {
+            val pos = getPositionAtHour(date, hour, latitude, longitude, tzOffsetHours)
+            val horizon = if (useInstantaneousSemidiameter) {
+                -(REFRACTION_HORIZON_DEG + calculateSemiDiameterDeg(pos.distanceAu)) - coordinates.horizonDipDeg
+            } else {
+                dynamicSunriseSunsetAlt
+            }
+            return pos.altitude - horizon
+        }
+
+        val riseSetCrossings = mutableListOf<Pair<Double, Boolean>>()
+        for (i in 0 until sampleHours.lastIndex) {
+            val h0 = sampleHours[i]
+            val h1 = sampleHours[i + 1]
+            if (h1 - h0 <= 1e-7) continue
+            val s0 = sampleAlts[i] - sampleSunHorizons[i]
+            val s1 = sampleAlts[i + 1] - sampleSunHorizons[i + 1]
+            if (s0 < 0.0 && s1 >= 0.0) {
+                val crossing = refineSolarCrossing(h0, h1, isRising = true, signedAlt = ::signedSunAltAt)
+                riseSetCrossings.add(crossing to true)
+            } else if (s0 > 0.0 && s1 <= 0.0) {
+                val crossing = refineSolarCrossing(h0, h1, isRising = false, signedAlt = ::signedSunAltAt)
+                riseSetCrossings.add(crossing to false)
+            } else if (i == 0 && s0 == 0.0 && s1 != 0.0) {
+                riseSetCrossings.add(0.0 to (s1 > 0.0))
+            }
+        }
+
+        val riseSetEvents = riseSetCrossings.map { (elapsedHour, isRise) ->
+            val pos = getPositionAtHour(date, elapsedHour, latitude, longitude, tzOffsetHours)
+            RiseSetEvent(
+                timeHour = elapsedHour.toWallClock(),
+                azimuth = pos.azimuth,
+                isRise = isRise,
+            )
+        }
+
+        val resolvedDayLength = if (riseSetCrossings.size >= 3) {
+            var isAbove = (sampleAlts[0] - sampleSunHorizons[0]) >= 0.0
+            var aboveStart = if (isAbove) 0.0 else Double.NaN
+            var totalAbove = 0.0
+            for ((t, isRise) in riseSetCrossings) {
+                if (isRise && !isAbove) {
+                    aboveStart = t
+                    isAbove = true
+                } else if (!isRise && isAbove) {
+                    totalAbove += (t - aboveStart).coerceAtLeast(0.0)
+                    isAbove = false
+                }
+            }
+            if (isAbove) {
+                totalAbove += (dayHours - aboveStart).coerceAtLeast(0.0)
+            }
+            totalAbove.coerceIn(0.0, dayHours)
+        } else {
+            dayLength
+        }
+
         return DailyEvents(
             solarNoon = exactSolarNoon.toWallClock(),
             solarNoonAltitude = noonPos.altitude,
@@ -533,7 +595,7 @@ object SolarEphemeris {
             dawnCivil = civil.first.toWallClock(), duskCivil = civil.second.toWallClock(),
             dawnNautical = nautical.first.toWallClock(), duskNautical = nautical.second.toWallClock(),
             dawnAstronomical = astro.first.toWallClock(), duskAstronomical = astro.second.toWallClock(),
-            dayLength = dayLength,
+            dayLength = resolvedDayLength,
             solarMidnight = exactSolarMidnight.toWallClock(),
             solarMidnightAltitude = solarMidnightAltitude,
             solarMidnightAzimuth = (noonPos.azimuth + 180.0) % 360.0,
@@ -558,6 +620,7 @@ object SolarEphemeris {
             blueIntervals = blueIntervals,
             alpenglowIntervals = alpenglowIntervals,
             plutoIntervals = plutoIntervals,
+            riseSetEvents = riseSetEvents,
         )
     }
 

@@ -18,17 +18,15 @@ import com.ephemeris.helios.ui.composables.cards.Illuminance
 import com.ephemeris.helios.ui.composables.cards.LunarCulmination
 import com.ephemeris.helios.ui.composables.cards.LunarDistance
 import com.ephemeris.helios.ui.composables.cards.LunarIllumination
+import com.ephemeris.helios.ui.composables.cards.MoonriseMoonset
 import com.ephemeris.helios.ui.composables.cards.ShadowRatio
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.cards.SolarSpeed
 import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
-import com.ephemeris.helios.ui.composables.entries.MoonriseMoonsetEntry
 import com.ephemeris.helios.ui.viewmodels.MoonViewModel
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.datastore.MoonColorTempMode
 import com.ephemeris.helios.utils.datastore.MoonDeclinationMode
-import com.ephemeris.helios.utils.formatDecimalHours
-import com.ephemeris.helios.utils.round
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -49,10 +47,8 @@ fun Moon(
                 currentTime = ui.currentTime,
                 liveTime = moon.timestamp,
                 coordinates = ui.coordinates,
-                dayLength = moon.events.moonDuration,
                 currentAltitude = moon.altitude,
                 currentAzimuth = moon.azimuth,
-                phase = moon.phase,
                 type = Charts.Moon.Daily.Elevation,
                 chartArrays = moon.chartArrays,
                 moonPhase = moonPhase,
@@ -60,14 +56,14 @@ fun Moon(
         }
         item {
             SmallCardRow(
+                leftFullBleed = true,
                 rightFullBleed = true,
                 forceSquare = true,
                 leftCard = {
-                    MoonriseMoonsetEntry(
-                        moonriseTime = moon.events.moonrise.formatDecimalHours(),
-                        moonsetTime = moon.events.moonset.formatDecimalHours(),
-                        moonriseAzimuth = moon.events.moonriseAzimuth?.round(),
-                        moonsetAzimuth = moon.events.moonsetAzimuth?.round()
+                    MoonriseMoonset(
+                        events = moon.events.riseSetEvents,
+                        moonDurationHours = moon.events.moonDuration,
+                        isMoonUpAllDay = moon.events.isMoonUpAllDay,
                     )
                 },
                 rightCard = {

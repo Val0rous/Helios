@@ -237,7 +237,7 @@ fun Culmination(
         modifier = modifier
             .fillMaxSize()
             .then(if (cardTint != null) Modifier.background(cardTint) else Modifier)
-            .padding(horizontal = 13.dp, vertical = 12.dp),
+            .padding(horizontal = 13.dp, vertical = 11.dp),
     ) {
         HeaderEntry(
             text = stringResource(titleRes),
@@ -317,18 +317,18 @@ fun Culmination(
             border = pillBorder,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(54.dp),
+                .height(46.dp),
         ) {
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                    .padding(horizontal = 10.dp, vertical = 3.dp),
             ) {
                 if (formattedTime != null) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
+                        verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         // Time stays identical size, weight & position whether active or inactive
@@ -338,7 +338,7 @@ fun Culmination(
                                 lineHeight = 1.12.em,
                                 fontWeight = FontWeight.Bold,
                                 fontFeatureSettings = "tnum",
-                                letterSpacing = (-0.2).sp,
+                                letterSpacing = (-0.25).sp,
                                 color = MaterialTheme.colorScheme.onSurface,
                             ),
                             textAlign = TextAlign.Center,
@@ -346,7 +346,7 @@ fun Culmination(
                             softWrap = false,
                             autoSize = TextAutoSize.StepBased(
                                 minFontSize = 12.sp,
-                                maxFontSize = 16.sp,
+                                maxFontSize = 15.5.sp,
                                 stepSize = 0.5.sp,
                             ),
                             modifier = Modifier.fillMaxWidth(),
@@ -359,7 +359,7 @@ fun Culmination(
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontSize = 11.5.sp,
                                         lineHeight = 14.sp,
-                                        fontWeight = FontWeight.Medium,
+                                        fontWeight = FontWeight.SemiBold,
                                         fontFeatureSettings = "tnum",
                                         color = if (isActive) {
                                             activeAccent

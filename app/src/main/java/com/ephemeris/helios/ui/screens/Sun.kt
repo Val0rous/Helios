@@ -29,12 +29,12 @@ import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.cards.SolarDistance
 import com.ephemeris.helios.ui.composables.cards.SolarNoon
 import com.ephemeris.helios.ui.composables.cards.SolarSpeed
+import com.ephemeris.helios.ui.composables.cards.SunriseSunset
 import com.ephemeris.helios.ui.composables.cards.TwilightCard
 import com.ephemeris.helios.ui.composables.cards.UvIntensity
 import com.ephemeris.helios.ui.composables.charts.DecalobeShape
 import com.ephemeris.helios.ui.composables.entries.NightEntry
 import com.ephemeris.helios.ui.composables.entries.SeasonalEntry
-import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.viewmodels.SunViewModel
 import com.ephemeris.helios.utils.Charts
@@ -61,7 +61,6 @@ fun Sun(
                 currentTime = ui.currentTime,
                 liveTime = sun.timestamp,
                 coordinates = ui.coordinates,
-                dayLength = sun.events.dayLength,
                 currentAltitude = sun.altitude,
                 currentAzimuth = sun.azimuth,
                 phase = sun.phase,
@@ -71,14 +70,13 @@ fun Sun(
         }
         item {
             SmallCardRow(
+                leftFullBleed = true,
                 rightFullBleed = true,
                 forceSquare = true,
                 leftCard = {
-                    SunriseSunsetEntry(
-                        sunriseTime = sun.events.sunrise.formatDecimalHours(),
-                        sunsetTime = sun.events.sunset.formatDecimalHours(),
-                        sunriseAzimuth = sun.events.sunriseAzimuth.round(),
-                        sunsetAzimuth = sun.events.sunsetAzimuth.round()
+                    SunriseSunset(
+                        events = sun.events.riseSetEvents,
+                        dayLengthHours = sun.events.dayLength,
                     )
                 },
                 rightCard = {

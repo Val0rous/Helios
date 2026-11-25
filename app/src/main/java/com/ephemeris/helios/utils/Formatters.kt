@@ -153,6 +153,8 @@ fun Double.formatDuration(showSeconds: Boolean = false): String {
 
     // Convert to total seconds to avoid floating point modulo errors
     val totalSeconds = (this * 3600.0).roundToInt()
+    if (totalSeconds <= 0) return "0h"
+    if (totalSeconds >= 24 * 3600) return "24h"
 
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60

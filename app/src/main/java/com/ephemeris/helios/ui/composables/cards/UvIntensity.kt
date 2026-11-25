@@ -105,8 +105,8 @@ fun UvIntensity(
                     .padding(top = 31.dp),
             ) {
                 HeaderEntry(
-                    text = stringResource(R.string.uv_intensity),
-                    icon = R.drawable.ic_beach_access_filled,
+                    text = stringResource(R.string.uv_index),
+                    icon = R.drawable.ic_sunny_filled,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     iconSize = 18.dp,
                     textSize = 14.5.sp,

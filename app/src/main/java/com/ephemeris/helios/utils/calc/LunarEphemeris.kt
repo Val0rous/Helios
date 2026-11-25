@@ -65,6 +65,7 @@ object LunarEphemeris {
         val isMoonDownAllDay: Boolean,
         val moonDuration: Double, // Total hours above apparent horizon within the calendar day
         val culminationElapsedHours: Double? = culmination,
+        val riseSetEvents: List<RiseSetEvent> = emptyList(),
     )
 
     // Format: [D, M, M', F, Longitude_Amplitude, Distance_Amplitude]
@@ -577,6 +578,7 @@ object LunarEphemeris {
             var isCurrentlyAbove = prevSigned >= 0.0
             var aboveStartHour = if (isCurrentlyAbove) 0.0 else Double.NaN
             var totalAboveHours = 0.0
+            val riseSetCrossings = mutableListOf<Pair<Double, Boolean>>()
 
             for (idx in 1 until numSamples) {
                 val currentHour = min(idx * stepHours, dayHours)
@@ -601,6 +603,7 @@ object LunarEphemeris {
                         signedAlt = ::signedAltAboveHorizon,
                     )
                     riseHour = refinedRise
+                    riseSetCrossings.add(refinedRise to true)
                     if (!isCurrentlyAbove) {
                         aboveStartHour = refinedRise
                         isCurrentlyAbove = true
@@ -613,10 +616,13 @@ object LunarEphemeris {
                         signedAlt = ::signedAltAboveHorizon,
                     )
                     setHour = refinedSet
+                    riseSetCrossings.add(refinedSet to false)
                     if (isCurrentlyAbove) {
                         totalAboveHours += (refinedSet - aboveStartHour).coerceAtLeast(0.0)
                         isCurrentlyAbove = false
                     }
+                } else if (idx == 1 && prevSigned == 0.0 && currSigned != 0.0) {
+                    riseSetCrossings.add(0.0 to (currSigned > 0.0))
                 }
 
                 prevSigned = currSigned
@@ -683,12 +689,16 @@ object LunarEphemeris {
                     val rightGrid = (ceil(maxAltHour / stepHours) * stepHours).coerceAtMost(dayHours)
                     riseHour = refineHorizonCrossing(leftGrid, maxAltHour, isRising = true, signedAlt = ::signedAltAboveHorizon)
                     setHour = refineHorizonCrossing(maxAltHour, rightGrid, isRising = false, signedAlt = ::signedAltAboveHorizon)
+                    riseSetCrossings.add(riseHour to true)
+                    riseSetCrossings.add(setHour to false)
                     totalAboveHours = (setHour - riseHour).coerceAtLeast(0.0)
                 } else if (signedAlts[0] >= 0.0 && minAltHour != null && signedAltAboveHorizon(minAltHour) < 0.0) {
                     val leftGrid = (floor(minAltHour / stepHours) * stepHours).coerceAtLeast(0.0)
                     val rightGrid = (ceil(minAltHour / stepHours) * stepHours).coerceAtMost(dayHours)
                     setHour = refineHorizonCrossing(leftGrid, minAltHour, isRising = false, signedAlt = ::signedAltAboveHorizon)
                     riseHour = refineHorizonCrossing(minAltHour, rightGrid, isRising = true, signedAlt = ::signedAltAboveHorizon)
+                    riseSetCrossings.add(setHour to false)
+                    riseSetCrossings.add(riseHour to true)
                     totalAboveHours = (dayHours - (riseHour - setHour)).coerceIn(0.0, dayHours)
                 }
             }
@@ -713,6 +723,16 @@ object LunarEphemeris {
 
             fun Double?.toWallClock(): Double? = this?.let { timeline.elapsedHourToWallClockHour(it) }
 
+            val riseSetEvents = riseSetCrossings
+                .sortedBy { it.first }
+                .map { (elapsedHour, isRise) ->
+                    RiseSetEvent(
+                        timeHour = timeline.elapsedHourToWallClockHour(elapsedHour),
+                        azimuth = evaluateAtHour(elapsedHour).azimuth,
+                        isRise = isRise,
+                    )
+                }
+
             return LunarDailyEvents(
                 transit = transitHour.toWallClock(),
                 transitAltitude = transitPos?.altitude,
@@ -728,6 +748,7 @@ object LunarEphemeris {
                 isMoonDownAllDay = isDownAllDay,
                 moonDuration = moonDuration,
                 culminationElapsedHours = selectedCulminationHour,
+                riseSetEvents = riseSetEvents,
             )
         }
 

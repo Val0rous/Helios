@@ -11,6 +11,7 @@
     <string name="elevation">Elevation</string>
     <string name="irradiance">Irradiance</string>
     <string name="uv_intensity">UV Intensity</string>
+    <string name="uv_index">UV Index</string>
     <string name="trajectory">Trajectory</string>
     <string name="illuminance">Illuminance</string>
     <string name="shadows">Shadows</string>
