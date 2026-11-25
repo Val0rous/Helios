@@ -27,13 +27,13 @@ import com.ephemeris.helios.ui.composables.cards.PlutoTime
 import com.ephemeris.helios.ui.composables.cards.ShadowRatio
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.cards.SolarDistance
+import com.ephemeris.helios.ui.composables.cards.SolarNoon
 import com.ephemeris.helios.ui.composables.cards.SolarSpeed
 import com.ephemeris.helios.ui.composables.cards.TwilightCard
 import com.ephemeris.helios.ui.composables.cards.UvIntensity
 import com.ephemeris.helios.ui.composables.charts.DecalobeShape
 import com.ephemeris.helios.ui.composables.entries.NightEntry
 import com.ephemeris.helios.ui.composables.entries.SeasonalEntry
-import com.ephemeris.helios.ui.composables.entries.SolarNoonEntry
 import com.ephemeris.helios.ui.composables.entries.SunriseSunsetEntry
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.viewmodels.SunViewModel
@@ -71,6 +71,8 @@ fun Sun(
         }
         item {
             SmallCardRow(
+                rightFullBleed = true,
+                forceSquare = true,
                 leftCard = {
                     SunriseSunsetEntry(
                         sunriseTime = sun.events.sunrise.formatDecimalHours(),
@@ -80,10 +82,12 @@ fun Sun(
                     )
                 },
                 rightCard = {
-                    SolarNoonEntry(
-                        noonTime = sun.events.solarNoon.formatDecimalHours(),
-                        noonAzimuth = sun.events.solarNoonAzimuth.round(),
-                        noonAltitude = sun.events.solarNoonAltitude.round()
+                    SolarNoon(
+                        noonTime = sun.events.solarNoon,
+                        noonAzimuth = sun.events.solarNoonAzimuth,
+                        noonAltitude = sun.events.solarNoonAltitude,
+                        coordinates = ui.coordinates,
+                        currentTime = ui.currentTime,
                     )
                 },
                 onRightClick = viewModel::jumpToSolarNoon,

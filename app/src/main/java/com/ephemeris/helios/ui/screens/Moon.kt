@@ -15,13 +15,13 @@ import com.ephemeris.helios.ui.composables.cards.ColorTemperature
 import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.Declination
 import com.ephemeris.helios.ui.composables.cards.Illuminance
+import com.ephemeris.helios.ui.composables.cards.LunarCulmination
 import com.ephemeris.helios.ui.composables.cards.LunarDistance
 import com.ephemeris.helios.ui.composables.cards.LunarIllumination
 import com.ephemeris.helios.ui.composables.cards.ShadowRatio
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.cards.SolarSpeed
 import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
-import com.ephemeris.helios.ui.composables.entries.LunarCulminationEntry
 import com.ephemeris.helios.ui.composables.entries.MoonriseMoonsetEntry
 import com.ephemeris.helios.ui.viewmodels.MoonViewModel
 import com.ephemeris.helios.utils.Charts
@@ -60,6 +60,8 @@ fun Moon(
         }
         item {
             SmallCardRow(
+                rightFullBleed = true,
+                forceSquare = true,
                 leftCard = {
                     MoonriseMoonsetEntry(
                         moonriseTime = moon.events.moonrise.formatDecimalHours(),
@@ -69,10 +71,12 @@ fun Moon(
                     )
                 },
                 rightCard = {
-                    LunarCulminationEntry(
-                        culminationTime = moon.events.culmination.formatDecimalHours(),
-                        culminationAzimuth = moon.events.culminationAzimuth?.round(),
-                        culminationAltitude = moon.events.culminationAltitude?.round()
+                    LunarCulmination(
+                        culminationTime = moon.events.culmination,
+                        culminationAzimuth = moon.events.culminationAzimuth,
+                        culminationAltitude = moon.events.culminationAltitude,
+                        coordinates = ui.coordinates,
+                        currentTime = ui.currentTime,
                     )
                 },
                 onRightClick = if (moon.events.culmination != null) viewModel::jumpToCulmination else null,

@@ -215,3 +215,24 @@ fun Double.formatDirection(): String {
     val index = (((normalized + 11.25) % 360) / 22.5).toInt()
     return directions[index]
 }
+
+/**
+ * Formats an azimuth angle in degrees with one decimal place and an optional 16-point
+ * compass direction (e.g., `"180.0° S"`, `"62.3° ENE"`, `"0.0° N"`).
+ *
+ * Normalizes any input angle into `[0.0, 360.0)` and wraps values rounding to `360.0°`
+ * cleanly back to `0.0° N`.
+ */
+fun Double?.formatAzimuth(
+    locale: Locale = Locale.getDefault(),
+    includeDirection: Boolean = true,
+): String? {
+    if (this == null || this.isNaN()) return null
+    val normalized = ((this % 360.0) + 360.0) % 360.0
+    val roundedTenths = (normalized * 10.0).roundToInt() % 3600
+    val wrappedDeg = roundedTenths / 10.0
+    val degText = String.format(locale, "%.1f°", wrappedDeg)
+    if (!includeDirection) return degText
+    val cardinal = wrappedDeg.formatDirection()
+    return if (cardinal.isNotEmpty()) "$degText $cardinal" else degText
+}

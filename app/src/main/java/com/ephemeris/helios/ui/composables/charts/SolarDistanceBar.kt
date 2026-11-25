@@ -11,6 +11,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
@@ -97,8 +98,20 @@ fun SolarDistanceBar(
             cornerRadius = CornerRadius(trackHeight / 2f),
         )
 
-        // 2. Draw the non-rotating Earth Indicator Thumb (inset so it never clips or hits the Sun)
+        // 2. Reference tick at 1.0000 AU (mean Earth–Sun distance, 149.60 mln km)
+        val meanFraction = ((1.0f - minAu) / rangeAu).coerceIn(0f, 1f)
         val thumbTravel = (trackWidth - thumbCutoutRadius * 2f).coerceAtLeast(0f)
+        val meanX = trackStart + thumbCutoutRadius + (thumbTravel * meanFraction)
+        val tickHalfH = 6.5.dp.toPx()
+        drawLine(
+            color = colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+            start = Offset(meanX, centerY - tickHalfH),
+            end = Offset(meanX, centerY + tickHalfH),
+            strokeWidth = 1.6.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+
+        // 3. Draw the non-rotating Earth Indicator Thumb (inset so it never clips or hits the Sun)
         val thumbX = trackStart + thumbCutoutRadius + (thumbTravel * fraction)
         val thumbCenter = Offset(thumbX, centerY)
 

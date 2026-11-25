@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.lerp
@@ -118,8 +119,21 @@ fun LunarDistanceBar(
             cornerRadius = CornerRadius(trackHeight / 2f),
         )
 
-        // 3. Draw our live-phase Moon icon as the Indicator Thumb
+        // 3. Reference tick at mean lunar distance (384,400 km semi-major axis, mirroring 1 AU)
+        val meanLunarKm = 384_400f
+        val meanFraction = ((meanLunarKm - minKm) / rangeKm).coerceIn(0f, 1f)
         val thumbTravel = (trackWidth - thumbCutoutRadius * 2f).coerceAtLeast(0f)
+        val meanX = trackStart + thumbCutoutRadius + (thumbTravel * meanFraction)
+        val tickHalfH = 6.5.dp.toPx()
+        drawLine(
+            color = colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+            start = Offset(meanX, centerY - tickHalfH),
+            end = Offset(meanX, centerY + tickHalfH),
+            strokeWidth = 1.6.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+
+        // 4. Draw our live-phase Moon icon as the Indicator Thumb
         val thumbX = trackStart + thumbCutoutRadius + (thumbTravel * fraction)
         val thumbCenter = Offset(thumbX, centerY)
 

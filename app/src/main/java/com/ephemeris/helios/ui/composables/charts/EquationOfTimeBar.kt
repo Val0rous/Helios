@@ -10,6 +10,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 
@@ -78,8 +79,19 @@ fun EquationOfTimeBar(
             cornerRadius = CornerRadius(trackHeight / 2f),
         )
 
-        // 3. Indicator thumb inset within track bounds
+        // 3. Reference tick at 0m 0s (46.6% along the asymmetric -14.3m..+16.4m range)
         val thumbTravel = (usableWidth - thumbOuterRadius * 2f).coerceAtLeast(0f)
+        val zeroX = thumbOuterRadius + (thumbTravel * zeroFraction)
+        val tickHalfH = 6.5.dp.toPx()
+        drawLine(
+            color = colorScheme.onSurfaceVariant.copy(alpha = 0.50f),
+            start = Offset(zeroX, size.height / 2f - tickHalfH),
+            end = Offset(zeroX, size.height / 2f + tickHalfH),
+            strokeWidth = 1.6.dp.toPx(),
+            cap = StrokeCap.Round,
+        )
+
+        // 4. Indicator thumb inset within track bounds
         val thumbX = thumbOuterRadius + (thumbTravel * fraction)
         val thumbCenter = Offset(thumbX, size.height / 2f)
 
