@@ -1,6 +1,7 @@
 package com.ephemeris.helios.ui.composables.cards
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,18 +17,25 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalLocale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
@@ -104,7 +112,7 @@ fun RiseSet(
     val isLunar = type == EphemerisType.MOON
 
     val headerIconRes = when (type) {
-        EphemerisType.SUN -> R.drawable.ic_wb_sunny_filled
+        EphemerisType.SUN -> R.drawable.ic_wb_twilight_filled
         EphemerisType.MOON -> R.drawable.ic_moon_stars_filled
         else -> R.drawable.ic_routine_filled
     }
@@ -550,14 +558,47 @@ private fun DirectionArrowIcon(
     tint: Color,
     sizeDp: Int,
 ) {
-    Icon(
-        painter = painterResource(
-            id = if (isRise) R.drawable.ic_arrow_upward else R.drawable.ic_arrow_downward,
-        ),
-        contentDescription = stringResource(if (isRise) R.string.rise else R.string.set),
-        tint = tint,
-        modifier = Modifier.size(sizeDp.dp),
-    )
+    val description = stringResource(if (isRise) R.string.rise else R.string.set)
+    Canvas(
+        modifier = Modifier
+            .size(sizeDp.dp)
+            .semantics {
+                contentDescription = description
+                role = Role.Image
+            },
+    ) {
+        val w = size.width
+        val h = size.height
+        val strokeWidth = size.minDimension * 0.132f
+        val cx = w * 0.50f
+        val topY = h * 0.20f
+        val bottomY = h * 0.80f
+        val tipY = if (isRise) topY else bottomY
+        val wingY = if (isRise) h * 0.48f else h * 0.52f
+
+        drawLine(
+            color = tint,
+            start = Offset(cx, topY),
+            end = Offset(cx, bottomY),
+            strokeWidth = strokeWidth,
+            cap = StrokeCap.Round,
+        )
+
+        val chevron = Path().apply {
+            moveTo(w * 0.22f, wingY)
+            lineTo(cx, tipY)
+            lineTo(w * 0.78f, wingY)
+        }
+        drawPath(
+            path = chevron,
+            color = tint,
+            style = Stroke(
+                width = strokeWidth,
+                cap = StrokeCap.Round,
+                join = StrokeJoin.Round,
+            ),
+        )
+    }
 }
 
 @Preview(showBackground = true, widthDp = 392)

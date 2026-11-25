@@ -537,7 +537,7 @@ object LunarEphemeris {
 
         fun calculateDailyEvents(
             culminationMode: CulminationMode = CulminationMode.MAX_ALTITUDE,
-            useInstantaneousSemidiameter: Boolean = false,
+            useInstantaneousSemidiameter: Boolean = coordinates.useInstantaneousSemidiameter,
         ): LunarDailyEvents {
             fun signedAltAboveHorizon(hour: Double): Double {
                 val alt = altitudeAtHour(hour)
@@ -999,13 +999,14 @@ object LunarEphemeris {
      *   altitude ([CulminationMode.MAX_ALTITUDE], default) or astronomical upper meridian transit
      *   ([CulminationMode.MERIDIAN_TRANSIT]).
      * @param useInstantaneousSemidiameter When `true`, uses the Moon's instantaneous distance-based
-     *   angular semidiameter (`~0.245°..0.279°`) instead of the fixed mean `0.258°` (default `false`).
+     *   angular semidiameter (`~0.245°..0.279°`) instead of the fixed mean `0.258°`
+     *   (defaults to [Coordinates.useInstantaneousSemidiameter]).
      */
     fun calculateDailyEvents(
         time: ZonedDateTime,
         coordinates: Coordinates,
         culminationMode: CulminationMode = CulminationMode.MAX_ALTITUDE,
-        useInstantaneousSemidiameter: Boolean = false,
+        useInstantaneousSemidiameter: Boolean = coordinates.useInstantaneousSemidiameter,
     ): LunarDailyEvents {
         return createDailyModel(time.toLocalDate(), coordinates, time.zone).calculateDailyEvents(
             culminationMode = culminationMode,

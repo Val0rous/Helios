@@ -54,6 +54,13 @@ object SolarEphemeris {
         val wrapsMidnight: Boolean = false,
     )
 
+    data class SolarMidnightEvent(
+        val time: Double,
+        val elapsedHours: Double,
+        val altitude: Double,
+        val azimuth: Double,
+    )
+
     data class DailyEvents(
         val solarNoon: Double,
         val solarNoonAltitude: Double,
@@ -69,7 +76,7 @@ object SolarEphemeris {
         val dawnAstronomical: Double?,
         val duskAstronomical: Double?,
         val dayLength: Double,
-        val solarMidnight: Double,
+        val solarMidnight: Double?,
         val solarMidnightAltitude: Double,
         val solarMidnightAzimuth: Double,
         val dawnGoldenLower: Double?,
@@ -92,6 +99,8 @@ object SolarEphemeris {
         val eveningPlutoTime: Double?,
         val distanceAu: Double,
         val solarNoonElapsedHours: Double = solarNoon,
+        val solarMidnightElapsedHours: Double? = solarMidnight,
+        val solarMidnights: List<SolarMidnightEvent> = emptyList(),
         val dawnPlutoLower: Double? = null,
         val dawnPlutoUpper: Double? = null,
         val duskPlutoUpper: Double? = null,
@@ -131,13 +140,13 @@ object SolarEphemeris {
      *
      * @param useInstantaneousSemidiameter When `true`, computes sunrise/sunset using the Sun's
      *   instantaneous distance-based angular semidiameter (`~0.262°..0.271°`) instead of the fixed
-     *   mean `0.266°` (`-0.833°` total with standard `34'` refraction). Defaults to `false`.
+     *   mean `0.266°` (`-0.833°` total with standard `34'` refraction). Defaults to [Coordinates.useInstantaneousSemidiameter].
      */
     fun calculateDailyEvents(
         time: ZonedDateTime,
         coordinates: Coordinates,
         prefs: LightPhasePreferences = LightPhasePreferences(),
-        useInstantaneousSemidiameter: Boolean = false,
+        useInstantaneousSemidiameter: Boolean = coordinates.useInstantaneousSemidiameter,
     ): DailyEvents {
         val latitude = coordinates.latitude
         val longitude = coordinates.longitude
@@ -324,26 +333,46 @@ object SolarEphemeris {
 
         val dayLength = getExactDayLength(sun.first, sun.second, noonPos.altitude, dynamicSunriseSunsetAlt, dayHours)
 
-        // 4. Iterative Solar Midnight
-        // Start with a rough 12h guess based on noon
-        var exactSolarMidnight = ((exactSolarNoon + 12.0) % 24.0 + 24.0) % 24.0
-        // Refine it using the exact Equation of Time at midnight
-        for (i in 1..2) {
-            val midnightT = calculateJulianCentury(date, exactSolarMidnight, tzOffsetHours)
-            val midnightParams = calculateSolarParams(midnightT)
-
-            // The formula is the exact same as Solar Noon, just with +12.0 hours added to the baseline
-            exactSolarMidnight = ((12.0 - (longitude / 15.0) - (midnightParams.eotMinutes / 60.0) + tzOffsetHours + 12.0) % 24.0 + 24.0) % 24.0
-        }
-
-        // Now calculate the exact altitude at that precise second
-        val finalMidnightT = calculateJulianCentury(date, exactSolarMidnight, tzOffsetHours)
-        val midnightParams = calculateSolarParams(finalMidnightT)
-        val midnightSinAlt = sin(latRad) * sin(midnightParams.declinationRad) + cos(latRad) * cos(midnightParams.declinationRad) * cos(Math.toRadians(0.0 - 180.0))
-        val solarMidnightAltitude = Math.toDegrees(asin(midnightSinAlt.coerceIn(-1.0, 1.0)))
+        // 4. Exact Solar Midnight (lower meridian transit, hour angle = ±180°) on [0, dayHours).
+        // Because Equation of Time drift stretches the true solar day past 24h (notably around
+        // December) and DST spring-forward shortens the civil day to 23h, a handful of days each
+        // year have no lower meridian transit inside [0, dayHours). Solving without modulo
+        // wrapping detects those skipped days cleanly instead of aliasing into the wrong day.
+        val inDayMidnights = (-2..2).mapNotNull { k ->
+            var candidate = (24.0 * k) - (longitude / 15.0) + tzOffsetHours
+            for (i in 1..3) {
+                val midnightT = calculateJulianCentury(date, candidate, tzOffsetHours)
+                val midnightParams = calculateSolarParams(midnightT)
+                candidate = (24.0 * k) - (longitude / 15.0) - (midnightParams.eotMinutes / 60.0) + tzOffsetHours
+            }
+            candidate.takeIf { it >= 0.0 && it < dayHours }
+        }.sorted()
 
         fun Double.toWallClock(): Double = timeline.elapsedHourToWallClockHour(this)
         fun Double?.toWallClock(): Double? = this?.let { timeline.elapsedHourToWallClockHour(it) }
+
+        val solarMidnightEvents = inDayMidnights.map { elapsed ->
+            val pos = getPositionAtHour(date, elapsed, latitude, longitude, tzOffsetHours)
+            SolarMidnightEvent(
+                time = elapsed.toWallClock(),
+                elapsedHours = elapsed,
+                altitude = pos.altitude,
+                azimuth = pos.azimuth,
+            )
+        }
+
+        val exactSolarMidnightElapsed: Double? = solarMidnightEvents.firstOrNull()?.elapsedHours
+        val fallbackNadirPos = if (solarMidnightEvents.isEmpty()) {
+            val startPos = getPositionAtHour(date, 0.0, latitude, longitude, tzOffsetHours)
+            val endPos = getPositionAtHour(date, dayHours, latitude, longitude, tzOffsetHours)
+            if (startPos.altitude <= endPos.altitude) startPos else endPos
+        } else {
+            null
+        }
+        val solarMidnightAltitude = solarMidnightEvents.minOfOrNull { it.altitude }
+            ?: fallbackNadirPos!!.altitude
+        val solarMidnightAzimuth = solarMidnightEvents.firstOrNull()?.azimuth
+            ?: fallbackNadirPos!!.azimuth
 
         // 5. Shared exact solar-altitude band scanner over [0, dayHours]
         // Captures 0, 1, 2, or 3 intervals per calendar day (including Scandinavian midnight-split
@@ -357,9 +386,10 @@ object SolarEphemeris {
         }
         sampleGrid.add(dayHours)
         val noonInDay = ((exactSolarNoon % dayHours) + dayHours) % dayHours
-        val midnightInDay = ((exactSolarMidnight % dayHours) + dayHours) % dayHours
         if (noonInDay > 1e-4 && noonInDay < dayHours - 1e-4) sampleGrid.add(noonInDay)
-        if (midnightInDay > 1e-4 && midnightInDay < dayHours - 1e-4) sampleGrid.add(midnightInDay)
+        inDayMidnights.forEach { midnightInDay ->
+            if (midnightInDay > 1e-4 && midnightInDay < dayHours - 1e-4) sampleGrid.add(midnightInDay)
+        }
         sampleGrid.sort()
 
         val sampleHours = DoubleArray(sampleGrid.size)
@@ -596,9 +626,9 @@ object SolarEphemeris {
             dawnNautical = nautical.first.toWallClock(), duskNautical = nautical.second.toWallClock(),
             dawnAstronomical = astro.first.toWallClock(), duskAstronomical = astro.second.toWallClock(),
             dayLength = resolvedDayLength,
-            solarMidnight = exactSolarMidnight.toWallClock(),
+            solarMidnight = exactSolarMidnightElapsed.toWallClock(),
             solarMidnightAltitude = solarMidnightAltitude,
-            solarMidnightAzimuth = (noonPos.azimuth + 180.0) % 360.0,
+            solarMidnightAzimuth = solarMidnightAzimuth,
             dawnGoldenLower = goldenLower.first.toWallClock(), dawnGoldenUpper = goldenUpper.first.toWallClock(),
             duskGoldenUpper = goldenUpper.second.toWallClock(), duskGoldenLower = goldenLower.second.toWallClock(),
             dawnPinkLower = pinkLower.first.toWallClock(), dawnPinkUpper = pinkUpper.first.toWallClock(),
@@ -610,6 +640,8 @@ object SolarEphemeris {
             morningPlutoTime = pluto.first.toWallClock(), eveningPlutoTime = pluto.second.toWallClock(),
             distanceAu = noonPos.distanceAu,
             solarNoonElapsedHours = exactSolarNoon,
+            solarMidnightElapsedHours = exactSolarMidnightElapsed,
+            solarMidnights = solarMidnightEvents,
             dawnPlutoLower = plutoLower.first.toWallClock(), dawnPlutoUpper = plutoUpper.first.toWallClock(),
             duskPlutoUpper = plutoUpper.second.toWallClock(), duskPlutoLower = plutoLower.second.toWallClock(),
             civilIntervals = civilIntervals,
@@ -629,8 +661,13 @@ object SolarEphemeris {
         coordinates: Coordinates,
         prefs: LightPhasePreferences = LightPhasePreferences(),
         time: ZonedDateTime? = null,
+        useInstantaneousSemidiameter: Boolean = coordinates.useInstantaneousSemidiameter,
     ): DailyDurations {
-        val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
+        val dynamicSunriseSunsetAlt = if (useInstantaneousSemidiameter) {
+            -(REFRACTION_HORIZON_DEG + calculateSemiDiameterDeg(events.distanceAu)) - coordinates.horizonDipDeg
+        } else {
+            coordinates.sunApparentHorizonAlt
+        }
 
         // Inject the dynamic horizon into the user's preferences
         val prefs = prefs.copy(apparentHorizonAlt = dynamicSunriseSunsetAlt)
@@ -639,8 +676,9 @@ object SolarEphemeris {
         fun toElapsed(wallHour: Double?): Double? =
             wallHour?.let { timeline?.wallClockHourToElapsedHour(it) ?: it }
         val noonElapsed = events.solarNoonElapsedHours
-        val midnightElapsed = timeline?.wallClockHourToElapsedHour(events.solarMidnight)
-            ?: events.solarMidnight
+        val midnightElapsed = events.solarMidnightElapsedHours
+            ?: events.solarMidnight?.let { timeline?.wallClockHourToElapsedHour(it) ?: it }
+            ?: (((noonElapsed + 12.0) % dayHours + dayHours) % dayHours)
 
         val civilDurations = calculatePhaseDuration(
             lowerBoundAlt = ALT_CIVIL_TWILIGHT,

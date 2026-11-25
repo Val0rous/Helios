@@ -108,6 +108,9 @@ enum class MoonDeclinationMode(val label: String) {
  * @property useHorizonDip When `true`, lowers the apparent sunrise/sunset/moonrise/moonset horizon
  *   by the geometric dip `0.032° * sqrt(altitude_m)` for elevated observers. Defaults to `false`
  *   (strict sea-level apparent horizon, `-0.833°` for the Sun).
+ * @property useInstantaneousSemidiameter When `true`, computes Sun and Moon rise/set thresholds
+ *   using each body's instantaneous distance-based angular semidiameter (`~0.262°..0.271°` Sun,
+ *   `~0.245°..0.279°` Moon) instead of fixed mean values (`0.266°` Sun / `0.258°` Moon). Defaults to `false`.
  * @property irradianceMode Selected display mode for the Sun Irradiance card (defaults to [IrradianceMode.DIRECT]).
  * @property illuminanceMode Selected display mode for the Sun Illuminance card (defaults to [IlluminanceMode.GLOBAL]).
  * @property colorTempMode Selected display mode for the Sun Color Temp card (defaults to [ColorTempMode.DIRECT]).
@@ -118,6 +121,7 @@ enum class MoonDeclinationMode(val label: String) {
  */
 data class AppSettings(
     val useHorizonDip: Boolean = false,
+    val useInstantaneousSemidiameter: Boolean = false,
     val irradianceMode: IrradianceMode = IrradianceMode.DIRECT,
     val illuminanceMode: IlluminanceMode = IlluminanceMode.GLOBAL,
     val colorTempMode: ColorTempMode = ColorTempMode.DIRECT,
@@ -133,6 +137,7 @@ data class AppSettings(
 class SettingsDataStore(private val context: Context) {
 
     private val useHorizonDipKey = booleanPreferencesKey("use_horizon_dip")
+    private val useInstantaneousSemidiameterKey = booleanPreferencesKey("use_instantaneous_semidiameter")
     private val irradianceModeKey = stringPreferencesKey("irradiance_mode")
     private val illuminanceModeKey = stringPreferencesKey("illuminance_mode")
     private val colorTempModeKey = stringPreferencesKey("color_temp_mode")
@@ -145,6 +150,7 @@ class SettingsDataStore(private val context: Context) {
         .map { preferences ->
             AppSettings(
                 useHorizonDip = preferences[useHorizonDipKey] ?: false,
+                useInstantaneousSemidiameter = preferences[useInstantaneousSemidiameterKey] ?: false,
                 irradianceMode = IrradianceMode.fromName(preferences[irradianceModeKey]),
                 illuminanceMode = IlluminanceMode.fromName(preferences[illuminanceModeKey]),
                 colorTempMode = ColorTempMode.fromName(preferences[colorTempModeKey]),
@@ -158,6 +164,12 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setUseHorizonDip(enabled: Boolean) {
         context.dataStore.edit { preferences ->
             preferences[useHorizonDipKey] = enabled
+        }
+    }
+
+    suspend fun setUseInstantaneousSemidiameter(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[useInstantaneousSemidiameterKey] = enabled
         }
     }
 

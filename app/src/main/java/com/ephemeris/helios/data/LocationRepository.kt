@@ -53,7 +53,10 @@ class LocationRepository(
         locationDataStore.coordinatesFlow,
         settingsDataStore.settingsFlow,
     ) { coords, settings ->
-        coords?.copy(useHorizonDip = settings.useHorizonDip)
+        coords?.copy(
+            useHorizonDip = settings.useHorizonDip,
+            useInstantaneousSemidiameter = settings.useInstantaneousSemidiameter,
+        )
     }
         .onEach { _isLoaded.value = true }
         .stateIn(

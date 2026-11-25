@@ -5,13 +5,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.AirMass
 import com.ephemeris.helios.ui.composables.cards.Alpenglow
 import com.ephemeris.helios.ui.composables.cards.BlueHour
@@ -22,8 +20,10 @@ import com.ephemeris.helios.ui.composables.cards.EquationOfTime
 import com.ephemeris.helios.ui.composables.cards.GoldenHour
 import com.ephemeris.helios.ui.composables.cards.Illuminance
 import com.ephemeris.helios.ui.composables.cards.Irradiance
+import com.ephemeris.helios.ui.composables.cards.Night
 import com.ephemeris.helios.ui.composables.cards.PinkHour
 import com.ephemeris.helios.ui.composables.cards.PlutoTime
+import com.ephemeris.helios.ui.composables.cards.SeasonalCard
 import com.ephemeris.helios.ui.composables.cards.ShadowRatio
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
 import com.ephemeris.helios.ui.composables.cards.SolarDistance
@@ -33,15 +33,9 @@ import com.ephemeris.helios.ui.composables.cards.SunriseSunset
 import com.ephemeris.helios.ui.composables.cards.TwilightCard
 import com.ephemeris.helios.ui.composables.cards.UvIntensity
 import com.ephemeris.helios.ui.composables.charts.DecalobeShape
-import com.ephemeris.helios.ui.composables.entries.NightEntry
-import com.ephemeris.helios.ui.composables.entries.SeasonalEntry
-import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.ui.viewmodels.SunViewModel
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.datastore.ColorTempMode
-import com.ephemeris.helios.utils.formatDecimalHours
-import com.ephemeris.helios.utils.formatDuration
-import com.ephemeris.helios.utils.round
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -296,14 +290,25 @@ fun Sun(
 
         item {
             SmallCardRow(
+                disableInnerHorizontalPadding = true,
+                leftFullBleed = true,
                 rightFullBleed = true,
                 forceSquare = true,
                 leftCard = {
-                    NightEntry(
-                        duration = sun.durations.night.total.formatDuration(true),
-                        midnightTime = sun.events.solarMidnight.formatDecimalHours(),
-                        midnightAzimuth = sun.events.solarMidnightAzimuth.round(),
-                        midnightAltitude = sun.events.solarMidnightAltitude.round()
+                    Night(
+                        durationHours = sun.durations.night.total,
+                        midnightTime = sun.events.solarMidnight,
+                        midnightAzimuth = sun.events.solarMidnightAzimuth,
+                        midnightAltitude = sun.events.solarMidnightAltitude,
+                        midnightEvents = sun.events.solarMidnights,
+                        coordinates = ui.coordinates,
+                        currentTime = ui.currentTime,
+                        currentAltitude = sun.position.altitude,
+                        onMidnightClick = if (sun.events.solarMidnights.isNotEmpty()) {
+                            viewModel::jumpToSolarMidnight
+                        } else {
+                            null
+                        },
                     )
                 },
                 rightCard = {
@@ -322,31 +327,22 @@ fun Sun(
         }
 
         item {
-            SmallCardRow(
-                leftCard = {
-                    SeasonalEntry(
-                        title = R.string.equinoxes,
-                        color = MaterialTheme.colorScheme.primary,
-                        dateTimeTop = sun.seasonalEvents.marchEquinox,
-                        daylightTop = sun.seasonalDailyEvents.marchEquinoxDaylight,
-                        sunAngleTop = sun.seasonalDailyEvents.marchEquinoxSunAngle,
-                        dateTimeBottom = sun.seasonalEvents.septemberEquinox,
-                        daylightBottom = sun.seasonalDailyEvents.septemberEquinoxDaylight,
-                        sunAngleBottom = sun.seasonalDailyEvents.septemberEquinoxSunAngle
-                    )
-                },
-                rightCard = {
-                    SeasonalEntry(
-                        title = R.string.solstices,
-                        color = LocalCustomColors.current.nightPrimary,
-                        dateTimeTop = sun.seasonalEvents.juneSolstice,
-                        daylightTop = sun.seasonalDailyEvents.juneSolsticeDaylight,
-                        sunAngleTop = sun.seasonalDailyEvents.juneSolsticeSunAngle,
-                        dateTimeBottom = sun.seasonalEvents.decemberSolstice,
-                        daylightBottom = sun.seasonalDailyEvents.decemberSolsticeDaylight,
-                        sunAngleBottom = sun.seasonalDailyEvents.decemberSolsticeSunAngle
-                    )
-                }
+            SeasonalCard(
+                marchEquinox = sun.seasonalEvents.marchEquinox,
+                marchDaylight = sun.seasonalDailyEvents.marchEquinoxDaylight,
+                marchSunAngle = sun.seasonalDailyEvents.marchEquinoxSunAngle,
+                juneSolstice = sun.seasonalEvents.juneSolstice,
+                juneDaylight = sun.seasonalDailyEvents.juneSolsticeDaylight,
+                juneSunAngle = sun.seasonalDailyEvents.juneSolsticeSunAngle,
+                septemberEquinox = sun.seasonalEvents.septemberEquinox,
+                septemberDaylight = sun.seasonalDailyEvents.septemberEquinoxDaylight,
+                septemberSunAngle = sun.seasonalDailyEvents.septemberEquinoxSunAngle,
+                decemberSolstice = sun.seasonalEvents.decemberSolstice,
+                decemberDaylight = sun.seasonalDailyEvents.decemberSolsticeDaylight,
+                decemberSunAngle = sun.seasonalDailyEvents.decemberSolsticeSunAngle,
+                currentTime = ui.currentTime,
+                coordinates = ui.coordinates,
+                onEventClick = viewModel::jumpToTime,
             )
         }
 

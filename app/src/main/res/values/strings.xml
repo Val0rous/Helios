@@ -78,6 +78,9 @@
 
     <string name="equinoxes">Equinoxes</string>
     <string name="solstices">Solstices</string>
+    <string name="equinoxes_and_solstices">Equinoxes &amp; Solstices</string>
+    <string name="equinox">Equinox</string>
+    <string name="solstice">Solstice</string>
 
     <string name="hour_abbreviation">H</string>
     <string name="day_abbreviation">D</string>
@@ -87,6 +90,8 @@
     <string name="end">End</string>
     <string name="night_length">Night Length</string>
     <string name="night_length_midnight">Night Length &amp; Midnight</string>
+    <string name="dark_sky">Dark Sky</string>
+    <string name="solar_midnight">Solar Midnight</string>
     <string name="pluto_times">Pluto Times</string>
     <!-- Keep this text within 69-70 chars to prevent overflow. Adjust for other languages -->
     <string name="pluto_time_desc">On a clear day, light matches the brightest part of a day on Pluto.</string>

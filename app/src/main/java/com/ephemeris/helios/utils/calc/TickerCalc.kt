@@ -85,7 +85,7 @@ fun getDailyEphemerisData(
         altitudeMeters = coordinates.altitude,
     )
 
-    val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
+    val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt(events.distanceAu)
 
     val dailyPeakMetrics = SunMetrics.calculateMetrics(
         sunElevationDeg = events.solarNoonAltitude,
@@ -127,7 +127,7 @@ fun getSunLiveSnapshot(
         altitudeMeters = coordinates.altitude,
     )
 
-    val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt
+    val dynamicSunriseSunsetAlt = coordinates.sunApparentHorizonAlt(pos.distanceAu)
 
     val metrics = SunMetrics.calculateMetrics(
         sunElevationDeg = pos.altitude,

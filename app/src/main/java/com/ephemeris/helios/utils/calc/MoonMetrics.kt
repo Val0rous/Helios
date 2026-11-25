@@ -330,14 +330,21 @@ object MoonMetrics {
         var colorTempKelvin = Double.NaN
         var perceivedColorTempKelvin = Double.NaN
 
-        val isAboveHorizon = position.altitude > coordinates.moonApparentHorizonAlt
+        val horizonAltDeg = coordinates.moonApparentHorizonAlt(position.distanceKm)
+        val semiDiameterDeg = if (coordinates.useInstantaneousSemidiameter) {
+            LunarEphemeris.calculateSemiDiameterDeg(position.distanceKm)
+        } else {
+            MOON_SEMI_DIAMETER_DEG
+        }
+
+        val isAboveHorizon = position.altitude > horizonAltDeg
         if (isAboveHorizon) {
             actualAirMass = computeAirMass(position.altitude, amElevationModifier)
         }
 
         val illuminance = computeIlluminanceComponents(
             moonElevDeg = position.altitude,
-            horizonAltDeg = coordinates.moonApparentHorizonAlt,
+            horizonAltDeg = horizonAltDeg,
             alphaDeg = alphaDeg,
             distanceKm = position.distanceKm,
             actualAirMass = actualAirMass,
@@ -347,8 +354,8 @@ object MoonMetrics {
         if (isAboveHorizon) {
             shadowRatio = computeShadowRatio(
                 geometricAltDeg = position.altitude,
-                horizonAltDeg = coordinates.moonApparentHorizonAlt,
-                semiDiameterDeg = MOON_SEMI_DIAMETER_DEG,
+                horizonAltDeg = horizonAltDeg,
+                semiDiameterDeg = semiDiameterDeg,
             )
             colorTempKelvin = computeColorTempKelvin(actualAirMass)
             perceivedColorTempKelvin = computePerceivedColorTempKelvin(colorTempKelvin, illuminance.globalLux)

@@ -99,6 +99,20 @@ class SunViewModel(
         timeRepository.travelTo(targetTime)
     }
 
+    fun jumpToSolarMidnight(elapsedHours: Double? = null) {
+        val state = uiState.value ?: return
+        val solarMidnightElapsedHours = elapsedHours ?: state.sun.events.solarMidnightElapsedHours ?: return
+        if (!solarMidnightElapsedHours.isFinite()) return
+
+        val targetTime = LocalDayTimeline(state.currentTime.toLocalDate(), state.currentTime.zone)
+            .elapsedHourToZonedDateTime(solarMidnightElapsedHours)
+        timeRepository.travelTo(targetTime)
+    }
+
+    fun jumpToTime(targetTime: ZonedDateTime) {
+        timeRepository.travelTo(targetTime)
+    }
+
     private fun buildState(
         time: ZonedDateTime,
         coords: Coordinates?,

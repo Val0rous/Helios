@@ -150,6 +150,16 @@ class EphemerisCalculationsTest {
             "Expected perihelion sunrise earlier with instantaneous semidiameter (${sunInst.sunrise} vs ${sunFixed.sunrise})",
             sunInst.sunrise!! < sunFixed.sunrise!!,
         )
+
+        // Default Coordinates keeps fixed mean semidiameter; Coordinates.useInstantaneousSemidiameter = true propagates automatically
+        assertFalse(rome.useInstantaneousSemidiameter)
+        val romeInstant = rome.copy(useInstantaneousSemidiameter = true)
+        assertEquals(moonFixed.moonrise, LunarEphemeris.calculateDailyEvents(perigeeMoonDay, rome).moonrise!!, 1e-9)
+        assertEquals(moonInst.moonrise, LunarEphemeris.calculateDailyEvents(perigeeMoonDay, romeInstant).moonrise!!, 1e-9)
+        assertEquals(sunFixed.sunrise, SolarEphemeris.calculateDailyEvents(perihelionSunDay, rome).sunrise!!, 1e-9)
+        assertEquals(sunInst.sunrise, SolarEphemeris.calculateDailyEvents(perihelionSunDay, romeInstant).sunrise!!, 1e-9)
+        assertTrue(romeInstant.moonApparentHorizonAlt(357_000.0) < rome.moonApparentHorizonAlt)
+        assertTrue(romeInstant.sunApparentHorizonAlt(0.9833) < rome.sunApparentHorizonAlt)
     }
 
     @Test

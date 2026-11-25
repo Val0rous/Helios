@@ -114,6 +114,7 @@ private data class SeasonalCacheKey(
     val longitude: Double,
     val altitude: Double,
     val useHorizonDip: Boolean,
+    val useInstantaneousSemidiameter: Boolean,
 )
 
 private data class DailyCacheKey(
@@ -199,6 +200,7 @@ class EphemerisRepository(
                             longitude = coords.longitude,
                             altitude = coords.altitude,
                             useHorizonDip = coords.useHorizonDip,
+                            useInstantaneousSemidiameter = coords.useInstantaneousSemidiameter,
                         )
                         val seasonal = if (seasonalKey == cachedSeasonalKey && cachedSeasonalBundle != null) {
                             cachedSeasonalBundle!!
@@ -225,7 +227,7 @@ class EphemerisRepository(
                                     observerAltitudeMeters = coords.altitude,
                                     distanceAu = events.distanceAu,
                                     ozoneDU = dailyOzone,
-                                    horizonAltDeg = coords.sunApparentHorizonAlt,
+                                    horizonAltDeg = coords.sunApparentHorizonAlt(events.distanceAu),
                                 )
                                 currentCoroutineContext().ensureActive()
                                 val (xSun, ySun) = generateSunData(localDate, hoursCalc, coords, targetTime.zone, dailyOzone)

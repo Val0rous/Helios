@@ -12,6 +12,7 @@ data class Coordinates(
     val locationName: String? = null,
     val timezoneId: String? = null,
     val useHorizonDip: Boolean = false,
+    val useInstantaneousSemidiameter: Boolean = false,
 ) {
     // The raw angular dip of the horizon caused by observer altitude (controlled by AppSettings.useHorizonDip)
     val horizonDipDeg: Double
@@ -21,11 +22,25 @@ data class Coordinates(
             return 0.032 * sqrt(elevation)
         }
 
-    // The dynamic solar horizon (Sunrise/Sunset)
+    // The dynamic solar horizon (Sunrise/Sunset) using fixed mean solar semidiameter
     val sunApparentHorizonAlt: Double
         get() = SolarEphemeris.ALT_SUNRISE_SUNSET - horizonDipDeg
 
-    // The dynamic lunar horizon (Moonrise/Moonset)
+    // Solar apparent horizon with optional instantaneous distance-based semidiameter
+    fun sunApparentHorizonAlt(distanceAu: Double): Double = if (useInstantaneousSemidiameter) {
+        -(SolarEphemeris.REFRACTION_HORIZON_DEG + SolarEphemeris.calculateSemiDiameterDeg(distanceAu)) - horizonDipDeg
+    } else {
+        sunApparentHorizonAlt
+    }
+
+    // The dynamic lunar horizon (Moonrise/Moonset) using fixed mean lunar semidiameter
     val moonApparentHorizonAlt: Double
         get() = LunarEphemeris.ALT_MOONRISE_MOONSET - horizonDipDeg
+
+    // Lunar apparent horizon with optional instantaneous distance-based semidiameter
+    fun moonApparentHorizonAlt(distanceKm: Double): Double = if (useInstantaneousSemidiameter) {
+        -(LunarEphemeris.REFRACTION_HORIZON_DEG + LunarEphemeris.calculateSemiDiameterDeg(distanceKm)) - horizonDipDeg
+    } else {
+        moonApparentHorizonAlt
+    }
 }
