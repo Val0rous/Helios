@@ -81,6 +81,13 @@
     <string name="equinoxes_and_solstices">Equinoxes &amp; Solstices</string>
     <string name="equinox">Equinox</string>
     <string name="solstice">Solstice</string>
+    <string name="lunar_lunistices">Lunar Lunistices</string>
+    <string name="max_north">Max North</string>
+    <string name="max_south">Max South</string>
+    <string name="min_north">Min North</string>
+    <string name="min_south">Min South</string>
+    <string name="show_all_lunistices">Show all %1$d</string>
+    <string name="show_less">Show less</string>
 
     <string name="hour_abbreviation">H</string>
     <string name="day_abbreviation">D</string>

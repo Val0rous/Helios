@@ -6,6 +6,7 @@ import com.ephemeris.helios.ui.composables.cards.generateMoonData
 import com.ephemeris.helios.ui.composables.cards.generateSunData
 import com.ephemeris.helios.utils.calc.LiveUpdatesData
 import com.ephemeris.helios.utils.calc.LunarEphemeris
+import com.ephemeris.helios.utils.calc.LunarLunisticeEphemeris
 import com.ephemeris.helios.utils.calc.MoonLiveSnapshot
 import com.ephemeris.helios.utils.calc.MoonMetrics
 import com.ephemeris.helios.utils.calc.SeasonalBundle
@@ -58,6 +59,7 @@ data class MoonDailyData(
     val events: LunarEphemeris.LunarDailyEvents,
     val dailyPeakMetrics: MoonMetrics.LunarMetricsResult?,
     val chartArrays: ChartArrays,
+    val lunisticeEvents: LunarLunisticeEphemeris.YearlyLunistices,
 )
 
 /**
@@ -105,6 +107,7 @@ data class MoonUiData(
     val events: LunarEphemeris.LunarDailyEvents get() = daily.events
     val dailyPeakMetrics: MoonMetrics.LunarMetricsResult? get() = daily.dailyPeakMetrics
     val chartArrays: ChartArrays get() = daily.chartArrays
+    val lunisticeEvents: LunarLunisticeEphemeris.YearlyLunistices get() = daily.lunisticeEvents
 }
 
 private data class SeasonalCacheKey(
@@ -143,9 +146,11 @@ class EphemerisRepository(
     private val hoursCalc = DoubleArray(X_SIZE) { it / 60.0 }
     private val hoursFloat = FloatArray(X_SIZE) { hoursCalc[it].toFloat() }
 
-    // Cache yearly equinox/solstice calculations (4 full solar days) so scrubbing across days skips them
+    // Cache yearly equinox/solstice & lunar lunistice calculations so scrubbing across days skips them
     @Volatile private var cachedSeasonalKey: SeasonalCacheKey? = null
     @Volatile private var cachedSeasonalBundle: SeasonalBundle? = null
+    @Volatile private var cachedLunisticeKey: SeasonalCacheKey? = null
+    @Volatile private var cachedLunisticeData: LunarLunisticeEphemeris.YearlyLunistices? = null
     @Volatile private var lastPublishedDailyKey: DailyCacheKey? = null
 
     private val _dailyData = MutableStateFlow<DailyEphemerisBundle?>(null)
@@ -258,10 +263,23 @@ class EphemerisRepository(
                                     coordinates = coords,
                                     zoneId = targetTime.zone,
                                 )
+                                val lunistices = if (seasonalKey == cachedLunisticeKey && cachedLunisticeData != null) {
+                                    cachedLunisticeData!!
+                                } else {
+                                    LunarLunisticeEphemeris.getYearlyLunistices(
+                                        year = targetTime.year,
+                                        zoneId = targetTime.zone,
+                                        coordinates = coords,
+                                    ).also {
+                                        cachedLunisticeKey = seasonalKey
+                                        cachedLunisticeData = it
+                                    }
+                                }
                                 MoonDailyData(
                                     events = lunarEvents,
                                     dailyPeakMetrics = lunarPeakMetrics,
                                     chartArrays = ChartArrays(hoursFloat, xMoon, yMoon),
+                                    lunisticeEvents = lunistices,
                                 )
                             }
 

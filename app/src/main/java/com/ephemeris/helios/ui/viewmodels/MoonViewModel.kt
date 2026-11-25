@@ -89,6 +89,10 @@ class MoonViewModel(
         timeRepository.travelTo(targetTime)
     }
 
+    fun jumpToTime(targetTime: ZonedDateTime) {
+        timeRepository.travelTo(targetTime)
+    }
+
     private fun buildState(
         time: ZonedDateTime,
         coords: Coordinates?,

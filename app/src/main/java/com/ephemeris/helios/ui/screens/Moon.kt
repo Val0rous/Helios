@@ -18,6 +18,7 @@ import com.ephemeris.helios.ui.composables.cards.Illuminance
 import com.ephemeris.helios.ui.composables.cards.LunarCulmination
 import com.ephemeris.helios.ui.composables.cards.LunarDistance
 import com.ephemeris.helios.ui.composables.cards.LunarIllumination
+import com.ephemeris.helios.ui.composables.cards.LunarLunisticeCard
 import com.ephemeris.helios.ui.composables.cards.MoonriseMoonset
 import com.ephemeris.helios.ui.composables.cards.ShadowRatio
 import com.ephemeris.helios.ui.composables.cards.SmallCardRow
@@ -182,6 +183,14 @@ fun Moon(
                         solarNoonAzimuth = lunarCulminationAzimuth,
                     )
                 },
+            )
+        }
+        item {
+            LunarLunisticeCard(
+                lunistices = moon.lunisticeEvents,
+                currentTime = ui.currentTime,
+                coordinates = ui.coordinates,
+                onEventClick = viewModel::jumpToTime,
             )
         }
         item {
