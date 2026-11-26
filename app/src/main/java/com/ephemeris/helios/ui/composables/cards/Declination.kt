@@ -145,9 +145,12 @@ fun Declination(
                     .fillMaxWidth()
                     .align(Alignment.TopCenter),
             ) {
+                val titleColor = MaterialTheme.colorScheme.onSurface
                 HeaderEntry(
                     text = stringResource(R.string.declination),
+                    textColor = titleColor,
                     icon = R.drawable.ic_globe,
+                    iconTint = titleColor,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     iconSize = 20.dp,
                     textSize = 16.sp,

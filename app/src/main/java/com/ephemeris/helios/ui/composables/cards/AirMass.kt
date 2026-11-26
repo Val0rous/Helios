@@ -25,6 +25,7 @@ import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.charts.AirMassPill
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
 import com.ephemeris.helios.ui.theme.HeliosTheme
+import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.printSignificant
 
 @Composable
@@ -68,9 +69,12 @@ fun AirMass(
                     .fillMaxWidth()
                     .align(Alignment.TopCenter),
             ) {
+                val titleColor = LocalCustomColors.current.amTitle
                 HeaderEntry(
                     text = "Air Mass",
+                    textColor = titleColor,
                     icon = R.drawable.ic_foggy_filled,
+                    iconTint = titleColor,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     iconSize = 20.dp,
                     textSize = 16.sp,

@@ -190,7 +190,11 @@ fun Culmination(
     }
     val effectiveBackgroundColor = cardTint?.compositeOver(surfaceColor) ?: surfaceColor
 
-    val headerAccent = if (isBelowHorizon) belowHorizonTextColor else MaterialTheme.colorScheme.primary
+    val headerAccent = when (type) {
+        EphemerisType.SUN -> customColors.sunPath
+        EphemerisType.MOON -> customColors.moonPath
+        else -> MaterialTheme.colorScheme.onSurface
+    }
     val gaugeAccent = when {
         isBelowHorizon -> belowHorizonTextColor
         type == EphemerisType.SUN -> customColors.sunPath

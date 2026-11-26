@@ -134,6 +134,7 @@ data class CustomColorScheme(
     val amZenith: Color,
     val amHorizon: Color,
     val amWave: Color,
+    val amTitle: Color,
     // Shadows (Light/Short to Dark/Long)
     val shadowShort: Color,
     val shadowLong: Color,
@@ -142,11 +143,13 @@ data class CustomColorScheme(
     val luxBright: Color,
     val luxDim: Color,
     val luxWave: Color,
+    val luxTitle: Color,
     // Irradiance Heat Map (Warm to Hot)
     val irrLow: Color,
     val irrMid: Color,
     val irrHigh: Color,
     val irrDial: Color,
+    val irrTitle: Color,
     // Directional warm/cool tile fills (Declination & Velocity)
     val warmWave: Color,
     val coolWave: Color,
@@ -276,6 +279,7 @@ private fun buildCustomColorScheme(
         amHorizonScheme.surfaceContainerHighest
     }
     val amWave = amWaveScheme.primaryContainer
+    val amTitle = amWaveScheme.primary
     val shadowShort = darkAdaptedColor(Color(0xFF9E9E9E), darkTone = 76.0, darkChroma = 4.0) {
         shadowScheme.surfaceContainerHighest
     }
@@ -286,10 +290,12 @@ private fun buildCustomColorScheme(
     val luxBright = darkAdaptedColor(Color(0xFFFFF59D), darkTone = 88.0)
     val luxDim = darkAdaptedColor(Color(0xFF5C6BC0), darkTone = 62.0)
     val luxWave = luxWaveScheme.primaryContainer
+    val luxTitle = if (isDark) Color(0xFFFFE082) else Color(0xFF7D5C00)
     val irrLow = darkAdaptedColor(Color(0xFFFFCC80), darkTone = 84.0)
     val irrMid = darkAdaptedColor(Color(0xFFFF9800), darkTone = 74.0)
     val irrHigh = darkAdaptedColor(Color(0xFFE65100), darkTone = 62.0)
     val irrDial = if (isDark) irrDialScheme.primary else irrDialScheme.primaryContainer
+    val irrTitle = irrDialScheme.primary
     val warmWave = warmWaveScheme.primaryContainer
     val coolWave = coolWaveScheme.primaryContainer
 
@@ -380,16 +386,19 @@ private fun buildCustomColorScheme(
         amZenith = amZenith,
         amHorizon = amHorizon,
         amWave = amWave,
+        amTitle = amTitle,
         shadowShort = shadowShort,
         shadowLong = shadowLong,
         shadowDial = shadowDial,
         luxBright = luxBright,
         luxDim = luxDim,
         luxWave = luxWave,
+        luxTitle = luxTitle,
         irrLow = irrLow,
         irrMid = irrMid,
         irrHigh = irrHigh,
         irrDial = irrDial,
+        irrTitle = irrTitle,
         warmWave = warmWave,
         coolWave = coolWave,
 

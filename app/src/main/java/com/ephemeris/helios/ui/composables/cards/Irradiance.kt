@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,6 +28,7 @@ import com.ephemeris.helios.ui.composables.charts.IrradianceDial
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
 import com.ephemeris.helios.ui.composables.entries.MetricModePill
 import com.ephemeris.helios.ui.theme.HeliosTheme
+import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.datastore.IrradianceMode
 import com.ephemeris.helios.utils.printSignificant
 
@@ -79,6 +81,9 @@ fun Irradiance(
         }
     }
 
+    val isDarkSurface = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val accentColor = LocalCustomColors.current.irrTitle
+
     IrradianceDial(
         currentIrradiance = irradianceFloat,
         maxIrradiance = maxIrradiance,
@@ -95,6 +100,8 @@ fun Irradiance(
         MetricModePill(
             label = mode.label,
             onClick = onToggleMode,
+            containerColor = accentColor.copy(alpha = if (isDarkSurface) 0.22f else 0.14f),
+            contentColor = accentColor,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 8.dp),
@@ -112,6 +119,7 @@ private fun IrradianceInnerContent(
     valueText: String,
     description: String,
 ) {
+    val titleColor = LocalCustomColors.current.irrTitle
     val valueStyle = MaterialTheme.typography.headlineMedium.copy(
         fontSize = 28.sp,
         lineHeight = 32.sp,
@@ -127,8 +135,10 @@ private fun IrradianceInnerContent(
     ) {
         HeaderEntry(
             text = title,
+            textColor = titleColor,
 //            textVariant = "(Direct)",
             icon = R.drawable.ic_bolt_filled,
+            iconTint = titleColor,
             horizontalAlignment = Alignment.CenterHorizontally,
             iconSize = 19.dp,
             textSize = 15.sp,

@@ -108,9 +108,12 @@ fun ColorTemperature(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter),
         ) {
+            val titleColor = MaterialTheme.colorScheme.onSurface
             HeaderEntry(
                 text = stringResource(R.string.color_temp),
+                textColor = titleColor,
                 icon = R.drawable.ic_thermometer_filled,
+                iconTint = titleColor,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 iconSize = 20.dp,
                 textSize = 16.sp,

@@ -158,7 +158,9 @@ fun RiseSet(
         ) {
             HeaderEntry(
                 text = stringResource(R.string.rise_set),
+                textColor = riseIconTint,
                 icon = headerIconRes,
+                iconTint = riseIconTint,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 iconSize = 20.dp,
                 textSize = 15.5.sp,

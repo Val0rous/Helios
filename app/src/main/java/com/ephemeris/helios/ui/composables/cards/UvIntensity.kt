@@ -104,9 +104,12 @@ fun UvIntensity(
                     .align(Alignment.TopCenter)
                     .padding(top = 31.dp),
             ) {
+                val titleColor = MaterialTheme.colorScheme.onSurface
                 HeaderEntry(
                     text = stringResource(R.string.uv_index),
+                    textColor = titleColor,
                     icon = R.drawable.ic_sunny_filled,
+                    iconTint = titleColor,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     iconSize = 18.dp,
                     textSize = 14.5.sp,

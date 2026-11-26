@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -27,6 +28,7 @@ import com.ephemeris.helios.ui.composables.charts.IlluminancePill
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
 import com.ephemeris.helios.ui.composables.entries.MetricModePill
 import com.ephemeris.helios.ui.theme.HeliosTheme
+import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.datastore.IlluminanceMode
 import com.ephemeris.helios.utils.printSignificant
 
@@ -133,6 +135,9 @@ fun Illuminance(
         color = MaterialTheme.colorScheme.onSurface,
     )
 
+    val isDarkSurface = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val titleColor = LocalCustomColors.current.luxTitle
+
     IlluminancePill(
         currentIlluminance = waveValue,
         minLux = minLux,
@@ -151,7 +156,9 @@ fun Illuminance(
             ) {
                 HeaderEntry(
                     text = "Illuminance",
+                    textColor = titleColor,
                     icon = R.drawable.ic_lightbulb_filled,
+                    iconTint = titleColor,
 //                    textVariant = "(Direct)",
                     horizontalAlignment = Alignment.CenterHorizontally,
                     iconSize = 20.dp,
@@ -209,6 +216,8 @@ fun Illuminance(
                 MetricModePill(
                     label = mode.label,
                     onClick = onToggleMode,
+                    containerColor = titleColor.copy(alpha = if (isDarkSurface) 0.22f else 0.16f),
+                    contentColor = titleColor,
                 )
             }
         }

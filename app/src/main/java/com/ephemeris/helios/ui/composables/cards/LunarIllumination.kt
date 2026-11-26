@@ -97,9 +97,12 @@ fun LunarIllumination(
                     .align(Alignment.TopCenter)
                     .padding(top = 28.dp),
             ) {
+                val titleColor = customColors.moonPath
                 HeaderEntry(
                     text = stringResource(R.string.illumination),
+                    textColor = titleColor,
                     icon = R.drawable.ic_flare,
+                    iconTint = titleColor,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     iconSize = 17.dp,
                     textSize = 14.sp,

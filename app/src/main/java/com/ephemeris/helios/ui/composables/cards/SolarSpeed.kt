@@ -116,9 +116,12 @@ fun SolarSpeed(
                     .align(Alignment.TopCenter)
                     .padding(top = 24.dp),
             ) {
+                val titleColor = MaterialTheme.colorScheme.onSurface
                 HeaderEntry(
                     text = stringResource(R.string.velocity),
+                    textColor = titleColor,
                     icon = R.drawable.ic_speed_filled,
+                    iconTint = titleColor,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     iconSize = 20.dp,
                     textSize = 16.sp,

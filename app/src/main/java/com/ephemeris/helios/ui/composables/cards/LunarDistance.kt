@@ -123,9 +123,12 @@ fun LunarDistance(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter),
         ) {
+            val titleColor = MaterialTheme.colorScheme.onSurface
             HeaderEntry(
                 text = stringResource(R.string.moon_distance),
+                textColor = titleColor,
                 icon = R.drawable.ic_orbit_filled,
+                iconTint = titleColor,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 iconSize = 19.dp,
                 textSize = 15.sp,

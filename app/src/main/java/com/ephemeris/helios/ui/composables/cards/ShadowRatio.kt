@@ -28,6 +28,7 @@ import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.charts.ShadowDial
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
 import com.ephemeris.helios.ui.theme.HeliosTheme
+import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.calc.MAX_SHADOW_RATIO
 import com.ephemeris.helios.utils.printSignificant
 import kotlin.math.roundToInt
@@ -123,9 +124,12 @@ private fun ShadowRatioInnerContent(
         verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 4.dp),
     ) {
+        val titleColor = LocalCustomColors.current.shadowDial
         HeaderEntry(
             text = title,
+            textColor = titleColor,
             icon = R.drawable.ic_ev_shadow_filled,
+            iconTint = titleColor,
             horizontalAlignment = Alignment.CenterHorizontally,
             iconSize = 19.dp,
             textSize = 15.sp,

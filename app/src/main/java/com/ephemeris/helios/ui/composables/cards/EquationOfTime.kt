@@ -121,9 +121,12 @@ fun EquationOfTime(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter),
         ) {
+            val titleColor = MaterialTheme.colorScheme.onSurface
             HeaderEntry(
                 text = stringResource(R.string.eq_of_time),
+                textColor = titleColor,
                 icon = R.drawable.ic_nest_clock_farsight_analog_filled,
+                iconTint = titleColor,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 iconSize = 20.dp,
                 textSize = 16.sp,

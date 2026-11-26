@@ -128,9 +128,12 @@ fun SolarDistance(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter),
         ) {
+            val titleColor = MaterialTheme.colorScheme.onSurface
             HeaderEntry(
                 text = stringResource(R.string.sun_distance),
+                textColor = titleColor,
                 icon = R.drawable.ic_orbit_filled,
+                iconTint = titleColor,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 iconSize = 20.dp,
                 textSize = 16.sp,
