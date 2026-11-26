@@ -114,6 +114,8 @@ class LocationRepository(
         _isContinuousTrackingEnabled.value = enabled
         if (enabled && _locationStatus.value != LocationStatus.CURRENT) {
             _locationStatus.value = LocationStatus.SEARCHING
+        } else if (!enabled && _locationStatus.value == LocationStatus.SEARCHING) {
+            _locationStatus.value = LocationStatus.DISABLED
         }
     }
 

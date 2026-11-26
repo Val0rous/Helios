@@ -1,5 +1,6 @@
 package com.ephemeris.helios.data
 
+import com.ephemeris.helios.utils.datastore.SettingsDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -7,6 +8,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -18,6 +22,7 @@ import kotlin.time.Duration.Companion.seconds
  */
 class TimeRepository(
     private val locationRepository: LocationRepository,
+    private val settingsDataStore: SettingsDataStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -46,18 +51,20 @@ class TimeRepository(
             }
         }
 
-        // 2. Keep active ZoneId synchronized with the observer's coordinates
+        // 2. Keep active ZoneId synchronized with custom timezone override or observer coordinates
         scope.launch {
-            locationRepository.coordinates.collect { coords ->
-                if (coords == null) return@collect
-                val newZone = coords.timezoneId?.let { tzId ->
-                    try {
-                        ZoneId.of(tzId)
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        null
-                    }
-                } ?: ZoneId.systemDefault()
+            combine(
+                locationRepository.coordinates,
+                settingsDataStore.settingsFlow
+                    .map { it.customTimezoneId }
+                    .distinctUntilChanged(),
+            ) { coords, customTzId ->
+                coords to customTzId
+            }.collect { (coords, customTzId) ->
+                if (coords == null && customTzId == null) return@collect
+                val newZone = customTzId?.let(::parseZoneIdOrNull)
+                    ?: coords?.timezoneId?.let(::parseZoneIdOrNull)
+                    ?: ZoneId.systemDefault()
 
                 if (_currentZoneId.value != newZone) {
                     _currentZoneId.value = newZone
@@ -70,6 +77,8 @@ class TimeRepository(
             }
         }
     }
+
+    private fun parseZoneIdOrNull(id: String): ZoneId? = runCatching { ZoneId.of(id) }.getOrNull()
 
     fun setTime(newTime: ZonedDateTime) {
         _currentTime.value = newTime

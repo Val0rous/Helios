@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ephemeris.helios.ui.theme.GoogleSansFlexRounded
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.Charts
 import com.ephemeris.helios.utils.charts.*
@@ -66,6 +67,7 @@ fun DailyComboChart(
     val baseLabelStyle = MaterialTheme.typography.labelSmall
     val labelStyle = remember(colors.chartLabel, baseLabelStyle) {
         baseLabelStyle.copy(
+            fontFamily = GoogleSansFlexRounded,
             color = colors.chartLabel,
             fontSize = (9.5).sp,
             fontFeatureSettings = "tnum",

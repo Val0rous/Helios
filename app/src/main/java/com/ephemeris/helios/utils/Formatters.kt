@@ -1,19 +1,24 @@
 package com.ephemeris.helios.utils
 
 import android.content.Context
+import android.icu.text.TimeZoneNames
+import android.icu.util.TimeZone as IcuTimeZone
 import android.text.format.DateFormat
-import androidx.compose.ui.graphics.Paint
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.text.DateFormatSymbols
 import java.text.NumberFormat
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.FormatStyle
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.pow
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 // Format hours according to brevity rules
 fun formatHour(hour: Int, isShortFormat: Boolean = false, context: Context): String {
@@ -37,56 +42,89 @@ fun formatNumber(number: Double): String {
 
 fun Double.formatLatitude(): String {
     val direction = if (this >= 0) "N" else "S"
-    val absValue = abs(this)
-    val degrees = absValue.toInt()
-    val minutes = ((absValue - degrees) * 60).toInt()
-    val seconds = ((absValue - degrees - minutes / 60.0) * 3600.0).roundToInt()
+    val totalSeconds = (abs(this) * 3600.0).roundToInt()
+    val degrees = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
     return String.format(Locale.getDefault(), "%d°%02d′%02d″ %s", degrees, minutes, seconds, direction)
 }
 
 // TODO: add formatTime, formatAzimuth and formatElevation so rounding and symbols are encapsulated
 
-fun Double.formatShortLatitude(isDecimal: Boolean = true): String {
+fun Double.formatShortLatitude(
+    isDecimal: Boolean = true,
+    locale: Locale = Locale.getDefault(),
+): String {
     val direction = if (this >= 0) "N" else "S"
     val absValue = abs(this)
-    val degrees = absValue.toInt()
-    val minutes = ((absValue - degrees) * 60).toInt()
     return if (isDecimal) {
-        "${absValue.round(2)}°$direction"
+        String.format(locale, "%.2f°%s", absValue, direction)
     } else {
-        "$degrees°$minutes′$direction"
+        val totalMinutes = (absValue * 60.0).roundToInt()
+        val degrees = totalMinutes / 60
+        val minutes = totalMinutes % 60
+        String.format(locale, "%d°%02d′%s", degrees, minutes, direction)
     }
-//    val formattedLat = String.format(
-//                    LocalLocale.current.platformLocale,
-//                    "%.2f",
-//                    coordinates.latitude
-//                ) + if (coordinates.latitude < 0) "S" else "N"
 }
 
 fun Double.formatLongitude(): String {
     val direction = if (this >= 0) "E" else "W"
-    val absValue = abs(this)
-    val degrees = absValue.toInt()
-    val minutes = ((absValue - degrees) * 60).toInt()
-    val seconds = ((absValue - degrees - minutes / 60.0) * 3600.0).roundToInt()
+    val totalSeconds = (abs(this) * 3600.0).roundToInt()
+    val degrees = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
     return String.format(Locale.getDefault(), "%d°%02d′%02d″ %s", degrees, minutes, seconds, direction)
 }
 
-fun Double.formatShortLongitude(isDecimal: Boolean = true): String {
+fun Double.formatShortLongitude(
+    isDecimal: Boolean = true,
+    locale: Locale = Locale.getDefault(),
+): String {
     val direction = if (this >= 0) "E" else "W"
     val absValue = abs(this)
-    val degrees = absValue.toInt()
-    val minutes = ((absValue - degrees) * 60).toInt()
     return if (isDecimal) {
-        "${absValue.round(2)}°$direction"
+        String.format(locale, "%.2f°%s", absValue, direction)
     } else {
-        "$degrees°$minutes′$direction"
+        val totalMinutes = (absValue * 60.0).roundToInt()
+        val degrees = totalMinutes / 60
+        val minutes = totalMinutes % 60
+        String.format(locale, "%d°%02d′%s", degrees, minutes, direction)
     }
-    //                val formattedLon = String.format(
-//                    LocalLocale.current.platformLocale,
-//                    "%.2f",
-//                    coordinates.longitude
-//                ) + if (coordinates.longitude < 0) "W" else "E"
+}
+
+data class DmsCoordinate(
+    val degrees: Int,
+    val minutes: Int,
+    val seconds: Double,
+    val isPositive: Boolean,
+)
+
+fun Double.toDmsCoordinate(secondsDecimals: Int = 2): DmsCoordinate {
+    val isPositive = this >= 0.0
+    val scale = 10.0.pow(secondsDecimals)
+    val totalScaledSeconds = (abs(this) * 3600.0 * scale).roundToLong()
+    val scaledPerMinute = (60.0 * scale).roundToLong()
+    val scaledPerDegree = (3600.0 * scale).roundToLong()
+    val degrees = (totalScaledSeconds / scaledPerDegree).toInt()
+    val remainingAfterDegrees = totalScaledSeconds % scaledPerDegree
+    val minutes = (remainingAfterDegrees / scaledPerMinute).toInt()
+    val seconds = (remainingAfterDegrees % scaledPerMinute) / scale
+    return DmsCoordinate(
+        degrees = degrees,
+        minutes = minutes,
+        seconds = seconds,
+        isPositive = isPositive,
+    )
+}
+
+fun dmsToDecimal(
+    degrees: Int,
+    minutes: Int,
+    seconds: Double,
+    isPositive: Boolean,
+): Double {
+    val magnitude = degrees + minutes / 60.0 + seconds / 3600.0
+    return if (isPositive) magnitude else -magnitude
 }
 
 fun Double.round(decimals: Int = 1): Double {
@@ -237,4 +275,163 @@ fun Double?.formatAzimuth(
     if (!includeDirection) return degText
     val cardinal = wrappedDeg.formatDirection()
     return if (cardinal.isNotEmpty()) "$degText $cardinal" else degText
+}
+
+/**
+ * Formats a signed coordinate in decimal degrees with 5 fractional digits (~1.1 m precision)
+ * and a proper minus sign (e.g. `"41.90278°"`, `"−34.60372°"`).
+ */
+fun Double.formatDecimalDegrees(
+    decimals: Int = 5,
+    locale: Locale = Locale.getDefault(),
+): String {
+    val rounded = BigDecimal.valueOf(this).setScale(decimals, RoundingMode.HALF_UP)
+    val sign = if (rounded.signum() < 0) "\u2212" else ""
+    val formatted = String.format(locale, "%.${decimals}f", rounded.abs().toDouble())
+    return "$sign$formatted°"
+}
+
+/**
+ * Formats a [ZoneOffset] in concise UTC notation (never GMT), e.g., `"UTC+2"`, `"UTC−3"`,
+ * `"UTC+5:30"`, or `"UTC+0"`.
+ */
+fun ZoneOffset.formatUtcOffset(): String {
+    val total = totalSeconds
+    if (total == 0) return "UTC+0"
+    val sign = if (total > 0) "+" else "\u2212"
+    val absSeconds = abs(total)
+    val hours = absSeconds / 3600
+    val minutes = (absSeconds % 3600) / 60
+    val seconds = absSeconds % 60
+    return when {
+        seconds != 0 -> String.format(Locale.US, "UTC%s%d:%02d:%02d", sign, hours, minutes, seconds)
+        minutes != 0 -> String.format(Locale.US, "UTC%s%d:%02d", sign, hours, minutes)
+        else -> "UTC$sign$hours"
+    }
+}
+
+data class FormattedTimeZone(
+    val utcOffset: String,
+    val abbreviation: String?,
+    val fullName: String,
+    val cityName: String?,
+    val isDst: Boolean,
+)
+
+private val AbbreviationLookupLocales: List<Locale> = listOf(
+    Locale.US,
+    Locale.UK,
+    Locale.forLanguageTag("en-AU"),
+    Locale.forLanguageTag("en-NZ"),
+    Locale.forLanguageTag("en-IN"),
+    Locale.forLanguageTag("en-CA"),
+    Locale.forLanguageTag("en-ZA"),
+    Locale.JAPAN,
+    Locale.KOREA,
+)
+
+private fun isValidTimeZoneAbbreviation(candidate: String?): Boolean {
+    if (candidate.isNullOrBlank() || candidate.length !in 2..5) return false
+    return candidate.all { it in 'A'..'Z' }
+}
+
+private fun isFixedOffsetZoneId(id: String): Boolean {
+    if ('/' !in id) return true
+    return id.startsWith("Etc/", ignoreCase = true)
+}
+
+/**
+ * Formats a [ZonedDateTime]'s time zone for display:
+ * - [FormattedTimeZone.utcOffset]: concise UTC offset (`"UTC+2"`, `"UTC−3"`, `"UTC+5:30"`, `"UTC+0"`).
+ * - [FormattedTimeZone.abbreviation]: authoritative CLDR short abbreviation distinguishing Standard
+ *   vs Daylight/Summer time (e.g. `"CET"` vs `"CEST"`, `"EST"` vs `"EDT"`, `"GMT"` vs `"BST"`), or
+ *   `null` when the zone has no standard abbreviation (e.g. Argentina, Brazil, China).
+ * - [FormattedTimeZone.cityName]: localized exemplar city name via ICU (e.g. `"Rome"`,
+ *   `"Buenos Aires"`, `"Córdoba"`, `"Indianapolis"`), cleanly handling multi-segment IANA IDs like
+ *   `America/Argentina/Buenos_Aires`.
+ * - [FormattedTimeZone.fullName]: localized full time zone name with any `"GMT±..."` fallback
+ *   normalized to UTC notation.
+ */
+fun ZonedDateTime.formatTimeZone(locale: Locale = Locale.getDefault()): FormattedTimeZone {
+    val instant = toInstant()
+    val epochMillis = instant.toEpochMilli()
+    val isDst = zone.rules.isDaylightSavings(instant)
+    val utcOffset = offset.formatUtcOffset()
+
+    val rawId = zone.id
+    val canonicalId = runCatching { IcuTimeZone.getCanonicalID(rawId) }.getOrNull() ?: rawId
+    val isPureUtc = canonicalId.equals("UTC", ignoreCase = true) ||
+        canonicalId.equals("Etc/UTC", ignoreCase = true) ||
+        canonicalId.equals("Etc/UCT", ignoreCase = true) ||
+        (zone is ZoneOffset && offset.totalSeconds == 0)
+
+    if (isPureUtc) {
+        return FormattedTimeZone(
+            utcOffset = "UTC+0",
+            abbreviation = "UTC",
+            fullName = "Coordinated Universal Time",
+            cityName = null,
+            isDst = false,
+        )
+    }
+
+    if (zone is ZoneOffset) {
+        return FormattedTimeZone(
+            utcOffset = utcOffset,
+            abbreviation = null,
+            fullName = "Fixed Offset",
+            cityName = null,
+            isDst = false,
+        )
+    }
+
+    // 1. Authoritative short abbreviation via ICU TimeZoneNames (properly separates STD vs DST)
+    val shortType = if (isDst) {
+        TimeZoneNames.NameType.SHORT_DAYLIGHT
+    } else {
+        TimeZoneNames.NameType.SHORT_STANDARD
+    }
+    val abbreviation = sequenceOf(locale)
+        .plus(AbbreviationLookupLocales.asSequence())
+        .distinct()
+        .mapNotNull { lookupLocale ->
+            runCatching {
+                TimeZoneNames.getInstance(lookupLocale)
+                    .getDisplayName(canonicalId, shortType, epochMillis)
+            }.getOrNull()
+        }
+        .firstOrNull(::isValidTimeZoneAbbreviation)
+
+    // 2. Exemplar city name (e.g. "Europe/Rome" -> "Rome", "America/Argentina/Buenos_Aires" -> "Buenos Aires")
+    val cityName = if (isFixedOffsetZoneId(canonicalId)) {
+        null
+    } else {
+        val icuCity = runCatching {
+            TimeZoneNames.getInstance(locale).getExemplarLocationName(canonicalId)
+        }.getOrNull()?.takeIf { it.isNotBlank() && !it.contains("Unknown", ignoreCase = true) }
+
+        icuCity ?: canonicalId.substringAfterLast('/').replace('_', ' ').takeIf { it.isNotBlank() }
+    }
+
+    // 3. Full localized name, never leaking "GMT+..." offset fallbacks
+    val rawFullName = format(DateTimeFormatter.ofPattern("zzzz", locale))
+    val fullName = when {
+        rawFullName.startsWith("GMT") && rawFullName.length > 3 &&
+            (rawFullName[3] == '+' || rawFullName[3] == '-' || rawFullName[3] == '\u2212') -> {
+            "Fixed Offset"
+        }
+        rawFullName.equals("GMT", ignoreCase = true) && offset.totalSeconds == 0 &&
+            canonicalId.contains("UTC", ignoreCase = true) -> {
+            "Coordinated Universal Time"
+        }
+        else -> rawFullName
+    }
+
+    return FormattedTimeZone(
+        utcOffset = utcOffset,
+        abbreviation = abbreviation,
+        fullName = fullName,
+        cityName = cityName,
+        isDst = isDst,
+    )
 }

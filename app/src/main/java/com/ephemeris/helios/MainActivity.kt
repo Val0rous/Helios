@@ -61,6 +61,8 @@ class MainActivity : ComponentActivity() {
             val currentTime by vm.currentTime.collectAsStateWithLifecycle()
             val isAutoUpdateEnabled by vm.isAutoUpdateEnabled.collectAsStateWithLifecycle()
             val isEphemerisReady by vm.isEphemerisReady.collectAsStateWithLifecycle()
+            val coordinateFormat by vm.coordinateFormat.collectAsStateWithLifecycle()
+            val customTimezoneId by vm.customTimezoneId.collectAsStateWithLifecycle()
 
             val snackbarHostState = remember { SnackbarHostState() }
 
@@ -77,6 +79,10 @@ class MainActivity : ComponentActivity() {
                                 currentTime = currentTime,
                                 coordinates = coordinates,
                                 locationStatus = locationStatus,
+                                coordinateFormat = coordinateFormat,
+                                onToggleCoordinateFormat = vm::toggleCoordinateFormat,
+                                customTimezoneId = customTimezoneId,
+                                onSelectCustomTimezone = vm::setCustomTimezoneId,
                                 onSaveCoordinates = vm::saveCoordinates,
                                 onLocationClick = {
                                     vm.onLocationRequestStarted()
