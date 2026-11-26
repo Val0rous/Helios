@@ -44,6 +44,9 @@ fun Home(
                 sunChartArrays = sun.chartArrays,
                 moonChartArrays = moon.chartArrays,
                 moonPhaseAppearance = MoonPhaseAppearance.from(moon.metrics, ui.coordinates),
+                sunRiseSetEvents = sun.events.riseSetEvents,
+                moonRiseSetEvents = moon.events.riseSetEvents,
+                isMoonUpAllDay = moon.events.isMoonUpAllDay,
             )
         }
     }

@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
+import com.ephemeris.helios.ui.theme.GoogleSansFlexRounded
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import java.time.ZoneOffset
@@ -147,6 +148,7 @@ fun PlutoTime(
                             Text(
                                 text = "0h",
                                 style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = GoogleSansFlexRounded,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
                                     fontFeatureSettings = "tnum",

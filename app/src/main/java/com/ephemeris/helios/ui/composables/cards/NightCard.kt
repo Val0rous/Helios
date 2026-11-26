@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
+import com.ephemeris.helios.ui.theme.GoogleSansFlexRounded
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.EphemerisType
@@ -223,6 +224,7 @@ fun Night(
                         Text(
                             text = formattedDuration,
                             style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = GoogleSansFlexRounded,
                                 lineHeight = 1.05.em,
                                 platformStyle = PlatformTextStyle(includeFontPadding = false),
                                 fontWeight = FontWeight.ExtraBold,
@@ -340,6 +342,7 @@ fun Night(
                                 Text(
                                     text = event.time.formatDecimalHours(),
                                     style = MaterialTheme.typography.titleMedium.copy(
+                                        fontFamily = GoogleSansFlexRounded,
                                         lineHeight = 1.08.em,
                                         platformStyle = PlatformTextStyle(includeFontPadding = false),
                                         fontWeight = FontWeight.Bold,
@@ -398,6 +401,7 @@ fun Night(
                                     Text(
                                         text = metadataText,
                                         style = MaterialTheme.typography.labelMedium.copy(
+                                            fontFamily = GoogleSansFlexRounded,
                                             lineHeight = 13.5.sp,
                                             lineHeightStyle = trimLineHeight,
                                             platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -485,6 +489,7 @@ fun Night(
                                                 Text(
                                                     text = event.time.formatDecimalHours(),
                                                     style = MaterialTheme.typography.bodyMedium.copy(
+                                                        fontFamily = GoogleSansFlexRounded,
                                                         lineHeight = 13.sp,
                                                         lineHeightStyle = trimLineHeight,
                                                         platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -509,6 +514,7 @@ fun Night(
                                                     Text(
                                                         text = rowMeta,
                                                         style = MaterialTheme.typography.labelSmall.copy(
+                                                            fontFamily = GoogleSansFlexRounded,
                                                             lineHeight = 11.5.sp,
                                                             lineHeightStyle = trimLineHeight,
                                                             platformStyle = PlatformTextStyle(includeFontPadding = false),

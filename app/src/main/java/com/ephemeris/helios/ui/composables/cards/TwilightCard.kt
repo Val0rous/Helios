@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
+import com.ephemeris.helios.ui.theme.GoogleSansFlex
+import com.ephemeris.helios.ui.theme.GoogleSansFlexRounded
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.formatDuration
@@ -405,6 +407,7 @@ fun TwilightCard(
                         Text(
                             text = "0h",
                             style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = GoogleSansFlexRounded,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 fontFeatureSettings = "tnum",
@@ -523,6 +526,7 @@ private fun TwilightStageRow(
             Text(
                 text = totalDuration.formatDuration(),
                 style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = GoogleSansFlexRounded,
                     fontSize = 11.sp,
                     lineHeight = 13.sp,
                     fontWeight = FontWeight.Medium,
@@ -683,6 +687,7 @@ private fun TwilightSlotChip(
             Text(
                 text = rangeText,
                 style = MaterialTheme.typography.titleSmall.copy(
+                    fontFamily = if (stage.isAllDay) GoogleSansFlex else GoogleSansFlexRounded,
                     lineHeight = 1.15.em,
                     fontWeight = FontWeight.Bold,
                     fontFeatureSettings = "tnum",
@@ -705,6 +710,7 @@ private fun TwilightSlotChip(
                 Text(
                     text = stage.durationHours.formatDuration(),
                     style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = GoogleSansFlexRounded,
                         fontSize = durationSize,
                         lineHeight = durationSize * 1.25f,
                         fontWeight = FontWeight.Medium,

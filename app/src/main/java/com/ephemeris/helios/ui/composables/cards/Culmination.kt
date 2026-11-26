@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
+import com.ephemeris.helios.ui.theme.GoogleSansFlexRounded
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.EphemerisType
@@ -335,6 +336,7 @@ fun Culmination(
                         Text(
                             text = formattedTime,
                             style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = GoogleSansFlexRounded,
                                 lineHeight = 1.12.em,
                                 fontWeight = FontWeight.Bold,
                                 fontFeatureSettings = "tnum",
@@ -357,6 +359,7 @@ fun Culmination(
                                 Text(
                                     text = formattedAzimuth,
                                     style = MaterialTheme.typography.labelMedium.copy(
+                                        fontFamily = GoogleSansFlexRounded,
                                         fontSize = 11.5.sp,
                                         lineHeight = 14.sp,
                                         fontWeight = FontWeight.SemiBold,

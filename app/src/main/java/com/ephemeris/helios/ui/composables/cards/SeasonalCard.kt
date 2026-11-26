@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
+import com.ephemeris.helios.ui.theme.GoogleSansFlexRounded
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.EphemerisType
 import com.ephemeris.helios.utils.formatDuration
@@ -143,6 +144,7 @@ fun SeasonalCard(
                     Text(
                         text = year.toString(),
                         style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = GoogleSansFlexRounded,
                             fontSize = 10.5.sp,
                             lineHeight = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -351,6 +353,7 @@ private fun SeasonalMilestonePill(
             Text(
                 text = dateTimeText,
                 style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = GoogleSansFlexRounded,
                     lineHeight = 1.08.em,
                     lineHeightStyle = trimLineHeight,
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -371,6 +374,7 @@ private fun SeasonalMilestonePill(
             Text(
                 text = metricsText,
                 style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = GoogleSansFlexRounded,
                     lineHeight = 14.sp,
                     lineHeightStyle = trimLineHeight,
                     platformStyle = PlatformTextStyle(includeFontPadding = false),

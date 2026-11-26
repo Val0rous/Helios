@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.charts.DaylightPill
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
+import com.ephemeris.helios.ui.theme.GoogleSansFlexRounded
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.EphemerisType
@@ -119,7 +120,6 @@ fun RiseSet(
 
     val durationLabelRes = when (type) {
         EphemerisType.SUN -> R.string.day_length
-        EphemerisType.MOON -> R.string.duration
         else -> R.string.uptime
     }
 
@@ -238,6 +238,7 @@ fun RiseSet(
                     Text(
                         text = formattedDuration,
                         style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = GoogleSansFlexRounded,
                             lineHeight = 1.05.em,
                             fontWeight = FontWeight.ExtraBold,
                             fontFeatureSettings = "tnum",
@@ -347,6 +348,7 @@ private fun SingleEventContent(
             Text(
                 text = formattedTime,
                 style = MaterialTheme.typography.titleLarge.copy(
+                    fontFamily = GoogleSansFlexRounded,
                     lineHeight = 1.08.em,
                     fontWeight = FontWeight.Bold,
                     fontFeatureSettings = "tnum",
@@ -365,6 +367,7 @@ private fun SingleEventContent(
                 Text(
                     text = azimuthText,
                     style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = GoogleSansFlexRounded,
                         fontSize = 13.sp,
                         lineHeight = 15.5.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -433,6 +436,7 @@ private fun TwoEventsContent(
                     Text(
                         text = formattedTime,
                         style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = GoogleSansFlexRounded,
                             lineHeight = 17.sp,
                             lineHeightStyle = trimLineHeight,
                             platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -453,6 +457,7 @@ private fun TwoEventsContent(
                         Text(
                             text = azimuthText,
                             style = MaterialTheme.typography.labelMedium.copy(
+                                fontFamily = GoogleSansFlexRounded,
                                 fontSize = 11.5.sp,
                                 lineHeight = 13.sp,
                                 lineHeightStyle = trimLineHeight,
@@ -512,6 +517,7 @@ private fun MultiEventsContent(
                     Text(
                         text = formattedTime,
                         style = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = GoogleSansFlexRounded,
                             lineHeight = 1.1.em,
                             fontWeight = FontWeight.Bold,
                             fontFeatureSettings = "tnum",
@@ -531,6 +537,7 @@ private fun MultiEventsContent(
                     Text(
                         text = azimuthText,
                         style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = GoogleSansFlexRounded,
                             lineHeight = 1.1.em,
                             fontWeight = FontWeight.SemiBold,
                             fontFeatureSettings = "tnum",

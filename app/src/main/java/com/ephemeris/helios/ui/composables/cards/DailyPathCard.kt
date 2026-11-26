@@ -3,15 +3,10 @@ package com.ephemeris.helios.ui.composables.cards
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,12 +14,9 @@ import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,12 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.ChartSelectorChip
 import com.ephemeris.helios.ui.composables.charts.DailyChart
 import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
@@ -50,7 +37,6 @@ import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.MoonMetrics
 import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.charts.toDecimalHour
-import com.ephemeris.helios.utils.round
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -120,113 +106,113 @@ fun DailyPathCard(
     val currentHour: Float = currentTime.toDecimalHour()
     val liveHour: Float = liveTime.toDecimalHour()
 
-    Card(
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxWidth()
-//            .aspectRatio(2f)
             .padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column() {
-            val charts = when (type) {
-                is Charts.Sun -> Charts.Sun.Daily.entries
-                is Charts.Moon -> Charts.Moon.Daily.entries
-                else -> Charts.Moon.Daily.entries // Todo: Charts.Planets.Daily.entries, keeping Moon for now to be able to compile
-            }
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-                verticalAlignment = Alignment.CenterVertically,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-            ) {
-                itemsIndexed(charts) { index, chart ->
-                    val shapes = when (index) {
-                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                        charts.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(
+                topStart = 12.dp,
+                topEnd = 12.dp,
+                bottomStart = 5.dp,
+                bottomEnd = 5.dp,
+            ),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column() {
+                val charts = when (type) {
+                    is Charts.Sun -> Charts.Sun.Daily.entries
+                    is Charts.Moon -> Charts.Moon.Daily.entries
+                    else -> Charts.Moon.Daily.entries // Todo: Charts.Planets.Daily.entries, keeping Moon for now to be able to compile
+                }
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                    verticalAlignment = Alignment.CenterVertically,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                ) {
+                    itemsIndexed(charts) { index, chart ->
+                        val shapes = when (index) {
+                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                            charts.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                        }
+                        ChartSelectorChip(
+                            chartType = chart,
+                            isSelected = chart == selectedChartType,
+                            onSelectedChartTypeChange = { selectedChartType = it },
+                            shapes = shapes,
+                        )
                     }
-                    ChartSelectorChip(
-                        chartType = chart,
-                        isSelected = chart == selectedChartType,
-                        onSelectedChartTypeChange = { selectedChartType = it },
-                        shapes = shapes,
+                }
+                // Show a placeholder or empty box while arrays are generating in the background
+                val arrays = chartArrays
+                if (arrays == null) {
+                    Box(modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(2f), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    val isTrajectory = selectedChartType.javaClass.simpleName.contains("Trajectory")
+//                val xValues = if (isTrajectory) arrays.xDataSets[selectedChartType] else arrays.timeXValues
+
+                    val yValues = when (selectedChartType) {
+                        is Charts.SunMoonCombo.Daily.Elevation -> arrays.yDataSets[Charts.Sun.Daily.Elevation]
+                        is Charts.SunMoonCombo.Daily.Trajectory -> arrays.yDataSets[Charts.Sun.Daily.Trajectory]
+                        else -> arrays.yDataSets[selectedChartType]
+                    } ?: FloatArray(X_SIZE)
+
+                    val xValues = if (isTrajectory) {
+                        arrays.xDataSets[selectedChartType] ?: FloatArray(X_SIZE)
+                    } else {
+                        arrays.timeXValues
+                    }
+
+                    val bottomCornerRadius = 5.dp
+                    DailyChart(
+                        xValues = xValues,
+                        yValues = yValues,
+                        currentHour = currentHour,
+                        liveHour = liveHour,
+                        chartType = selectedChartType,
+                        currentAzimuth = currentAzimuth.toFloat(),
+                        currentAltitude = currentAltitude.toFloat(),
+                        coordinates = coordinates,
+                        moonPhase = moonPhase,
+                        modifier = Modifier
+                            .aspectRatio(2f)
+                            .clip(
+                                RoundedCornerShape(
+                                    bottomStart = bottomCornerRadius,
+                                    bottomEnd = bottomCornerRadius
+                                )
+                            )
+                            .padding(vertical = 0.dp)
                     )
                 }
             }
-            // Show a placeholder or empty box while arrays are generating in the background
-            val arrays = chartArrays
-            if (arrays == null) {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(2f), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                val isTrajectory = selectedChartType.javaClass.simpleName.contains("Trajectory")
-//                val xValues = if (isTrajectory) arrays.xDataSets[selectedChartType] else arrays.timeXValues
-
-                val yValues = when (selectedChartType) {
-                    is Charts.SunMoonCombo.Daily.Elevation -> arrays.yDataSets[Charts.Sun.Daily.Elevation]
-                    is Charts.SunMoonCombo.Daily.Trajectory -> arrays.yDataSets[Charts.Sun.Daily.Trajectory]
-                    else -> arrays.yDataSets[selectedChartType]
-                } ?: FloatArray(X_SIZE)
-
-                val xValues = if (isTrajectory) {
-                    arrays.xDataSets[selectedChartType] ?: FloatArray(X_SIZE)
-                } else {
-                    arrays.timeXValues
-                }
-
-                val cornerRadius = 12.dp
-                DailyChart(
-                    xValues = xValues,
-                    yValues = yValues,
-                    currentHour = currentHour,
-                    liveHour = liveHour,
-                    chartType = selectedChartType,
-                    currentAzimuth = currentAzimuth.toFloat(),
-                    currentAltitude = currentAltitude.toFloat(),
-                    coordinates = coordinates,
-                    moonPhase = moonPhase,
-                    modifier = Modifier
-                        .aspectRatio(2f)
-                        .clip(
-                            RoundedCornerShape(
-                                bottomStart = cornerRadius,
-                                bottomEnd = cornerRadius
-                            )
-                        )
-                        .padding(vertical = 0.dp)
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min)
-                    .padding(top = 8.dp, bottom = 9.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CustomColumn(stringResource(R.string.altitude), "${currentAltitude.round()}°")
-                CustomVerticalDivider()
-                CustomColumn(stringResource(R.string.azimuth), "${currentAzimuth.round()}°")
-                if (type is Charts.Sun && phase.isNotBlank()) {
-                    CustomVerticalDivider()
-                    CustomColumn(stringResource(R.string.phase), phase)
-                }
-            }
         }
+        val body = when (type) {
+            is Charts.Sun -> CelestialBodyTelemetry.SUN
+            else -> CelestialBodyTelemetry.MOON
+        }
+        ChartTelemetryRow(
+            body = body,
+            altitude = currentAltitude,
+            azimuth = currentAzimuth,
+            phase = phase,
+            moonPhase = moonPhase,
+            shape = RoundedCornerShape(
+                topStart = 5.dp,
+                topEnd = 5.dp,
+                bottomStart = 12.dp,
+                bottomEnd = 12.dp,
+            ),
+        )
     }
-}
-
-@Composable
-internal fun CustomVerticalDivider() {
-    VerticalDivider(
-        modifier = Modifier
-            .fillMaxHeight()
-            .padding(vertical = 4.dp),
-        thickness = Dp.Hairline,
-        color = DividerDefaults.color
-    )
 }
 
 @Composable
@@ -237,46 +223,6 @@ internal fun CustomHorizontalDivider() {
         thickness = 2.dp,
         color = MaterialTheme.colorScheme.surfaceContainer
     )
-}
-
-@Composable
-internal fun CustomColumn(header: String, value: String) {
-    val textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
-    val verticalSpacing = 4.dp
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(verticalSpacing)
-    ) {
-        Text(
-            text = header,
-            style = textStyle.copy(
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = (0).sp,
-                color = MaterialTheme.colorScheme.primary
-            )
-        )
-        Text(text = value, style = textStyle.copy(color = MaterialTheme.colorScheme.onSurface))
-    }
-}
-
-@Composable
-internal fun CustomRow(header: String, value: String) {
-    val textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 14.sp)
-    val horizontalSpacing = 8.dp
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(horizontalSpacing),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = header,
-            style = textStyle.copy(
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = (0).sp,
-                color = MaterialTheme.colorScheme.primary
-            )
-        )
-        Text(text = value, style = textStyle.copy(color = MaterialTheme.colorScheme.onSurface))
-    }
 }
 
 internal fun generateSunData(

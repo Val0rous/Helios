@@ -50,6 +50,7 @@ fun Moon(
                 coordinates = ui.coordinates,
                 currentAltitude = moon.altitude,
                 currentAzimuth = moon.azimuth,
+                phase = moon.phase,
                 type = Charts.Moon.Daily.Elevation,
                 chartArrays = moon.chartArrays,
                 moonPhase = moonPhase,

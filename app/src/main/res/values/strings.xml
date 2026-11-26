@@ -57,7 +57,7 @@
     <string name="dusk">Dusk</string>
     <string name="civil">Civil</string>
     <string name="nautical">Nautical</string>
-    <string name="astro">Astro</string>
+    <string name="astro">Astronomical</string>
     <string name="night">Night</string>
 
     <string name="day_length">Day Length</string>

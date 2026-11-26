@@ -3,12 +3,9 @@ package com.ephemeris.helios.ui.composables.cards
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -27,17 +24,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.ChartSelectorChip
 import com.ephemeris.helios.ui.composables.charts.DailyComboChart
 import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
 import com.ephemeris.helios.utils.Charts
+import com.ephemeris.helios.utils.calc.RiseSetEvent
 import com.ephemeris.helios.utils.charts.toDecimalHour
-import com.ephemeris.helios.utils.formatDuration
 import com.ephemeris.helios.utils.location.Coordinates
-import com.ephemeris.helios.utils.round
 import java.time.ZonedDateTime
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -58,181 +52,141 @@ fun DailyComboPathCard(
     moonChartArrays: ChartArrays?,
     liveTime: ZonedDateTime = currentTime,
     moonPhaseAppearance: MoonPhaseAppearance = MoonPhaseAppearance.Full,
+    sunRiseSetEvents: List<RiseSetEvent> = emptyList(),
+    moonRiseSetEvents: List<RiseSetEvent> = emptyList(),
+    isMoonUpAllDay: Boolean = false,
 ) {
     var selectedChartType by rememberSaveable { mutableStateOf(type) }
 
     val currentHour: Float = currentTime.toDecimalHour()
     val liveHour: Float = liveTime.toDecimalHour()
 
-    Card(
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
         modifier = Modifier
             .fillMaxWidth()
-//            .aspectRatio(2f)
             .padding(horizontal = 16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
-        Column() {
-            val charts = when (type) {
-                is Charts.Sun -> Charts.Sun.Daily.entries
-                is Charts.Moon -> Charts.Moon.Daily.entries
-                is Charts.SunMoonCombo -> Charts.SunMoonCombo.Daily.entries
-                else -> Charts.Moon.Daily.entries // Todo: Charts.Planets.Daily.entries, keeping Moon for now to be able to compile
-            }
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
-                verticalAlignment = Alignment.CenterVertically,
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-            ) {
-                itemsIndexed(charts) { index, chart ->
-                    val shapes = when (index) {
-                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                        charts.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(
+                topStart = 12.dp,
+                topEnd = 12.dp,
+                bottomStart = 5.dp,
+                bottomEnd = 5.dp,
+            ),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column() {
+                val charts = when (type) {
+                    is Charts.Sun -> Charts.Sun.Daily.entries
+                    is Charts.Moon -> Charts.Moon.Daily.entries
+                    is Charts.SunMoonCombo -> Charts.SunMoonCombo.Daily.entries
+                    else -> Charts.Moon.Daily.entries // Todo: Charts.Planets.Daily.entries, keeping Moon for now to be able to compile
+                }
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                    verticalAlignment = Alignment.CenterVertically,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                ) {
+                    itemsIndexed(charts) { index, chart ->
+                        val shapes = when (index) {
+                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                            charts.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                        }
+                        ChartSelectorChip(
+                            chartType = chart,
+                            isSelected = chart == selectedChartType,
+                            onSelectedChartTypeChange = { selectedChartType = it },
+                            shapes = shapes,
+                        )
                     }
-                    ChartSelectorChip(
-                        chartType = chart,
-                        isSelected = chart == selectedChartType,
-                        onSelectedChartTypeChange = { selectedChartType = it },
-                        shapes = shapes,
+                }
+                // Show a placeholder or empty box while arrays are generating in the background
+                if (sunChartArrays == null || moonChartArrays == null) {
+                    Box(modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(2f), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    val isTrajectory = selectedChartType.javaClass.simpleName.contains("Trajectory")
+//                val xValues = if (isTrajectory) arrays.xDataSets[selectedChartType] else arrays.timeXValues
+
+                    val primaryXValues = if (isTrajectory) {
+                        sunChartArrays.xDataSets[Charts.Sun.Daily.Trajectory] ?: FloatArray(X_SIZE)
+                    } else {
+                        sunChartArrays.timeXValues
+                    }
+
+                    val secondaryXValues = if (isTrajectory) {
+                        moonChartArrays.xDataSets[Charts.Moon.Daily.Trajectory] ?: FloatArray(X_SIZE)
+                    } else {
+                        moonChartArrays.timeXValues
+                    }
+
+                    val primaryYValues = when (selectedChartType) {
+                        is Charts.SunMoonCombo.Daily.Elevation -> sunChartArrays.yDataSets[Charts.Sun.Daily.Elevation]
+                        is Charts.SunMoonCombo.Daily.Trajectory -> sunChartArrays.yDataSets[Charts.Sun.Daily.Trajectory]
+                        else -> sunChartArrays.yDataSets[selectedChartType]
+                    } ?: FloatArray(X_SIZE)
+
+                    val secondaryYValues = when (selectedChartType) {
+                        is Charts.SunMoonCombo.Daily.Elevation -> moonChartArrays.yDataSets[Charts.Moon.Daily.Elevation]
+                        is Charts.SunMoonCombo.Daily.Trajectory -> moonChartArrays.yDataSets[Charts.Moon.Daily.Trajectory]
+                        else -> floatArrayOf()
+                    } ?: FloatArray(X_SIZE)
+
+                    val bottomCornerRadius = 5.dp
+                    DailyComboChart(
+                        sunXValues = primaryXValues,
+                        sunYValues = primaryYValues,
+                        moonXValues = secondaryXValues,
+                        moonYValues = secondaryYValues,
+                        currentHour = currentHour,
+                        liveHour = liveHour,
+                        chartType = selectedChartType,
+                        currentSunAzimuth = currentSunAzimuth.toFloat(),
+                        currentSunAltitude = currentSunAltitude.toFloat(),
+                        currentMoonAzimuth = currentMoonAzimuth.toFloat(),
+                        currentMoonAltitude = currentMoonAltitude.toFloat(),
+                        coordinates = coordinates,
+                        moonPhase = moonPhaseAppearance,
+                        modifier = Modifier
+                            .aspectRatio(2f)
+                            .clip(
+                                RoundedCornerShape(
+                                    bottomStart = bottomCornerRadius,
+                                    bottomEnd = bottomCornerRadius
+                                )
+                            )
+                            .padding(vertical = 0.dp)
                     )
                 }
             }
-            // Show a placeholder or empty box while arrays are generating in the background
-            if (sunChartArrays == null || moonChartArrays == null) {
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(2f), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            } else {
-                val isTrajectory = selectedChartType.javaClass.simpleName.contains("Trajectory")
-//                val xValues = if (isTrajectory) arrays.xDataSets[selectedChartType] else arrays.timeXValues
-
-                val primaryXValues = if (isTrajectory) {
-                    sunChartArrays.xDataSets[Charts.Sun.Daily.Trajectory] ?: FloatArray(X_SIZE)
-                } else {
-                    sunChartArrays.timeXValues
-                }
-
-                val secondaryXValues = if (isTrajectory) {
-                    moonChartArrays.xDataSets[Charts.Moon.Daily.Trajectory] ?: FloatArray(X_SIZE)
-                } else {
-                    moonChartArrays.timeXValues
-                }
-
-                val primaryYValues = when (selectedChartType) {
-                    is Charts.SunMoonCombo.Daily.Elevation -> sunChartArrays.yDataSets[Charts.Sun.Daily.Elevation]
-                    is Charts.SunMoonCombo.Daily.Trajectory -> sunChartArrays.yDataSets[Charts.Sun.Daily.Trajectory]
-                    else -> sunChartArrays.yDataSets[selectedChartType]
-                } ?: FloatArray(X_SIZE)
-
-                val secondaryYValues = when (selectedChartType) {
-                    is Charts.SunMoonCombo.Daily.Elevation -> moonChartArrays.yDataSets[Charts.Moon.Daily.Elevation]
-                    is Charts.SunMoonCombo.Daily.Trajectory -> moonChartArrays.yDataSets[Charts.Moon.Daily.Trajectory]
-                    else -> floatArrayOf()
-                } ?: FloatArray(X_SIZE)
-
-                val cornerRadius = 12.dp
-                DailyComboChart(
-                    sunXValues = primaryXValues,
-                    sunYValues = primaryYValues,
-                    moonXValues = secondaryXValues,
-                    moonYValues = secondaryYValues,
-                    currentHour = currentHour,
-                    liveHour = liveHour,
-                    chartType = selectedChartType,
-                    currentSunAzimuth = currentSunAzimuth.toFloat(),
-                    currentSunAltitude = currentSunAltitude.toFloat(),
-                    currentMoonAzimuth = currentMoonAzimuth.toFloat(),
-                    currentMoonAltitude = currentMoonAltitude.toFloat(),
-                    coordinates = coordinates,
-                    moonPhase = moonPhaseAppearance,
-                    modifier = Modifier
-                        .aspectRatio(2f)
-                        .clip(
-                            RoundedCornerShape(
-                                bottomStart = cornerRadius,
-                                bottomEnd = cornerRadius
-                            )
-                        )
-                        .padding(vertical = 0.dp)
-                )
-            }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min)
-                    .padding(top = 8.dp, bottom = 9.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CustomColumn(
-                    header = stringResource(R.string.day_length),
-                    value = dayLength.formatDuration(true)
-                )
-                CustomVerticalDivider()
-                CustomColumn(
-                    header = "${stringResource(R.string.sun)} ${stringResource(R.string.altitude)}",
-                    value = "${currentSunAltitude.round()}°"
-                )
-                CustomVerticalDivider()
-                CustomColumn(
-                    header = "${stringResource(R.string.sun)} ${stringResource(R.string.azimuth)}",
-                    value = "${currentSunAzimuth.round()}°"
-                )
-            }
-            CustomHorizontalDivider()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min)
-                    .padding(top = 8.dp, bottom = 9.dp, start = 40.dp),
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CustomRow(
-                    header = "${stringResource(R.string.sun)} ${stringResource(R.string.phase)}",
-                    value = sunPhase
-                )
-            }
-            CustomHorizontalDivider()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min)
-                    .padding(top = 8.dp, bottom = 9.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CustomColumn(
-                    header = "${stringResource(R.string.moon)} ${stringResource(R.string.duration)}",
-                    value = moonDuration.formatDuration(true)
-                )
-                CustomVerticalDivider()
-                CustomColumn(
-                    header = "${stringResource(R.string.moon)} ${stringResource(R.string.altitude)}",
-                    value = "${currentMoonAltitude.round()}°"
-                )
-                CustomVerticalDivider()
-                CustomColumn(
-                    header = "${stringResource(R.string.moon)} ${stringResource(R.string.azimuth)}",
-                    value = "${currentMoonAzimuth.round()}°"
-                )
-            }
-            CustomHorizontalDivider()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min)
-                    .padding(top = 8.dp, bottom = 9.dp, start = 40.dp),
-                horizontalArrangement = Arrangement.Start,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CustomRow(
-                    header = "${stringResource(R.string.moon)} ${stringResource(R.string.phase)}",
-                    value = moonPhase
-                )
-            }
         }
+        ChartTelemetryRow(
+            body = CelestialBodyTelemetry.SUN,
+            altitude = currentSunAltitude,
+            azimuth = currentSunAzimuth,
+            phase = sunPhase,
+            shape = RoundedCornerShape(5.dp),
+        )
+        ChartTelemetryRow(
+            body = CelestialBodyTelemetry.MOON,
+            altitude = currentMoonAltitude,
+            azimuth = currentMoonAzimuth,
+            phase = moonPhase,
+            moonPhase = moonPhaseAppearance,
+            shape = RoundedCornerShape(5.dp),
+        )
+        ComboDurationStrip(
+            dayLength = dayLength,
+            moonDuration = moonDuration,
+            sunEvents = sunRiseSetEvents,
+            moonEvents = moonRiseSetEvents,
+            isMoonUpAllDay = isMoonUpAllDay,
+        )
     }
 }

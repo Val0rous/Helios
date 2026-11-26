@@ -101,6 +101,8 @@ fun Maps(
             sunEvents = sun.events,
             currentMoonPosition = moon.position,
             moonEvents = moon.events,
+            sunPhase = sun.phase,
+            moonPhaseName = moon.phase,
             moonPhase = moonPhase,
         )
     }

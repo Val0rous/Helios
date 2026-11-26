@@ -13,18 +13,18 @@ sealed class Phases(val desc: String) {
         sealed class Twilight(sub: String = "", type: String = "Twilight") : Sun("$sub $type".trim()) {
             object Civil : Twilight("Civil")
             object Nautical : Twilight("Nautical")
-            object Astronomical : Twilight("Astro")
+            object Astronomical : Twilight("Astronomical")
         }
 
         sealed class Dawn(sub: String) : Twilight(sub, "Dawn") {
             object Civil : Dawn("Civil")
             object Nautical : Dawn("Nautical")
-            object Astronomical : Dawn("Astro")
+            object Astronomical : Dawn("Astronomical")
         }
         sealed class Dusk(sub: String) : Twilight(sub, "Dusk") {
             object Civil : Dusk("Civil")
             object Nautical : Dusk("Nautical")
-            object Astronomical : Dusk("Astro")
+            object Astronomical : Dusk("Astronomical")
         }
     }
 

@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
+import com.ephemeris.helios.ui.theme.GoogleSansFlex
+import com.ephemeris.helios.ui.theme.GoogleSansFlexRounded
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.calc.SolarEphemeris
 import com.ephemeris.helios.utils.formatDecimalHours
@@ -532,6 +534,7 @@ fun LightPhaseCard(
                             Text(
                                 text = "0h",
                                 style = MaterialTheme.typography.labelMedium.copy(
+                                    fontFamily = GoogleSansFlexRounded,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
                                     fontFeatureSettings = "tnum",
@@ -707,6 +710,7 @@ internal fun LightPhaseIntervalChip(
             Text(
                 text = rangeText,
                 style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = if (interval.isAllDay) GoogleSansFlex else GoogleSansFlexRounded,
                     lineHeight = 1.15.em,
                     fontWeight = FontWeight.Bold,
                     fontFeatureSettings = "tnum",
@@ -730,6 +734,7 @@ internal fun LightPhaseIntervalChip(
                 Text(
                     text = durationText,
                     style = MaterialTheme.typography.labelMedium.copy(
+                        fontFamily = GoogleSansFlexRounded,
                         fontSize = durationFontSize,
                         lineHeight = durationFontSize * 1.25f,
                         fontWeight = FontWeight.Medium,

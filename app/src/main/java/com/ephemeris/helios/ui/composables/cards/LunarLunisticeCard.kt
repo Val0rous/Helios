@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
+import com.ephemeris.helios.ui.theme.GoogleSansFlexRounded
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.ui.theme.LocalCustomColors
 import com.ephemeris.helios.utils.EphemerisType
@@ -201,6 +202,7 @@ fun LunarLunisticeCard(
                     Text(
                         text = lunistices.year.toString(),
                         style = MaterialTheme.typography.labelSmall.copy(
+                            fontFamily = GoogleSansFlexRounded,
                             fontSize = 10.5.sp,
                             lineHeight = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -518,6 +520,7 @@ private fun LunisticeTimelineRow(
                 Text(
                     text = "${if (event.isNorth) "N" else "S"} $formattedDec",
                     style = MaterialTheme.typography.labelSmall.copy(
+                        fontFamily = GoogleSansFlexRounded,
                         fontSize = 10.5.sp,
                         lineHeight = 13.sp,
                         fontWeight = FontWeight.Bold,
@@ -542,6 +545,7 @@ private fun LunisticeTimelineRow(
                 Text(
                     text = dateTimeText,
                     style = MaterialTheme.typography.bodyMedium.copy(
+                        fontFamily = GoogleSansFlexRounded,
                         fontSize = 12.5.sp,
                         lineHeight = 15.sp,
                         fontWeight = FontWeight.Bold,
@@ -583,6 +587,7 @@ private fun LunisticeTimelineRow(
             Text(
                 text = metricsText,
                 style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = GoogleSansFlexRounded,
                     fontSize = 11.sp,
                     lineHeight = 14.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -668,7 +673,9 @@ private fun LunisticeMilestonePill(
         withStyle(SpanStyle(color = labelColor.copy(alpha = 0.55f))) {
             append(" · ")
         }
-        append(formattedDec)
+        withStyle(SpanStyle(fontFamily = GoogleSansFlexRounded)) {
+            append(formattedDec)
+        }
     }
 
     val dateTimeText = buildAnnotatedString {
@@ -734,6 +741,7 @@ private fun LunisticeMilestonePill(
             Text(
                 text = dateTimeText,
                 style = MaterialTheme.typography.titleMedium.copy(
+                    fontFamily = GoogleSansFlexRounded,
                     lineHeight = 1.08.em,
                     lineHeightStyle = trimLineHeight,
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -754,6 +762,7 @@ private fun LunisticeMilestonePill(
             Text(
                 text = metricsText,
                 style = MaterialTheme.typography.labelMedium.copy(
+                    fontFamily = GoogleSansFlexRounded,
                     lineHeight = 14.sp,
                     lineHeightStyle = trimLineHeight,
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
