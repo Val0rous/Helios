@@ -128,7 +128,7 @@ private fun ShadowRatioInnerContent(
         HeaderEntry(
             text = title,
             textColor = titleColor,
-            icon = R.drawable.ic_ev_shadow_filled,
+            icon = R.drawable.ic_shadow,
             iconTint = titleColor,
             horizontalAlignment = Alignment.CenterHorizontally,
             iconSize = 19.dp,

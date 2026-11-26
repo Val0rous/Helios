@@ -73,7 +73,7 @@ fun AirMass(
                 HeaderEntry(
                     text = "Air Mass",
                     textColor = titleColor,
-                    icon = R.drawable.ic_foggy_filled,
+                    icon = R.drawable.ic_mist,
                     iconTint = titleColor,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     iconSize = 20.dp,

@@ -20,9 +20,9 @@ fun DailyPeaksEntry(
     TextEntry(
         text = "UVI ${uvIntensity.round(1)}",
         textVariant = "${(25 * uvIntensity).roundToInt()} mW/m²",
-        icon = R.drawable.ic_beach_access,
+        icon = R.drawable.ic_sunny,
         desc = "Max UV Index"
     )
     TextEntry(text = formatNumber(luminance.roundToSignificant()), textVariant = "lx", icon = R.drawable.ic_lightbulb, desc = "Max Luminance")
-    TextEntry(text = "${shadowRatio.roundToSignificant()} : 1", icon = R.drawable.ic_ev_shadow, desc = "Min Shadow Ratio")
+    TextEntry(text = "${shadowRatio.roundToSignificant()} : 1", icon = R.drawable.ic_shadow, desc = "Min Shadow Ratio")
 }

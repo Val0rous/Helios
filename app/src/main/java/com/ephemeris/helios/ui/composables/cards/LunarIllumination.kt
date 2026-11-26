@@ -101,7 +101,7 @@ fun LunarIllumination(
                 HeaderEntry(
                     text = stringResource(R.string.illumination),
                     textColor = titleColor,
-                    icon = R.drawable.ic_flare,
+                    icon = R.drawable.ic_tonality_filled,
                     iconTint = titleColor,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     iconSize = 17.dp,

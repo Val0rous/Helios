@@ -20,9 +20,9 @@ fun LiveMetricsEntry(
     TextEntry(
         text = "UVI ${uvIntensity.round(1)}",
         textVariant = "${(25 * uvIntensity).roundToInt()} mW/m²",
-        icon = R.drawable.ic_beach_access_filled,
+        icon = R.drawable.ic_sunny_filled,
         desc = "Current UV Index"
     )
     TextEntry(text = formatNumber(luminance.roundToSignificant()), textVariant = "lx", icon = R.drawable.ic_lightbulb_filled, desc = "Current Luminance")
-    TextEntry(text = "${shadowRatio.roundToSignificant()} : 1", icon = R.drawable.ic_ev_shadow_filled, desc = "Current Shadow Ratio")
+    TextEntry(text = "${shadowRatio.roundToSignificant()} : 1", icon = R.drawable.ic_shadow, desc = "Current Shadow Ratio")
 }

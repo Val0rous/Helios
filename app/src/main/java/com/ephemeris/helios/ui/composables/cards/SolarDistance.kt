@@ -132,7 +132,7 @@ fun SolarDistance(
             HeaderEntry(
                 text = stringResource(R.string.sun_distance),
                 textColor = titleColor,
-                icon = R.drawable.ic_orbit_filled,
+                icon = R.drawable.ic_straighten_filled,
                 iconTint = titleColor,
                 horizontalAlignment = Alignment.CenterHorizontally,
                 iconSize = 20.dp,

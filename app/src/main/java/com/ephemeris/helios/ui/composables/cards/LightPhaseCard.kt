@@ -352,7 +352,7 @@ fun GoldenHour(
 ) {
     LightPhaseCard(
         titleRes = R.string.golden_hour,
-        iconRes = R.drawable.ic_wb_sunny_filled,
+        iconRes = R.drawable.ic_wb_twilight_filled,
         tintSeed = Color(0xFFFFB300),
         lightAccent = Color(0xFF8C5200),
         darkAccent = Color(0xFFFFCA28),

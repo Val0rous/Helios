@@ -113,7 +113,7 @@ fun RiseSet(
     val isLunar = type == EphemerisType.MOON
 
     val headerIconRes = when (type) {
-        EphemerisType.SUN -> R.drawable.ic_wb_twilight_filled
+        EphemerisType.SUN -> R.drawable.ic_wb_sunny_filled
         EphemerisType.MOON -> R.drawable.ic_moon_stars_filled
         else -> R.drawable.ic_routine_filled
     }

@@ -149,7 +149,7 @@ fun Declination(
                 HeaderEntry(
                     text = stringResource(R.string.declination),
                     textColor = titleColor,
-                    icon = R.drawable.ic_globe,
+                    icon = R.drawable.ic_orbit_filled,
                     iconTint = titleColor,
                     horizontalAlignment = Alignment.CenterHorizontally,
                     iconSize = 20.dp,
