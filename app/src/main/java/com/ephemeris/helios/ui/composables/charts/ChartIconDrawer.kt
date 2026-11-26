@@ -89,7 +89,8 @@ fun DrawScope.paintIcon(
     zeroYPixel: Float,
     chartType: Charts,
     coordinates: Coordinates?,
-    drawChartIcon: DrawScope.(Float, Boolean) -> Unit
+    drawChartIcon: DrawScope.(Float, Boolean) -> Unit,
+    iconScale: Float = 1f,
 ) {
     val className = chartType.javaClass.simpleName
     val isUp = when {
@@ -109,7 +110,7 @@ fun DrawScope.paintIcon(
     }
 
     if (isUp) {
-        val iconSize = 24.dp.toPx()
+        val iconSize = (24f * iconScale).dp.toPx()
 
         clipRect(bottom = (zeroYPixel - 2f)) {
             translate(
@@ -120,7 +121,7 @@ fun DrawScope.paintIcon(
             }
         }
     } else {
-        val iconSize = 12.dp.toPx()
+        val iconSize = (12f * iconScale).dp.toPx()
         translate(
             left = currentXPx - iconSize / 2,
             top = currentYPx - iconSize / 2

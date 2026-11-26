@@ -15,11 +15,10 @@ import com.ephemeris.helios.utils.Charts
 fun DrawScope.drawDayNightBackground(
     colorScheme: ColorScheme,
     params: ChartData,
-    zeroYPixel: Float
+    zeroYPixel: Float,
+    dayBackground: Color = colorScheme.surface,
+    nightBackground: Color = colorScheme.surfaceVariant,
 ) {
-    val dayBackground = colorScheme.surface
-    val nightBackground = colorScheme.surfaceVariant
-
     // Day Background
     drawRect(
         color = dayBackground,
@@ -38,10 +37,10 @@ fun DrawScope.drawDayNightBackground(
 fun DrawScope.drawDayNightAreaFill(
     fillPath: Path,
     colorScheme: ColorScheme,
-    zeroYPixel: Float
+    zeroYPixel: Float,
+    dayBackground: Color = colorScheme.surface,
+    nightBackground: Color = colorScheme.surfaceVariant,
 ) {
-    val dayBackground = colorScheme.surface
-    val nightBackground = colorScheme.surfaceVariant
     clipRect(bottom = zeroYPixel) {
         drawPath(path = fillPath, color = dayBackground.copy(alpha = 1.0f))
     }

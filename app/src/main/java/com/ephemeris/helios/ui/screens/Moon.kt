@@ -1,18 +1,15 @@
 package com.ephemeris.helios.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ephemeris.helios.ui.composables.cards.AirMass
+import com.ephemeris.helios.ui.composables.cards.CollapsibleDailyPathScaffold
 import com.ephemeris.helios.ui.composables.cards.ColorTemperature
-import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.Declination
 import com.ephemeris.helios.ui.composables.cards.Illuminance
 import com.ephemeris.helios.ui.composables.cards.LunarCulmination
@@ -39,23 +36,17 @@ fun Moon(
     val moon = ui.moon
     val moonPhase = MoonPhaseAppearance.from(moon.metrics, ui.coordinates)
 
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxSize()
+    CollapsibleDailyPathScaffold(
+        currentTime = ui.currentTime,
+        liveTime = moon.timestamp,
+        coordinates = ui.coordinates,
+        currentAltitude = moon.altitude,
+        currentAzimuth = moon.azimuth,
+        phase = moon.phase,
+        type = Charts.Moon.Daily.Elevation,
+        chartArrays = moon.chartArrays,
+        moonPhase = moonPhase,
     ) {
-        item {
-            DailyPathCard(
-                currentTime = ui.currentTime,
-                liveTime = moon.timestamp,
-                coordinates = ui.coordinates,
-                currentAltitude = moon.altitude,
-                currentAzimuth = moon.azimuth,
-                phase = moon.phase,
-                type = Charts.Moon.Daily.Elevation,
-                chartArrays = moon.chartArrays,
-                moonPhase = moonPhase,
-            )
-        }
         item {
             SmallCardRow(
                 leftFullBleed = true,

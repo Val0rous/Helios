@@ -77,6 +77,7 @@ fun DailyChart(
     isApparentElevation: Boolean = IS_APPARENT_ELEVATION_DEFAULT,
     liveHour: Float = currentHour,
     moonPhase: MoonPhaseAppearance = MoonPhaseAppearance.Full,
+    collapseFraction: Float = 0f,
 ) {
     val drawChartIcon = rememberChartIconDrawer(chartType, moonPhase)
     val colors = LocalCustomColors.current
@@ -150,6 +151,7 @@ fun DailyChart(
     val currentAzimuthState = rememberUpdatedState(currentAzimuth)
     val currentAltitudeState = rememberUpdatedState(currentAltitude)
     val drawChartIconState = rememberUpdatedState(drawChartIcon)
+    val collapseFractionState = rememberUpdatedState(collapseFraction)
 
     // 3. Cache size-dependent Paths, bands, labels & gradient Brushes inside Modifier.drawWithCache
     val drawModifier = remember(
@@ -170,6 +172,17 @@ fun DailyChart(
         Modifier.drawWithCache {
             if (staticData == null) return@drawWithCache onDrawBehind { }
 
+            val fullHeightPx = 140.dp.toPx()
+            val compactHeightPx = 58.dp.toPx()
+            val heightFraction = ((size.height - compactHeightPx) / (fullHeightPx - compactHeightPx))
+                .coerceIn(0f, 1f)
+            // Asymmetric vertical padding:
+            //  - Top needs enough clearance for a +90° Sun/Moon icon (24dp expanded, ~17.3dp compact)
+            //  - Bottom only needs room for X-axis labels when expanded (16dp) and a -90° dimmed icon
+            //    (~8.6dp diameter / 4.3dp radius) when compact
+            val topPaddingPx = (11.dp.toPx() + 5.dp.toPx() * heightFraction)
+            val bottomPaddingPx = (5.dp.toPx() + 11.dp.toPx() * heightFraction)
+
             val params = ChartData(
                 xValues = xValues,
                 yValues = staticData.drawYValues,
@@ -179,7 +192,9 @@ fun DailyChart(
                 maxY = staticData.maxY,
                 width = size.width,
                 height = size.height,
-                verticalPaddingPx = 16.dp.toPx()
+                verticalPaddingPx = topPaddingPx,
+                topPaddingPx = topPaddingPx,
+                bottomPaddingPx = bottomPaddingPx,
             )
 
             fun mapX(x: Float) = getMapX(x, params)
@@ -254,26 +269,35 @@ fun DailyChart(
                 emptyList()
             }
 
-            // Pre-measure axis labels & gridlines once per day/size/theme
-            val preparedYLabels = prepareYLabels(
-                chartType = chartType,
-                materialTheme = colorScheme,
-                params = params,
-                mapY = ::mapY,
-                textMeasurer = textMeasurer,
-                labelStyle = labelStyle,
-                isApparentElevation = staticData.shouldTransform,
-            )
-            val preparedXLabels = prepareXLabels(
-                chartType = chartType,
-                materialTheme = colorScheme,
-                params = params,
-                mapX = ::mapX,
-                textMeasurer = textMeasurer,
-                labelStyle = labelStyle,
-                context = context,
-                isShiftTrajectory = if (staticData.isTrajectory) staticData.shiftTrajectory else false,
-            )
+            // Pre-measure axis labels & gridlines once per day/size/theme (skipped once labels are faded out)
+            val shouldPrepareLabels = heightFraction > 0.2f && collapseFractionState.value < 0.42f
+            val preparedYLabels = if (shouldPrepareLabels) {
+                prepareYLabels(
+                    chartType = chartType,
+                    materialTheme = colorScheme,
+                    params = params,
+                    mapY = ::mapY,
+                    textMeasurer = textMeasurer,
+                    labelStyle = labelStyle,
+                    isApparentElevation = staticData.shouldTransform,
+                )
+            } else {
+                null
+            }
+            val preparedXLabels = if (shouldPrepareLabels) {
+                prepareXLabels(
+                    chartType = chartType,
+                    materialTheme = colorScheme,
+                    params = params,
+                    mapX = ::mapX,
+                    textMeasurer = textMeasurer,
+                    labelStyle = labelStyle,
+                    context = context,
+                    isShiftTrajectory = if (staticData.isTrajectory) staticData.shiftTrajectory else false,
+                )
+            } else {
+                null
+            }
 
             // Pre-build static gradient brushes once per data/size/theme change
             val dayBrush: Brush? = if (staticData.isTrajectory) {
@@ -386,9 +410,25 @@ fun DailyChart(
                 // If it's night (NaN), park the Y-pixel firmly on the baseline
                 val currentYPx = if (drawCurrentY.isNaN()) zeroYPixel else mapY(drawCurrentY)
 
-                // Day & Night Background
-                drawDayNightBackground(colorScheme, params, zeroYPixel)
-                drawDayNightAreaFill(primaryFillPath, colorScheme, zeroYPixel)
+                val collapse = collapseFractionState.value.coerceIn(0f, 1f)
+                val dayBg = lerp(colorScheme.surface, colorScheme.surfaceContainer, collapse)
+                val nightBg = colorScheme.surfaceVariant
+
+                // Day & Night Background (day half tints into TopBar chrome; night half stays surfaceVariant)
+                drawDayNightBackground(
+                    colorScheme = colorScheme,
+                    params = params,
+                    zeroYPixel = zeroYPixel,
+                    dayBackground = dayBg,
+                    nightBackground = nightBg,
+                )
+                drawDayNightAreaFill(
+                    fillPath = primaryFillPath,
+                    colorScheme = colorScheme,
+                    zeroYPixel = zeroYPixel,
+                    dayBackground = dayBg,
+                    nightBackground = nightBg,
+                )
 
                 if (staticData.isTrajectory) {
                     drawDayNightHorizontalTwilights(
@@ -450,14 +490,32 @@ fun DailyChart(
                     drawElapsedTimePath(primaryCurvePath, colors, chartType, currentXPx)
                 }
 
-                // Horizon line & pre-measured legends
+                // Horizon line & pre-measured legends (smoothly faded out as chart collapses)
+                val labelAlpha = (1f - collapse * 2.5f).coerceIn(0f, 1f)
+                val iconScale = 1f - 0.28f * collapse
+
                 drawHorizonLine(colorScheme, params, zeroYPixel)
-                drawPreparedYLabels(preparedYLabels, params.width)
-                drawPreparedXLabels(preparedXLabels, params.height)
+                if (labelAlpha > 0.005f) {
+                    if (preparedYLabels != null) {
+                        drawPreparedYLabels(preparedYLabels, params.width, alpha = labelAlpha)
+                    }
+                    if (preparedXLabels != null) {
+                        drawPreparedXLabels(preparedXLabels, params.height, alpha = labelAlpha)
+                    }
+                }
 
                 // Vertical drop line & icon (using interpolated rawCurrentY so horizon/metric thresholds stay in sync)
                 drawVerticalDropLine(colors, currentXPx, currentYPx, zeroYPixel)
-                paintIcon(currentXPx, rawCurrentY, currentYPx, zeroYPixel, chartType, coordinates, drawChartIconState.value)
+                paintIcon(
+                    currentXPx = currentXPx,
+                    currentY = rawCurrentY,
+                    currentYPx = currentYPx,
+                    zeroYPixel = zeroYPixel,
+                    chartType = chartType,
+                    coordinates = coordinates,
+                    drawChartIcon = drawChartIconState.value,
+                    iconScale = iconScale,
+                )
             }
         }
     }

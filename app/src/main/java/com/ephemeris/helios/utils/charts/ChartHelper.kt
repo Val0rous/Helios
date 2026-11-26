@@ -24,7 +24,7 @@ fun getMapY(
     params: ChartData,
     chartType: Charts
 ): Float {
-    val drawHeight = (params.height - (2 * params.verticalPaddingPx)).coerceAtLeast(1f)
+    val drawHeight = (params.height - params.topPaddingPx - params.bottomPaddingPx).coerceAtLeast(1f)
     val isLogScale = when (chartType) {
         Charts.Sun.Daily.Illuminance, Charts.Sun.Daily.Shadows, Charts.Sun.Daily.AirMass,
         Charts.Moon.Daily.Illuminance, Charts.Moon.Daily.Shadows, Charts.Moon.Daily.AirMass -> true
@@ -47,10 +47,10 @@ fun getMapY(
         val logMax = log10(params.maxY.coerceAtLeast(0f) * logScale + 1f)
 
         val fraction = if (logMax == logMin) 0f else (logY - logMin) / (logMax - logMin)
-        params.height - params.verticalPaddingPx - (fraction * drawHeight)
+        params.height - params.bottomPaddingPx - (fraction * drawHeight)
     } else {
         val fraction = if (params.maxY == params.minY) 0f else (y - params.minY) / (params.maxY - params.minY)
-        params.height - params.verticalPaddingPx - (fraction * drawHeight)
+        params.height - params.bottomPaddingPx - (fraction * drawHeight)
     }
 }
 

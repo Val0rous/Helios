@@ -149,12 +149,15 @@ fun Density.prepareYLabels(
 fun DrawScope.drawPreparedYLabels(
     prepared: PreparedYLabels,
     width: Float,
+    alpha: Float = 1f,
 ) {
+    if (alpha <= 0.005f) return
+    val gridColor = prepared.gridLineColor.copy(alpha = prepared.gridLineColor.alpha * alpha)
     val gridYs = prepared.gridLinesY
     for (i in gridYs.indices) {
         val yPx = gridYs[i]
         drawLine(
-            color = prepared.gridLineColor,
+            color = gridColor,
             start = Offset(0f, yPx),
             end = Offset(width, yPx),
             strokeWidth = prepared.strokeWidthPx,
@@ -167,6 +170,7 @@ fun DrawScope.drawPreparedYLabels(
         drawText(
             textLayoutResult = item.layout,
             topLeft = item.topLeft,
+            alpha = alpha,
         )
     }
 }
@@ -232,12 +236,15 @@ fun Density.prepareXLabels(
 fun DrawScope.drawPreparedXLabels(
     prepared: PreparedXLabels,
     height: Float,
+    alpha: Float = 1f,
 ) {
+    if (alpha <= 0.005f) return
+    val gridColor = prepared.gridLineColor.copy(alpha = prepared.gridLineColor.alpha * alpha)
     val gridXs = prepared.gridLinesX
     for (i in gridXs.indices) {
         val xPx = gridXs[i]
         drawLine(
-            color = prepared.gridLineColor,
+            color = gridColor,
             start = Offset(xPx, 0f),
             end = Offset(xPx, height),
             strokeWidth = prepared.strokeWidthPx,
@@ -250,6 +257,7 @@ fun DrawScope.drawPreparedXLabels(
         drawText(
             textLayoutResult = item.layout,
             topLeft = item.topLeft,
+            alpha = alpha,
         )
     }
 }

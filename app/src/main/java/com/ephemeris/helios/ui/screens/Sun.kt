@@ -1,10 +1,7 @@
 package com.ephemeris.helios.ui.screens
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -13,8 +10,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ephemeris.helios.ui.composables.cards.AirMass
 import com.ephemeris.helios.ui.composables.cards.Alpenglow
 import com.ephemeris.helios.ui.composables.cards.BlueHour
+import com.ephemeris.helios.ui.composables.cards.CollapsibleDailyPathScaffold
 import com.ephemeris.helios.ui.composables.cards.ColorTemperature
-import com.ephemeris.helios.ui.composables.cards.DailyPathCard
 import com.ephemeris.helios.ui.composables.cards.Declination
 import com.ephemeris.helios.ui.composables.cards.EquationOfTime
 import com.ephemeris.helios.ui.composables.cards.GoldenHour
@@ -46,22 +43,16 @@ fun Sun(
     val ui = state ?: return
     val sun = ui.sun
 
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        modifier = Modifier.fillMaxSize()
+    CollapsibleDailyPathScaffold(
+        currentTime = ui.currentTime,
+        liveTime = sun.timestamp,
+        coordinates = ui.coordinates,
+        currentAltitude = sun.altitude,
+        currentAzimuth = sun.azimuth,
+        phase = sun.phase,
+        type = Charts.Sun.Daily.Elevation,
+        chartArrays = sun.chartArrays,
     ) {
-        item {
-            DailyPathCard(
-                currentTime = ui.currentTime,
-                liveTime = sun.timestamp,
-                coordinates = ui.coordinates,
-                currentAltitude = sun.altitude,
-                currentAzimuth = sun.azimuth,
-                phase = sun.phase,
-                type = Charts.Sun.Daily.Elevation,
-                chartArrays = sun.chartArrays
-            )
-        }
         item {
             SmallCardRow(
                 leftFullBleed = true,

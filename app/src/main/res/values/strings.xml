@@ -64,6 +64,7 @@
     <string name="uptime">Uptime</string>
     <string name="duration">Duration</string>
     <string name="altitude">Altitude</string>
+    <string name="alt_short">Alt</string>
     <string name="azimuth">Azimuth</string>
     <string name="phase">Phase</string>
     <string name="direction">Direction</string>

@@ -27,8 +27,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp as lerpColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.painterResource
@@ -41,9 +45,11 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp as lerpDp
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.charts.MoonPhaseAppearance
@@ -64,6 +70,9 @@ enum class CelestialBodyTelemetry {
     SUN,
     MOON,
 }
+
+internal val ExpandedTelemetryRowHeight = 54.dp
+internal val CollapsedTelemetryRowHeight = 38.dp
 
 internal val CompactLineHeightStyle = LineHeightStyle(
     alignment = LineHeightStyle.Alignment.Center,
@@ -169,10 +178,14 @@ fun ChartTelemetryRow(
         bottomEnd = 12.dp,
     ),
     showBodyIcon: Boolean = true,
+    collapseFraction: Float = 0f,
+    drawBottomDivider: Boolean = true,
 ) {
+    val t = collapseFraction.coerceIn(0f, 1f)
     val locale = LocalLocale.current.platformLocale
     val customColors = LocalCustomColors.current
-    val isDarkSurface = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+    val colorScheme = MaterialTheme.colorScheme
+    val isDarkSurface = colorScheme.surface.luminance() < 0.5f
 
     val bodyAccent = when (body) {
         CelestialBodyTelemetry.SUN -> customColors.sunPath
@@ -187,13 +200,24 @@ fun ChartTelemetryRow(
     val (azimuthDegText, azimuthCardinal) = formatTelemetryAzimuthParts(azimuth, locale)
     val showPhasePill = phase.isNotBlank()
 
+    // Keep phase pill colors stably animated across both expanded and compact layouts
+    val phaseColors = if (showPhasePill) {
+        resolvePhasePillColors(
+            body = body,
+            phase = phase,
+            isDarkSurface = isDarkSurface,
+        )
+    } else {
+        null
+    }
+
     // App label style (GoogleSansFlex, Title Case, tight tracking)
     val labelStyle = MaterialTheme.typography.labelMedium.copy(
         fontSize = 10.5.sp,
         lineHeight = 12.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 0.sp,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = colorScheme.onSurfaceVariant,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
         lineHeightStyle = CompactLineHeightStyle,
     )
@@ -208,24 +232,78 @@ fun ChartTelemetryRow(
         lineHeightStyle = CompactLineHeightStyle,
     )
 
+    val compactMetricStyle = MaterialTheme.typography.headlineSmall.copy(
+        fontSize = 15.5.sp,
+        lineHeight = 18.sp,
+        fontFeatureSettings = "tnum",
+        letterSpacing = (-0.2).sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+        lineHeightStyle = CompactLineHeightStyle,
+    )
+
+    val azimuthAnnotated = buildAnnotatedString {
+        append(azimuthDegText)
+        if (azimuthCardinal.isNotEmpty()) {
+            append(" ")
+            withStyle(
+                SpanStyle(
+                    color = bodyAccent.copy(alpha = 0.90f),
+                    fontWeight = FontWeight.Bold,
+                ),
+            ) {
+                append(azimuthCardinal)
+            }
+        }
+    }
+
+    val rowHeight = lerpDp(ExpandedTelemetryRowHeight, CollapsedTelemetryRowHeight, t)
+    val containerColor = lerpColor(colorScheme.surface, colorScheme.surfaceContainer, t)
+    val horizontalPadding = lerpDp(10.dp, 0.dp, t)
+    val verticalPadding = lerpDp(6.dp, 4.dp, t)
+    val bodyBoxSize = lerpDp(32.dp, 22.dp, t)
+    val sunIconSize = lerpDp(30.dp, 21.dp, t)
+    val moonIconSize = lerpDp(28.dp, 20.dp, t)
+    val bodyIconSpacer = lerpDp(10.dp, 8.dp, t)
+
+    val expandedAlpha = (1f - t * 2.2f).coerceIn(0f, 1f)
+    val compactAlpha = ((t - 0.38f) / 0.55f).coerceIn(0f, 1f)
+    val bottomDividerAlpha = if (drawBottomDivider) {
+        ((t - 0.35f) / 0.65f).coerceIn(0f, 1f) * 0.45f
+    } else {
+        0f
+    }
+    val dividerColor = colorScheme.outlineVariant
+
     Surface(
         shape = shape,
-        color = MaterialTheme.colorScheme.surface,
+        color = containerColor,
         modifier = modifier
             .fillMaxWidth()
-            .height(54.dp),
+            .height(rowHeight)
+            .drawWithContent {
+                drawContent()
+                if (bottomDividerAlpha > 0.005f) {
+                    val strokePx = 1.dp.toPx()
+                    drawLine(
+                        color = dividerColor.copy(alpha = bottomDividerAlpha),
+                        start = Offset(0f, size.height - strokePx / 2f),
+                        end = Offset(size.width, size.height - strokePx / 2f),
+                        strokeWidth = strokePx,
+                    )
+                }
+            },
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (showBodyIcon) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(bodyBoxSize)
                         .semantics { contentDescription = bodyIconContentDesc },
                 ) {
                     when (body) {
@@ -233,7 +311,7 @@ fun ChartTelemetryRow(
                             val sunIconDrawer = rememberChartIconDrawer(Charts.Sun.Daily.Elevation)
                             Spacer(
                                 modifier = Modifier
-                                    .size(30.dp)
+                                    .size(sunIconSize)
                                     .drawBehind {
                                         sunIconDrawer(size.minDimension, false)
                                     },
@@ -242,154 +320,270 @@ fun ChartTelemetryRow(
                         CelestialBodyTelemetry.MOON -> {
                             MoonPhaseIcon(
                                 phase = moonPhase,
-                                size = 28.dp,
+                                size = moonIconSize,
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(bodyIconSpacer))
             }
 
-            // Slot 1: Altitude — Hero metric (bold, high-contrast onSurface)
-            Column(
+            Box(
                 modifier = Modifier
-                    .weight(if (showPhasePill) 0.74f else 1.0f)
-                    .fillMaxHeight()
-                    .padding(vertical = 1.dp),
+                    .weight(1f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.CenterStart,
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.height(13.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.altitude),
-                        style = labelStyle,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
-                Box(
-                    contentAlignment = Alignment.BottomStart,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(
-                        text = altitudeText,
-                        style = metricBaseStyle.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        ),
-                        maxLines = 1,
-                        softWrap = false,
-                        autoSize = TextAutoSize.StepBased(
-                            minFontSize = 14.sp,
-                            maxFontSize = 20.sp,
-                            stepSize = 0.5.sp,
-                        ),
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // Slot 2: Direction — Same metric size as Altitude, softer secondary tone + compass & cardinal
-            Column(
-                modifier = Modifier
-                    .weight(if (showPhasePill) 1.24f else 1.0f)
-                    .fillMaxHeight()
-                    .padding(vertical = 1.dp),
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                    modifier = Modifier.height(13.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_explore_filled),
-                        contentDescription = null,
-                        tint = bodyAccent.copy(alpha = 0.85f),
-                        modifier = Modifier.size(10.5.dp),
-                    )
-                    Text(
-                        text = stringResource(R.string.direction),
-                        style = labelStyle,
-                        maxLines = 1,
-                        softWrap = false,
-                    )
-                }
-                Box(
-                    contentAlignment = Alignment.BottomStart,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(
-                        text = buildAnnotatedString {
-                            append(azimuthDegText)
-                            if (azimuthCardinal.isNotEmpty()) {
-                                append(" ")
-                                withStyle(
-                                    SpanStyle(
-                                        color = bodyAccent.copy(alpha = 0.90f),
-                                        fontWeight = FontWeight.Bold,
-                                    ),
-                                ) {
-                                    append(azimuthCardinal)
-                                }
-                            }
-                        },
-                        style = metricBaseStyle.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines = 1,
-                        softWrap = false,
-                        autoSize = TextAutoSize.StepBased(
-                            minFontSize = 12.sp,
-                            maxFontSize = 20.sp,
-                            stepSize = 0.5.sp,
-                        ),
-                    )
-                }
-            }
-
-            // Slot 3: Phase — Fixed-width, fixed-height expressive tonal pill (zero layout shift)
-            if (showPhasePill) {
-                Spacer(modifier = Modifier.width(6.dp))
-                val (phaseBg, phaseFg) = resolvePhasePillColors(
-                    body = body,
-                    phase = phase,
-                    isDarkSurface = isDarkSurface,
-                )
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = phaseBg,
-                    modifier = Modifier
-                        .weight(0.96f)
-                        .fillMaxHeight(),
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center,
+                // Expanded 2-line layout
+                if (expandedAlpha > 0.01f) {
+                    Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                            .graphicsLayer {
+                                alpha = expandedAlpha
+                                translationY = -4.dp.toPx() * t
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = phase,
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                fontSize = 11.5.sp,
-                                lineHeight = 12.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                letterSpacing = 0.sp,
-                                color = phaseFg,
-                                platformStyle = PlatformTextStyle(includeFontPadding = false),
-                                lineHeightStyle = CompactLineHeightStyle,
-                            ),
-                            maxLines = 2,
-                            autoSize = TextAutoSize.StepBased(
-                                minFontSize = 9.sp,
-                                maxFontSize = 12.sp,
-                                stepSize = 0.5.sp,
-                            ),
-                        )
+                        // Slot 1: Altitude — Hero metric (bold, high-contrast onSurface)
+                        Column(
+                            modifier = Modifier
+                                .weight(if (showPhasePill) 0.74f else 1.0f)
+                                .fillMaxHeight()
+                                .padding(vertical = 1.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.height(13.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.altitude),
+                                    style = labelStyle,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                )
+                            }
+                            Box(
+                                contentAlignment = Alignment.BottomStart,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(
+                                    text = altitudeText,
+                                    style = metricBaseStyle.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = colorScheme.onSurface,
+                                    ),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    autoSize = TextAutoSize.StepBased(
+                                        minFontSize = 14.sp,
+                                        maxFontSize = 20.sp,
+                                        stepSize = 0.5.sp,
+                                    ),
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        // Slot 2: Direction — Same metric size as Altitude, softer secondary tone + compass & cardinal
+                        Column(
+                            modifier = Modifier
+                                .weight(if (showPhasePill) 1.24f else 1.0f)
+                                .fillMaxHeight()
+                                .padding(vertical = 1.dp),
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                modifier = Modifier.height(13.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_explore_filled),
+                                    contentDescription = null,
+                                    tint = bodyAccent.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(10.5.dp),
+                                )
+                                Text(
+                                    text = stringResource(R.string.direction),
+                                    style = labelStyle,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                )
+                            }
+                            Box(
+                                contentAlignment = Alignment.BottomStart,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(
+                                    text = azimuthAnnotated,
+                                    style = metricBaseStyle.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = colorScheme.onSurfaceVariant,
+                                    ),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    autoSize = TextAutoSize.StepBased(
+                                        minFontSize = 12.sp,
+                                        maxFontSize = 20.sp,
+                                        stepSize = 0.5.sp,
+                                    ),
+                                )
+                            }
+                        }
+
+                        // Slot 3: Phase — Fixed-width, fixed-height expressive tonal pill (zero layout shift)
+                        if (phaseColors != null) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            val (phaseBg, phaseFg) = phaseColors
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = phaseBg,
+                                modifier = Modifier
+                                    .weight(0.96f)
+                                    .fillMaxHeight(),
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                ) {
+                                    Text(
+                                        text = phase,
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontSize = 11.5.sp,
+                                            lineHeight = 12.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            letterSpacing = 0.sp,
+                                            color = phaseFg,
+                                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                            lineHeightStyle = CompactLineHeightStyle,
+                                        ),
+                                        maxLines = 2,
+                                        autoSize = TextAutoSize.StepBased(
+                                            minFontSize = 9.sp,
+                                            maxFontSize = 12.sp,
+                                            stepSize = 0.5.sp,
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Compact 1-line layout (shown when chart header is collapsed)
+                if (compactAlpha > 0.01f) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                alpha = compactAlpha
+                                translationY = 4.dp.toPx() * (1f - t)
+                            },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // Slot 1: Inline Altitude
+                        Row(
+                            modifier = Modifier.weight(if (showPhasePill) 0.86f else 1.0f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.alt_short),
+                                style = labelStyle,
+                                maxLines = 1,
+                                softWrap = false,
+                            )
+                            Text(
+                                text = altitudeText,
+                                style = compactMetricStyle.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = colorScheme.onSurface,
+                                ),
+                                maxLines = 1,
+                                softWrap = false,
+                                autoSize = TextAutoSize.StepBased(
+                                    minFontSize = 12.sp,
+                                    maxFontSize = 15.5.sp,
+                                    stepSize = 0.5.sp,
+                                ),
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        // Slot 2: Inline Direction + compass + cardinal
+                        Row(
+                            modifier = Modifier.weight(if (showPhasePill) 1.22f else 1.0f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_explore_filled),
+                                contentDescription = null,
+                                tint = bodyAccent.copy(alpha = 0.85f),
+                                modifier = Modifier.size(12.dp),
+                            )
+                            Text(
+                                text = azimuthAnnotated,
+                                style = compactMetricStyle.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = colorScheme.onSurfaceVariant,
+                                ),
+                                maxLines = 1,
+                                softWrap = false,
+                                autoSize = TextAutoSize.StepBased(
+                                    minFontSize = 11.sp,
+                                    maxFontSize = 15.5.sp,
+                                    stepSize = 0.5.sp,
+                                ),
+                            )
+                        }
+
+                        // Slot 3: Single-line Phase pill
+                        if (phaseColors != null) {
+                            Spacer(modifier = Modifier.width(6.dp))
+                            val (phaseBg, phaseFg) = phaseColors
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = phaseBg,
+                                modifier = Modifier
+                                    .weight(0.98f)
+                                    .height(24.dp),
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 6.dp),
+                                ) {
+                                    Text(
+                                        text = phase,
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontSize = 11.sp,
+                                            lineHeight = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            letterSpacing = 0.sp,
+                                            color = phaseFg,
+                                            platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                            lineHeightStyle = CompactLineHeightStyle,
+                                        ),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
+                                        autoSize = TextAutoSize.StepBased(
+                                            minFontSize = 8.5.sp,
+                                            maxFontSize = 11.sp,
+                                            stepSize = 0.5.sp,
+                                        ),
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1354,6 +1548,73 @@ private fun ComboTelemetryCompactLightPreview() {
                     RiseSetEvent(timeHour = 23.86, azimuth = 349.8, isRise = true),
                 ),
             )
+        }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 360)
+@Composable
+private fun CollapsedTelemetryRowPreview() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        HeliosTheme(darkTheme = false, dynamicColor = false) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                ChartTelemetryRow(
+                    body = CelestialBodyTelemetry.SUN,
+                    altitude = 54.3,
+                    azimuth = 178.6,
+                    phase = "Daylight",
+                    shape = RoundedCornerShape(0.dp),
+                    collapseFraction = 1f,
+                )
+                ChartTelemetryRow(
+                    body = CelestialBodyTelemetry.SUN,
+                    altitude = -15.7,
+                    azimuth = 307.2,
+                    phase = "Astronomical Twilight",
+                    shape = RoundedCornerShape(0.dp),
+                    collapseFraction = 1f,
+                )
+                ChartTelemetryRow(
+                    body = CelestialBodyTelemetry.MOON,
+                    altitude = 38.2,
+                    azimuth = 232.4,
+                    phase = "Waning Gibbous",
+                    moonPhase = MoonPhaseAppearance(illuminationFraction = 0.72f, isWaxing = false),
+                    shape = RoundedCornerShape(0.dp),
+                    collapseFraction = 1f,
+                )
+            }
+        }
+        HeliosTheme(darkTheme = true, dynamicColor = false) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                ChartTelemetryRow(
+                    body = CelestialBodyTelemetry.SUN,
+                    altitude = -22.4,
+                    azimuth = 351.8,
+                    phase = "Night",
+                    shape = RoundedCornerShape(0.dp),
+                    collapseFraction = 1f,
+                )
+                ChartTelemetryRow(
+                    body = CelestialBodyTelemetry.MOON,
+                    altitude = 61.5,
+                    azimuth = 194.2,
+                    phase = "Waxing Crescent",
+                    moonPhase = MoonPhaseAppearance(illuminationFraction = 0.28f, isWaxing = true),
+                    shape = RoundedCornerShape(0.dp),
+                    collapseFraction = 1f,
+                )
+            }
         }
     }
 }
