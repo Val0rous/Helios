@@ -107,7 +107,7 @@ fun EquationOfTime(
     val sign = when {
         mins == 0 && secs == 0 -> ""
         currentEotMinutes >= 0.0 -> "+"
-        else -> "-"
+        else -> "\u2212" // True Unicode minus matching '+' advance width
     }
 
     Box(

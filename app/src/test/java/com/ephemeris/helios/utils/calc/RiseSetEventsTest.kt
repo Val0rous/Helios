@@ -156,54 +156,104 @@ class RiseSetEventsTest {
     }
 
     @Test
-    fun solarRiseSetEvents_mtErebusAugust_neverGlitchesToMidnightSun() {
+    fun solarRiseSetEvents_mtErebusPolarGrazingAndShiftedTimezones_neverGlitchToMidnightSun() {
+        val flagPairs = listOf(false to false, true to false, false to true, true to true)
         val zones = listOf(
             ZoneId.of("Antarctica/McMurdo"),
-            ZoneId.of("UTC"),
             ZoneId.of("Europe/Rome"),
-            ZoneId.of("America/New_York"),
-            ZoneId.of("Pacific/Kiritimati"),
+            ZoneId.of("UTC"),
+            java.time.ZoneOffset.ofHours(-5),
+            java.time.ZoneOffset.ofHours(-10),
         )
-        val failures = mutableListOf<String>()
-        // Fine sweep around exact grazing touch for Aug 19 (no dip) and Aug 12 (with dip)
-        val flagPairs = listOf(false to false, true to false, false to true, true to true)
-        for ((dip, instSd) in flagPairs) {
-            val baseDate = if (dip) LocalDate.of(2026, 8, 12) else LocalDate.of(2026, 8, 19)
-            // Find the exact grazing latitude for baseDate at McMurdo
-            val probeNoon = SolarEphemeris.calculateDailyEvents(
-                baseDate.atTime(12, 0).atZone(ZoneId.of("Antarctica/McMurdo")),
-                Coordinates(-77.5297, 167.1533, 3794.0, useHorizonDip = dip, useInstantaneousSemidiameter = instSd),
-            )
-            val horizon = Coordinates(-77.5297, 167.1533, 3794.0, useHorizonDip = dip, useInstantaneousSemidiameter = instSd)
-                .sunApparentHorizonAlt(probeNoon.distanceAu)
-            val delta = probeNoon.solarNoonAltitude - horizon
-            val grazingLat = -77.5297 - delta
 
-            for (zone in zones) {
-                for (step in -50..50) {
-                    val lat = grazingLat + step * 0.0005
-                    val coords = Coordinates(
-                        latitude = lat,
-                        longitude = 167.1533,
-                        altitude = 3794.0,
-                        useHorizonDip = dip,
-                        useInstantaneousSemidiameter = instSd,
+        // 1. Ultra-fine sweep right across the August grazing touch at Mt. Erebus
+        for (zone in zones) {
+            for ((dip, instSd) in flagPairs) {
+                val baseDate = if (dip) LocalDate.of(2026, 8, 11) else LocalDate.of(2026, 8, 17)
+                val base = Coordinates(-77.5297, 167.1533, 3794.0, useHorizonDip = dip, useInstantaneousSemidiameter = instSd)
+                val probe = SolarEphemeris.calculateDailyEvents(baseDate.atTime(12, 0).atZone(zone), base)
+                val horizon = base.sunApparentHorizonAlt(probe.distanceAu)
+                val exactGrazingLat = -77.5297 - (probe.solarNoonAltitude - horizon)
+
+                for (k in -60..60) {
+                    val lat = exactGrazingLat + k * 0.0001
+                    val coords = base.copy(latitude = lat)
+                    val ev = SolarEphemeris.calculateDailyEvents(baseDate.atTime(12, 0).atZone(zone), coords)
+                    assertTrue(
+                        "Mt. Erebus August grazing must never show Midnight Sun (zone=$zone dip=$dip inst=$instSd lat=$lat len=${ev.dayLength})",
+                        ev.dayLength < 12.0,
                     )
-                    val events = SolarEphemeris.calculateDailyEvents(baseDate.atTime(12, 0).atZone(zone), coords)
-                    val glitched = events.dayLength >= 12.0 ||
-                        (events.riseSetEvents.isEmpty() && events.dayLength > 1e-6)
-                    if (glitched) {
-                        failures.add(
-                            "zone=$zone dip=$dip instSd=$instSd lat=%.5f date=$baseDate events=${events.riseSetEvents.size} ".format(lat) +
-                                "sunrise=${events.sunrise} sunset=${events.sunset} dayLength=${events.dayLength} " +
-                                "noon=${events.solarNoon} noonElapsed=${events.solarNoonElapsedHours} " +
-                                "noonAlt=${events.solarNoonAltitude} midAlt=${events.solarMidnightAltitude} " +
-                                "horizon=${coords.sunApparentHorizonAlt(events.distanceAu)}",
+                    if (ev.riseSetEvents.isEmpty()) {
+                        assertEquals(
+                            "Empty rise/set on polar-night grazing day must yield 0h (zone=$zone dip=$dip inst=$instSd lat=$lat)",
+                            0.0,
+                            ev.dayLength,
+                            1e-6,
                         )
+                    } else {
+                        assertEquals("Grazing touch must emit rise+set pair, never unpaired crossing", 2, ev.riseSetEvents.size)
+                        assertTrue(ev.riseSetEvents[0].isRise && !ev.riseSetEvents[1].isRise)
                     }
                 }
             }
         }
-        assertTrue("Found ${failures.size} glitches:\n${failures.take(20).joinToString("\n")}", failures.isEmpty())
+
+        // 2. Full-year sweep at Mt. Erebus across shifted timezones (previously caused false 24h Midnight Sun
+        //    on April/May polar-night transition days when exactSolarNoon fell on the previous calendar day).
+        for (zone in zones) {
+            for ((dip, instSd) in flagPairs) {
+                val coords = Coordinates(-77.5297, 167.1533, 3794.0, useHorizonDip = dip, useInstantaneousSemidiameter = instSd)
+                var date = LocalDate.of(2026, 1, 1)
+                val end = LocalDate.of(2026, 12, 31)
+                while (!date.isAfter(end)) {
+                    val ev = SolarEphemeris.calculateDailyEvents(date.atTime(12, 0).atZone(zone), coords)
+                    val h = coords.sunApparentHorizonAlt(ev.distanceAu)
+                    if (ev.riseSetEvents.isEmpty()) {
+                        if (ev.solarMidnightAltitude < h - 0.1) {
+                            assertEquals(
+                                "False Midnight Sun on $date (zone=$zone dip=$dip inst=$instSd len=${ev.dayLength})",
+                                0.0,
+                                ev.dayLength,
+                                1e-6,
+                            )
+                        } else if (ev.solarMidnightAltitude > h + 0.1) {
+                            val expectedDayHours = LocalDayTimeline(date, zone).durationHours
+                            assertEquals(
+                                "False Polar Night on $date (zone=$zone dip=$dip inst=$instSd len=${ev.dayLength})",
+                                expectedDayHours,
+                                ev.dayLength,
+                                1e-6,
+                            )
+                        }
+                    }
+                    date = date.plusDays(1)
+                }
+            }
+        }
+    }
+
+    @Test
+    fun getExactDayLength_grazingNoonTouchWithMidnightBelowHorizon_returnsPolarNight() {
+        // Noon barely exceeds threshold while solar midnight is deep below horizon -> Polar Night (0h), never 24h
+        val grazingNight = SolarEphemeris.getExactDayLength(
+            sunriseHours = null,
+            sunsetHours = null,
+            solarNoonAltitude = -0.832,
+            sunriseSunsetAltThreshold = -0.833,
+            dayDurationHours = 24.0,
+            solarMidnightAltitude = -25.0,
+        )
+        assertEquals(0.0, grazingNight, 1e-9)
+
+        // True Polar Day: both noon and midnight stay above the apparent horizon -> 24h
+        val midnightSun = SolarEphemeris.getExactDayLength(
+            sunriseHours = null,
+            sunsetHours = null,
+            solarNoonAltitude = 12.0,
+            sunriseSunsetAltThreshold = -0.833,
+            dayDurationHours = 24.0,
+            solarMidnightAltitude = 1.5,
+        )
+        assertEquals(24.0, midnightSun, 1e-9)
     }
 }

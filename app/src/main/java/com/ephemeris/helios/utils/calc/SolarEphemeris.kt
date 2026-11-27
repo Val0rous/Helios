@@ -156,13 +156,24 @@ object SolarEphemeris {
         val tzOffsetHours = timeline.startUtcAnchorOffsetHours
         val dayHours = timeline.durationHours
 
-        // 1. Iterative Solar Noon (Meeus) in continuous elapsed hours since local start-of-day
-        var exactSolarNoon = 12.0 - (longitude / 15.0) + tzOffsetHours
-        for (i in 1..2) {
-            val t = calculateJulianCentury(date, exactSolarNoon, tzOffsetHours)
-            val params = calculateSolarParams(t)
-            exactSolarNoon = 12.0 - (longitude / 15.0) - (params.eotMinutes / 60.0) + tzOffsetHours
+        // 1. Iterative Solar Noon (Meeus) in continuous elapsed hours inside [0, dayHours).
+        // Solving across k ∈ {-2..2} (matching solar midnight below) ensures that even when the
+        // observer's active timezone is far from their solar meridian, exactSolarNoon and noonPos
+        // always evaluate on today's local calendar day rather than yesterday or tomorrow.
+        fun solveSolarNoonForCycle(k: Int): Double {
+            var candidate = 12.0 + (24.0 * k) - (longitude / 15.0) + tzOffsetHours
+            for (i in 1..3) {
+                val t = calculateJulianCentury(date, candidate, tzOffsetHours)
+                val params = calculateSolarParams(t)
+                candidate = 12.0 + (24.0 * k) - (longitude / 15.0) - (params.eotMinutes / 60.0) + tzOffsetHours
+            }
+            return candidate
         }
+        val noonCandidates = (-2..2).map { k -> k to solveSolarNoonForCycle(k) }
+        val (noonCycleK, exactSolarNoon) = noonCandidates
+            .filter { (_, hour) -> hour >= 0.0 && hour < dayHours }
+            .minByOrNull { (_, hour) -> hour }
+            ?: noonCandidates.minBy { (_, hour) -> abs(hour - (dayHours * 0.5)) }
         val noonPos = getPositionAtHour(date, exactSolarNoon, latitude, longitude, tzOffsetHours)
 
         val dynamicSunriseSunsetAlt = if (useInstantaneousSemidiameter) {
@@ -193,49 +204,129 @@ object SolarEphemeris {
             return (low + high) / 2.0
         }
 
+        // Golden-section search for the true local maximum / minimum of a continuous signed-altitude
+        // curve inside [startHour, endHour]. Captures brief polar grazing arches whose true peak
+        // shifts a few minutes away from meridian transit due to rapid declination change.
+        fun refineSolarExtremum(
+            startHour: Double,
+            endHour: Double,
+            findMax: Boolean,
+            signedAlt: (Double) -> Double,
+        ): Double {
+            var a = startHour.coerceIn(0.0, dayHours)
+            var b = endHour.coerceIn(0.0, dayHours)
+            if (b - a <= 1e-6) return (a + b) * 0.5
+            val invPhi = 0.6180339887498949
+            var c = b - (b - a) * invPhi
+            var d = a + (b - a) * invPhi
+            var fc = signedAlt(c)
+            var fd = signedAlt(d)
+            repeat(18) {
+                val chooseLeft = if (findMax) fc > fd else fc < fd
+                if (chooseLeft) {
+                    b = d
+                    d = c
+                    fd = fc
+                    c = b - (b - a) * invPhi
+                    fc = signedAlt(c)
+                } else {
+                    a = c
+                    c = d
+                    fc = fd
+                    d = a + (b - a) * invPhi
+                    fd = signedAlt(d)
+                }
+            }
+            return (a + b) * 0.5
+        }
+
+        // Strict sign-change crossing detector on a sorted sample array.
+        // Skips exact-zero tangent touches (e.g. peak altitude touching 0.0 from below without ever
+        // going strictly positive) so a grazing touch never produces a bogus unpaired crossing.
+        fun detectStrictCrossings(
+            hours: DoubleArray,
+            signed: DoubleArray,
+            signedAlt: (Double) -> Double,
+        ): List<Pair<Double, Boolean>> {
+            val allNonPositive = signed.all { it <= 0.0 }
+            val allNonNegative = signed.all { it >= 0.0 }
+            if (allNonPositive || allNonNegative) return emptyList()
+
+            val crossings = mutableListOf<Pair<Double, Boolean>>()
+            var prevNonZeroIdx = -1
+            var prevAbove = false
+
+            for (i in signed.indices) {
+                val s = signed[i]
+                if (s == 0.0) continue
+                val currAbove = s > 0.0
+                if (prevNonZeroIdx >= 0 && currAbove != prevAbove) {
+                    val crossing = refineSolarCrossing(
+                        startHour = hours[prevNonZeroIdx],
+                        endHour = hours[i],
+                        isRising = currAbove,
+                        signedAlt = signedAlt,
+                    )
+                    crossings.add(crossing to currAbove)
+                }
+                prevNonZeroIdx = i
+                prevAbove = currAbove
+            }
+            return crossings
+        }
+
         // Fallback scanner for polar / grazing crossings (handles exact ±90° poles, single-crossing
         // polar transition days, and arbitrarily brief grazing sunrise/sunset touches around solar noon/midnight).
         fun scanPolarEventTimes(signedAlt: (Double) -> Double): Pair<Double?, Double?> {
-            var riseHour: Double? = null
-            var setHour: Double? = null
-
             val stepMinutes = 10
             val stepHours = stepMinutes / 60.0
-            val totalMinutes = (dayHours * 60.0).roundToInt()
-            val numSamples = (totalMinutes / stepMinutes) + 1
-            val signed = DoubleArray(numSamples)
-            signed[0] = signedAlt(0.0)
+            val grid = mutableListOf<Double>()
+            var hCursor = 0.0
+            while (hCursor < dayHours - 1e-6) {
+                grid.add(hCursor)
+                hCursor += stepHours
+            }
+            grid.add(dayHours)
 
-            for (idx in 1 until numSamples) {
-                val h = min(idx * stepHours, dayHours)
-                val prevH = (idx - 1) * stepHours
-                val curr = signedAlt(h)
-                signed[idx] = curr
-                val prev = signed[idx - 1]
-                if (prev < 0.0 && curr >= 0.0) {
-                    riseHour = refineSolarCrossing(prevH, h, isRising = true, signedAlt = signedAlt)
-                } else if (prev > 0.0 && curr <= 0.0) {
-                    setHour = refineSolarCrossing(prevH, h, isRising = false, signedAlt = signedAlt)
-                }
+            val normalizedNoon = ((exactSolarNoon % dayHours) + dayHours) % dayHours
+            val normalizedMidnight = ((normalizedNoon + 12.0) % dayHours)
+            if (normalizedNoon in 1e-4..(dayHours - 1e-4)) {
+                grid.add(normalizedNoon)
+                grid.add(
+                    refineSolarExtremum(
+                        startHour = (normalizedNoon - 0.5).coerceAtLeast(0.0),
+                        endHour = (normalizedNoon + 0.5).coerceAtMost(dayHours),
+                        findMax = true,
+                        signedAlt = signedAlt,
+                    ),
+                )
+            }
+            if (normalizedMidnight in 1e-4..(dayHours - 1e-4)) {
+                grid.add(normalizedMidnight)
+                grid.add(
+                    refineSolarExtremum(
+                        startHour = (normalizedMidnight - 0.5).coerceAtLeast(0.0),
+                        endHour = (normalizedMidnight + 0.5).coerceAtMost(dayHours),
+                        findMax = false,
+                        signedAlt = signedAlt,
+                    ),
+                )
+            }
+            grid.sort()
+
+            val hours = DoubleArray(grid.size)
+            val signed = DoubleArray(grid.size)
+            for (i in grid.indices) {
+                hours[i] = grid[i]
+                signed[i] = signedAlt(grid[i])
             }
 
-            // Guarantee even a <10-minute grazing touch at solar noon or midnight is captured
-            if (riseHour == null && setHour == null) {
-                val normalizedNoon = ((exactSolarNoon % 24.0) + 24.0) % 24.0
-                val normalizedMidnight = ((normalizedNoon + 12.0) % 24.0)
-                if (signed[0] < 0.0 && normalizedNoon in 0.0..dayHours && signedAlt(normalizedNoon) >= 0.0) {
-                    val leftGrid = (floor(normalizedNoon / stepHours) * stepHours).coerceAtLeast(0.0)
-                    val rightGrid = (ceil(normalizedNoon / stepHours) * stepHours).coerceAtMost(dayHours)
-                    riseHour = refineSolarCrossing(leftGrid, normalizedNoon, isRising = true, signedAlt = signedAlt)
-                    setHour = refineSolarCrossing(normalizedNoon, rightGrid, isRising = false, signedAlt = signedAlt)
-                } else if (signed[0] >= 0.0 && normalizedMidnight in 0.0..dayHours && signedAlt(normalizedMidnight) < 0.0) {
-                    val leftGrid = (floor(normalizedMidnight / stepHours) * stepHours).coerceAtLeast(0.0)
-                    val rightGrid = (ceil(normalizedMidnight / stepHours) * stepHours).coerceAtMost(dayHours)
-                    setHour = refineSolarCrossing(leftGrid, normalizedMidnight, isRising = false, signedAlt = signedAlt)
-                    riseHour = refineSolarCrossing(normalizedMidnight, rightGrid, isRising = true, signedAlt = signedAlt)
-                }
+            val crossings = detectStrictCrossings(hours, signed, signedAlt)
+            var riseHour: Double? = null
+            var setHour: Double? = null
+            for ((hour, isRise) in crossings) {
+                if (isRise) riseHour = hour else setHour = hour
             }
-
             return Pair(riseHour, setHour)
         }
 
@@ -260,9 +351,9 @@ object SolarEphemeris {
                 return scanPolarEventTimes(::signedAltAt)
             }
 
-            // Start with rough guesses: 6 AM for morning, 6 PM for evening
-            var dawnEstimate = 6.0
-            var duskEstimate = 18.0
+            // Start with rough guesses anchored around today's solar noon cycle
+            var dawnEstimate = (exactSolarNoon - 6.0).coerceIn(0.0, dayHours)
+            var duskEstimate = (exactSolarNoon + 6.0).coerceIn(0.0, dayHours)
             var nearPolarGrazing = false
 
             // Iterate 3 times for sub-second convergence
@@ -287,11 +378,11 @@ object SolarEphemeris {
                 }
 
                 val dawnOmegaDeg = Math.toDegrees(acos(dawnCosOmega))
-                val dawnSolarNoonAtThatMoment = 12.0 - (longitude / 15.0) - (dawnParams.eotMinutes / 60.0) + tzOffsetHours
+                val dawnSolarNoonAtThatMoment = 12.0 + (24.0 * noonCycleK) - (longitude / 15.0) - (dawnParams.eotMinutes / 60.0) + tzOffsetHours
                 dawnEstimate = dawnSolarNoonAtThatMoment - (dawnOmegaDeg / 15.0)
 
                 val duskOmegaDeg = Math.toDegrees(acos(duskCosOmega))
-                val duskSolarNoonAtThatMoment = 12.0 - (longitude / 15.0) - (duskParams.eotMinutes / 60.0) + tzOffsetHours
+                val duskSolarNoonAtThatMoment = 12.0 + (24.0 * noonCycleK) - (longitude / 15.0) - (duskParams.eotMinutes / 60.0) + tzOffsetHours
                 duskEstimate = duskSolarNoonAtThatMoment + (duskOmegaDeg / 15.0)
             }
 
@@ -330,8 +421,6 @@ object SolarEphemeris {
         // 3. Populate Azimuths for core events (evaluated on continuous elapsed timeline)
         val sunrisePos = sun.first?.let { getPositionAtHour(date, it, latitude, longitude, tzOffsetHours) }
         val sunsetPos = sun.second?.let { getPositionAtHour(date, it, latitude, longitude, tzOffsetHours) }
-
-        val dayLength = getExactDayLength(sun.first, sun.second, noonPos.altitude, dynamicSunriseSunsetAlt, dayHours)
 
         // 4. Exact Solar Midnight (lower meridian transit, hour angle = ±180°) on [0, dayHours).
         // Because Equation of Time drift stretches the true solar day past 24h (notably around
@@ -374,6 +463,16 @@ object SolarEphemeris {
         val solarMidnightAzimuth = solarMidnightEvents.firstOrNull()?.azimuth
             ?: fallbackNadirPos!!.azimuth
 
+        fun signedSunAltAt(hour: Double): Double {
+            val pos = getPositionAtHour(date, hour, latitude, longitude, tzOffsetHours)
+            val horizon = if (useInstantaneousSemidiameter) {
+                -(REFRACTION_HORIZON_DEG + calculateSemiDiameterDeg(pos.distanceAu)) - coordinates.horizonDipDeg
+            } else {
+                dynamicSunriseSunsetAlt
+            }
+            return pos.altitude - horizon
+        }
+
         // 5. Shared exact solar-altitude band scanner over [0, dayHours]
         // Captures 0, 1, 2, or 3 intervals per calendar day (including Scandinavian midnight-split
         // twilights, continuous overnight/midday bands, polar transitions, and 23h/25h DST days).
@@ -386,9 +485,29 @@ object SolarEphemeris {
         }
         sampleGrid.add(dayHours)
         val noonInDay = ((exactSolarNoon % dayHours) + dayHours) % dayHours
-        if (noonInDay > 1e-4 && noonInDay < dayHours - 1e-4) sampleGrid.add(noonInDay)
+        if (noonInDay > 1e-4 && noonInDay < dayHours - 1e-4) {
+            sampleGrid.add(noonInDay)
+            sampleGrid.add(
+                refineSolarExtremum(
+                    startHour = (noonInDay - 0.5).coerceAtLeast(0.0),
+                    endHour = (noonInDay + 0.5).coerceAtMost(dayHours),
+                    findMax = true,
+                    signedAlt = ::signedSunAltAt,
+                ),
+            )
+        }
         inDayMidnights.forEach { midnightInDay ->
-            if (midnightInDay > 1e-4 && midnightInDay < dayHours - 1e-4) sampleGrid.add(midnightInDay)
+            if (midnightInDay > 1e-4 && midnightInDay < dayHours - 1e-4) {
+                sampleGrid.add(midnightInDay)
+                sampleGrid.add(
+                    refineSolarExtremum(
+                        startHour = (midnightInDay - 0.5).coerceAtLeast(0.0),
+                        endHour = (midnightInDay + 0.5).coerceAtMost(dayHours),
+                        findMax = false,
+                        signedAlt = ::signedSunAltAt,
+                    ),
+                )
+            }
         }
         sampleGrid.sort()
 
@@ -557,34 +676,13 @@ object SolarEphemeris {
 
         // 6. Chronological horizon-crossing scanner over [0, dayHours]
         // Captures 0, 1, 2, or 3 sunrise/sunset crossings per local calendar day (e.g., arctic
-        // Set -> Rise -> Set or Rise -> Set -> Rise days) with exact per-event azimuths.
-        fun signedSunAltAt(hour: Double): Double {
-            val pos = getPositionAtHour(date, hour, latitude, longitude, tzOffsetHours)
-            val horizon = if (useInstantaneousSemidiameter) {
-                -(REFRACTION_HORIZON_DEG + calculateSemiDiameterDeg(pos.distanceAu)) - coordinates.horizonDipDeg
-            } else {
-                dynamicSunriseSunsetAlt
-            }
-            return pos.altitude - horizon
+        // Set -> Rise -> Set or Rise -> Set -> Rise days) with exact per-event azimuths, and
+        // derives dayLength from the exact same crossing list so Rise & Set can never contradict
+        // itself (e.g. showing Midnight Sun on a polar-night grazing touch).
+        val sampleSigned = DoubleArray(sampleHours.size) { i ->
+            sampleAlts[i] - sampleSunHorizons[i]
         }
-
-        val riseSetCrossings = mutableListOf<Pair<Double, Boolean>>()
-        for (i in 0 until sampleHours.lastIndex) {
-            val h0 = sampleHours[i]
-            val h1 = sampleHours[i + 1]
-            if (h1 - h0 <= 1e-7) continue
-            val s0 = sampleAlts[i] - sampleSunHorizons[i]
-            val s1 = sampleAlts[i + 1] - sampleSunHorizons[i + 1]
-            if (s0 < 0.0 && s1 >= 0.0) {
-                val crossing = refineSolarCrossing(h0, h1, isRising = true, signedAlt = ::signedSunAltAt)
-                riseSetCrossings.add(crossing to true)
-            } else if (s0 > 0.0 && s1 <= 0.0) {
-                val crossing = refineSolarCrossing(h0, h1, isRising = false, signedAlt = ::signedSunAltAt)
-                riseSetCrossings.add(crossing to false)
-            } else if (i == 0 && s0 == 0.0 && s1 != 0.0) {
-                riseSetCrossings.add(0.0 to (s1 > 0.0))
-            }
-        }
+        val riseSetCrossings = detectStrictCrossings(sampleHours, sampleSigned, ::signedSunAltAt)
 
         val riseSetEvents = riseSetCrossings.map { (elapsedHour, isRise) ->
             val pos = getPositionAtHour(date, elapsedHour, latitude, longitude, tzOffsetHours)
@@ -595,8 +693,15 @@ object SolarEphemeris {
             )
         }
 
-        val resolvedDayLength = if (riseSetCrossings.size >= 3) {
-            var isAbove = (sampleAlts[0] - sampleSunHorizons[0]) >= 0.0
+        val resolvedDayLength = if (riseSetCrossings.isEmpty()) {
+            // Polar Day (Midnight Sun) requires the Sun to stay above the horizon throughout the
+            // entire day (all samples >= 0 with at least one strictly > 0), never just at noon.
+            val isAllDayAbove = sampleSigned.all { it >= 0.0 } && sampleSigned.any { it > 0.0 }
+            if (isAllDayAbove) dayHours else 0.0
+        } else {
+            // Before the first strict crossing, the Sun is on the opposite side of the horizon:
+            // rising first -> started below at 00:00; setting first -> started above at 00:00.
+            var isAbove = !riseSetCrossings.first().second
             var aboveStart = if (isAbove) 0.0 else Double.NaN
             var totalAbove = 0.0
             for ((t, isRise) in riseSetCrossings) {
@@ -612,16 +717,37 @@ object SolarEphemeris {
                 totalAbove += (dayHours - aboveStart).coerceAtLeast(0.0)
             }
             totalAbove.coerceIn(0.0, dayHours)
-        } else {
-            dayLength
+        }
+
+        // Keep legacy sunrise/sunset fields synchronized with the strict crossing scanner on
+        // zero-crossing and brief grazing days so downstream consumers never see stale crossings.
+        val resolvedSunriseElapsed = when {
+            riseSetCrossings.isEmpty() -> null
+            sun.first != null -> sun.first
+            else -> riseSetCrossings.firstOrNull { it.second }?.first
+        }
+        val resolvedSunsetElapsed = when {
+            riseSetCrossings.isEmpty() -> null
+            sun.second != null -> sun.second
+            else -> riseSetCrossings.lastOrNull { !it.second }?.first
+        }
+        val resolvedSunriseAz = when {
+            resolvedSunriseElapsed == null -> null
+            resolvedSunriseElapsed == sun.first -> sunrisePos?.azimuth
+            else -> getPositionAtHour(date, resolvedSunriseElapsed, latitude, longitude, tzOffsetHours).azimuth
+        }
+        val resolvedSunsetAz = when {
+            resolvedSunsetElapsed == null -> null
+            resolvedSunsetElapsed == sun.second -> sunsetPos?.azimuth
+            else -> getPositionAtHour(date, resolvedSunsetElapsed, latitude, longitude, tzOffsetHours).azimuth
         }
 
         return DailyEvents(
             solarNoon = exactSolarNoon.toWallClock(),
             solarNoonAltitude = noonPos.altitude,
             solarNoonAzimuth = noonPos.azimuth,
-            sunrise = sun.first.toWallClock(), sunriseAzimuth = sunrisePos?.azimuth,
-            sunset = sun.second.toWallClock(), sunsetAzimuth = sunsetPos?.azimuth,
+            sunrise = resolvedSunriseElapsed.toWallClock(), sunriseAzimuth = resolvedSunriseAz,
+            sunset = resolvedSunsetElapsed.toWallClock(), sunsetAzimuth = resolvedSunsetAz,
             dawnCivil = civil.first.toWallClock(), duskCivil = civil.second.toWallClock(),
             dawnNautical = nautical.first.toWallClock(), duskNautical = nautical.second.toWallClock(),
             dawnAstronomical = astro.first.toWallClock(), duskAstronomical = astro.second.toWallClock(),
@@ -1366,13 +1492,16 @@ object SolarEphemeris {
         solarNoonAltitude: Double,
         sunriseSunsetAltThreshold: Double,
         dayDurationHours: Double = 24.0,
+        solarMidnightAltitude: Double = solarNoonAltitude,
     ): Double {
         // 1. Handle edge cases (Polar day/night & single-crossing transition days)
         if (sunriseHours == null && sunsetHours == null) {
-            return if (solarNoonAltitude > sunriseSunsetAltThreshold) {
+            return if (solarNoonAltitude > sunriseSunsetAltThreshold &&
+                solarMidnightAltitude >= sunriseSunsetAltThreshold
+            ) {
                 dayDurationHours // Polar Day (Midnight Sun)
             } else {
-                0.0 // Polar Night
+                0.0 // Polar Night (including noon grazing touches when midnight is below horizon)
             }
         }
         if (sunriseHours != null && sunsetHours == null) {
