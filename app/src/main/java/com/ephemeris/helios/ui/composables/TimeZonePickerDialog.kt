@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -297,8 +299,17 @@ private fun TimeZonePickerDialogContent(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
+                        val isDarkSurface = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+                        val resetContentColor = if (isDarkSurface) {
+                            MaterialTheme.colorScheme.onTertiaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        }
                         TextButton(
                             onClick = { onSelectTimezone(null) },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = resetContentColor,
+                            ),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         ) {
                             Icon(
