@@ -559,4 +559,97 @@ class EphemerisCalculationsTest {
             moonHorizRight * 0.03,
         )
     }
+
+    @Test
+    fun vsop87dSolarEphemeris_matchesMeeusExample25bAnd28a() {
+        // Meeus Astronomical Algorithms (2nd ed.) Example 25.b & Example 28.a:
+        // 1992 October 13 00:00 TD -> JDE = 2448908.5
+        val jde = 2448908.5
+        val t = (jde - 2451545.0) / 36525.0
+
+        // Nutation (Meeus Ch. 22): Δψ = +15.908", Δε = -0.308", ε = 23.4401443°
+        val nutation = calculateNutation(t)
+        assertEquals(15.908, nutation.deltaPsiDeg * 3600.0, 0.01)
+        assertEquals(-0.308, nutation.deltaEpsDeg * 3600.0, 0.01)
+        assertEquals(23.4401443, calculateTrueObliquityDeg(t, nutation.deltaEpsDeg), 0.0001)
+
+        val state = SolarEphemeris.calculateVsop87dSolarState(t)
+
+        // Radius vector R = 0.99760775 AU (~150 m tolerance!)
+        assertEquals(0.99760775, state.distanceAu, 1e-6)
+        // True geometric FK5 longitude ⊙ = 199° 54' 26.45" = 199.907347°
+        assertEquals(199.907347, state.trueLongitudeFk5Deg, 0.0005)
+        // Apparent longitude λ = 199° 54' 21.82" = 199.906061°
+        assertEquals(199.906061, state.apparentLongitudeDeg, 0.0005)
+        // Geocentric latitude β (FK5) = +0.62"
+        assertEquals(0.62, state.latitudeFk5Deg * 3600.0, 0.05)
+        // Apparent RA α = 198.378178° (13h 13m 30.763s)
+        assertEquals(198.378178, state.rightAscensionDeg, 0.0005)
+        // Apparent Dec δ = -7.783871° (-7° 47' 01.94")
+        assertEquals(-7.783871, Math.toDegrees(state.declinationRad), 0.0005)
+        // Equation of Time (Meeus Ex. 28.a): +13m 42.6s = +13.710 min
+        assertEquals(13.710, state.eotMinutes, 0.01)
+
+        // Lightweight calculateEcliptic agrees with full state
+        val ecliptic = SolarEphemeris.calculateEcliptic(t)
+        assertEquals(state.trueLongitudeFk5Deg, ecliptic.trueLongitudeDeg, 1e-9)
+        assertEquals(state.distanceAu, ecliptic.distanceAu, 1e-9)
+    }
+
+    @Test
+    fun meeusChapter47LunarEphemeris_matchesMeeusExample47a() {
+        // Meeus Astronomical Algorithms (2nd ed.) Example 47.a:
+        // 1992 April 12 00:00 TD -> JDE = 2448724.5
+        val jde = 2448724.5
+        val t = (jde - 2451545.0) / 36525.0
+
+        val ecliptic = LunarEphemeris.calculateGeocentricEcliptic(t)
+        val apparent = LunarEphemeris.calculateApparentGeocentric(t)
+
+        // Mean geocentric longitude λ = 133.162655°
+        assertEquals(133.162655, ecliptic.longitudeDeg, 0.0002)
+        // Apparent longitude λ_app = 133.167265° (with Δψ = +0.004610°)
+        assertEquals(133.167265, apparent.apparentLongitudeDeg, 0.0002)
+        // Geocentric latitude β = -3.229126°
+        assertEquals(-3.229126, ecliptic.latitudeDeg, 0.0002)
+        // Earth–Moon distance Δ = 368409.7 km
+        assertEquals(368409.7, ecliptic.distanceKm, 0.1)
+        // Apparent RA α = 134.688469° (8h 58m 45.2s)
+        val raDeg = ((Math.toDegrees(apparent.raRad) % 360.0) + 360.0) % 360.0
+        assertEquals(134.688469, raDeg, 0.0005)
+        // Apparent Dec δ = +13.768367° (+13° 46' 06.1")
+        assertEquals(13.768367, Math.toDegrees(apparent.decRad), 0.0005)
+    }
+
+    @Test
+    fun modern2026Apsides_matchUsnoAndAstroPixelsBenchmarks() {
+        // 2026 Solar Perihelion: Jan 3, 2026 17:15 UTC -> 0.9833021 AU (147,099,889 km)
+        val perihelion = ZonedDateTime.of(2026, 1, 3, 17, 15, 0, 0, ZoneOffset.UTC)
+        val periAu = SolarEphemeris.calculateDistanceAu(perihelion)
+        assertEquals(0.9833021, periAu, 2e-6)
+        assertTrue(periAu <= SolarEphemeris.calculateDistanceAu(perihelion.minusHours(1)))
+        assertTrue(periAu <= SolarEphemeris.calculateDistanceAu(perihelion.plusHours(1)))
+
+        // 2026 Solar Aphelion: Jul 6, 2026 17:30 UTC -> 1.0166440 AU (152,087,774 km)
+        val aphelion = ZonedDateTime.of(2026, 7, 6, 17, 30, 0, 0, ZoneOffset.UTC)
+        val aphAu = SolarEphemeris.calculateDistanceAu(aphelion)
+        assertEquals(1.0166440, aphAu, 2e-6)
+        assertTrue(aphAu >= SolarEphemeris.calculateDistanceAu(aphelion.minusHours(1)))
+        assertTrue(aphAu >= SolarEphemeris.calculateDistanceAu(aphelion.plusHours(1)))
+
+        // 2026 Lunar Apogees & Perigees (AstroPixels / TimeAndDate benchmarks, ±5 km for truncated ELP-2000/82)
+        val novApogee = ZonedDateTime.of(2026, 11, 13, 17, 50, 0, 0, ZoneOffset.UTC)
+        val novPerigee = ZonedDateTime.of(2026, 11, 25, 20, 58, 0, 0, ZoneOffset.UTC)
+        val decApogee = ZonedDateTime.of(2026, 12, 11, 6, 46, 0, 0, ZoneOffset.UTC)
+        val decPerigee = ZonedDateTime.of(2026, 12, 24, 8, 30, 0, 0, ZoneOffset.UTC)
+
+        assertEquals(405_619.0, LunarEphemeris.calculateDistanceKm(novApogee), 5.0)
+        assertEquals(359_348.0, LunarEphemeris.calculateDistanceKm(novPerigee), 5.0)
+        assertEquals(406_421.0, LunarEphemeris.calculateDistanceKm(decApogee), 5.0)
+        assertEquals(356_650.0, LunarEphemeris.calculateDistanceKm(decPerigee), 5.0)
+
+        // Ensure calculateDistanceKm agrees exactly with full calculatePosition distanceKm
+        val posDecPerigee = LunarEphemeris.calculatePosition(decPerigee, rome)
+        assertEquals(posDecPerigee.distanceKm, LunarEphemeris.calculateDistanceKm(decPerigee), 1e-6)
+    }
 }

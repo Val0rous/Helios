@@ -21,11 +21,8 @@ private val AllFontWeights = listOf(
     FontWeight.Black,
 )
 
-private fun googleSansFlexFamily(
-    roundness: Float,
-    opticalSize: Float,
-    width: Float = 100f,
-): FontFamily = FontFamily(
+/** Rounded Google Sans Flex (`ROND = 100`, `opsz = 36`, `wdth = 92`) used as the app-wide default font. */
+val GoogleSansFlexRounded: FontFamily = FontFamily(
     AllFontWeights.flatMap { weight ->
         listOf(
             Font(
@@ -34,9 +31,9 @@ private fun googleSansFlexFamily(
                 style = FontStyle.Normal,
                 variationSettings = FontVariation.Settings(
                     FontVariation.weight(weight.weight),
-                    FontVariation.width(width),
-                    FontVariation.Setting("ROND", roundness),
-                    FontVariation.Setting("opsz", opticalSize),
+                    FontVariation.width(92f),
+                    FontVariation.Setting("ROND", 100f),
+                    FontVariation.Setting("opsz", 36f),
                 ),
             ),
             Font(
@@ -45,9 +42,9 @@ private fun googleSansFlexFamily(
                 style = FontStyle.Italic,
                 variationSettings = FontVariation.Settings(
                     FontVariation.weight(weight.weight),
-                    FontVariation.width(width),
-                    FontVariation.Setting("ROND", roundness),
-                    FontVariation.Setting("opsz", opticalSize),
+                    FontVariation.width(92f),
+                    FontVariation.Setting("ROND", 100f),
+                    FontVariation.Setting("opsz", 36f),
                     FontVariation.Setting("slnt", -10f),
                 ),
             ),
@@ -55,35 +52,5 @@ private fun googleSansFlexFamily(
     },
 )
 
-/** Standard Google Sans Flex variable font used across app copy, headers, and labels. */
-val GoogleSansFlex: FontFamily = googleSansFlexFamily(
-    roundness = 0f,
-    opticalSize = 16f,
-)
-
-/** Rounded Google Sans Flex (`ROND = 100`) used for large display & metric numbers. */
-val GoogleSansFlexRounded: FontFamily = googleSansFlexFamily(
-    roundness = 100f,
-    opticalSize = 36f,
-    width = 92f,
-)
-
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-private val BaseTypography = Typography(fontFamily = GoogleSansFlex)
-
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
-val Typography = Typography(
-    fontFamily = GoogleSansFlex,
-    displayLarge = BaseTypography.displayLarge.copy(fontFamily = GoogleSansFlexRounded),
-    displayMedium = BaseTypography.displayMedium.copy(fontFamily = GoogleSansFlexRounded),
-    displaySmall = BaseTypography.displaySmall.copy(fontFamily = GoogleSansFlexRounded),
-    headlineLarge = BaseTypography.headlineLarge.copy(fontFamily = GoogleSansFlexRounded),
-    headlineMedium = BaseTypography.headlineMedium.copy(fontFamily = GoogleSansFlexRounded),
-    headlineSmall = BaseTypography.headlineSmall.copy(fontFamily = GoogleSansFlexRounded),
-    displayLargeEmphasized = BaseTypography.displayLargeEmphasized.copy(fontFamily = GoogleSansFlexRounded),
-    displayMediumEmphasized = BaseTypography.displayMediumEmphasized.copy(fontFamily = GoogleSansFlexRounded),
-    displaySmallEmphasized = BaseTypography.displaySmallEmphasized.copy(fontFamily = GoogleSansFlexRounded),
-    headlineLargeEmphasized = BaseTypography.headlineLargeEmphasized.copy(fontFamily = GoogleSansFlexRounded),
-    headlineMediumEmphasized = BaseTypography.headlineMediumEmphasized.copy(fontFamily = GoogleSansFlexRounded),
-    headlineSmallEmphasized = BaseTypography.headlineSmallEmphasized.copy(fontFamily = GoogleSansFlexRounded),
-)
+val Typography = Typography(fontFamily = GoogleSansFlexRounded)

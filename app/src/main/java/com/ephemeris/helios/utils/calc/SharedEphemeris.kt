@@ -1,8 +1,158 @@
 package com.ephemeris.helios.utils.calc
 
 import kotlin.math.atan
+import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.sin
 import kotlin.math.tan
+
+/**
+ * Nutation in ecliptic longitude ([deltaPsiDeg]) and obliquity ([deltaEpsDeg]), in degrees.
+ */
+internal data class Nutation(
+    val deltaPsiDeg: Double,
+    val deltaEpsDeg: Double,
+)
+
+/**
+ * Full 63 periodic terms of the IAU 1980 Theory of Nutation (Meeus Chapter 22, Table 22.A;
+ * NREL SPA Table A4.3).
+ *
+ * Row layout: `[cD, cM, cMPrime, cF, cOmega, psiA, psiB, epsC, epsD]`, where `psiA..epsD`
+ * are in units of `0.0001"` (ten-thousandths of an arcsecond).
+ */
+private val NUTATION_TERMS = arrayOf(
+    doubleArrayOf( 0.0,  0.0,  0.0,  0.0,  1.0, -171996.0, -174.2,  92025.0,  8.9),
+    doubleArrayOf(-2.0,  0.0,  0.0,  2.0,  2.0,  -13187.0,   -1.6,   5736.0, -3.1),
+    doubleArrayOf( 0.0,  0.0,  0.0,  2.0,  2.0,   -2274.0,   -0.2,    977.0, -0.5),
+    doubleArrayOf( 0.0,  0.0,  0.0,  0.0,  2.0,    2062.0,    0.2,   -895.0,  0.5),
+    doubleArrayOf( 0.0,  1.0,  0.0,  0.0,  0.0,    1426.0,   -3.4,     54.0, -0.1),
+    doubleArrayOf( 0.0,  0.0,  1.0,  0.0,  0.0,     712.0,    0.1,     -7.0,  0.0),
+    doubleArrayOf(-2.0,  1.0,  0.0,  2.0,  2.0,    -517.0,    1.2,    224.0, -0.6),
+    doubleArrayOf( 0.0,  0.0,  0.0,  2.0,  1.0,    -386.0,   -0.4,    200.0,  0.0),
+    doubleArrayOf( 0.0,  0.0,  1.0,  2.0,  2.0,    -301.0,    0.0,    129.0, -0.1),
+    doubleArrayOf(-2.0, -1.0,  0.0,  2.0,  2.0,     217.0,   -0.5,    -95.0,  0.3),
+    doubleArrayOf(-2.0,  0.0,  1.0,  0.0,  0.0,    -158.0,    0.0,      0.0,  0.0),
+    doubleArrayOf(-2.0,  0.0,  0.0,  2.0,  1.0,     129.0,    0.1,    -70.0,  0.0),
+    doubleArrayOf( 0.0,  0.0, -1.0,  2.0,  2.0,     123.0,    0.0,    -53.0,  0.0),
+    doubleArrayOf( 2.0,  0.0,  0.0,  0.0,  0.0,      63.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 0.0,  0.0,  1.0,  0.0,  1.0,      63.0,    0.1,    -33.0,  0.0),
+    doubleArrayOf( 2.0,  0.0, -1.0,  2.0,  2.0,     -59.0,    0.0,     26.0,  0.0),
+    doubleArrayOf( 0.0,  0.0, -1.0,  0.0,  1.0,     -58.0,   -0.1,     32.0,  0.0),
+    doubleArrayOf( 0.0,  0.0,  1.0,  2.0,  1.0,     -51.0,    0.0,     27.0,  0.0),
+    doubleArrayOf(-2.0,  0.0,  2.0,  0.0,  0.0,      48.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 0.0,  0.0, -2.0,  2.0,  1.0,      46.0,    0.0,    -24.0,  0.0),
+    doubleArrayOf( 2.0,  0.0,  0.0,  2.0,  2.0,     -38.0,    0.0,     16.0,  0.0),
+    doubleArrayOf( 0.0,  0.0,  2.0,  2.0,  2.0,     -31.0,    0.0,     13.0,  0.0),
+    doubleArrayOf( 0.0,  0.0,  2.0,  0.0,  0.0,      29.0,    0.0,      0.0,  0.0),
+    doubleArrayOf(-2.0,  0.0,  1.0,  2.0,  2.0,      29.0,    0.0,    -12.0,  0.0),
+    doubleArrayOf( 0.0,  0.0,  0.0,  2.0,  0.0,      26.0,    0.0,      0.0,  0.0),
+    doubleArrayOf(-2.0,  0.0,  0.0,  2.0,  0.0,     -22.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 0.0,  0.0, -1.0,  2.0,  1.0,      21.0,    0.0,    -10.0,  0.0),
+    doubleArrayOf( 0.0,  2.0,  0.0,  0.0,  0.0,      17.0,   -0.1,      0.0,  0.0),
+    doubleArrayOf( 2.0,  0.0, -1.0,  0.0,  1.0,      16.0,    0.0,     -8.0,  0.0),
+    doubleArrayOf(-2.0,  2.0,  0.0,  2.0,  2.0,     -16.0,    0.1,      7.0,  0.0),
+    doubleArrayOf( 0.0,  1.0,  0.0,  0.0,  1.0,     -15.0,    0.0,      9.0,  0.0),
+    doubleArrayOf(-2.0,  0.0,  1.0,  0.0,  1.0,     -13.0,    0.0,      7.0,  0.0),
+    doubleArrayOf( 0.0, -1.0,  0.0,  0.0,  1.0,     -12.0,    0.0,      6.0,  0.0),
+    doubleArrayOf( 0.0,  0.0,  2.0, -2.0,  0.0,      11.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 2.0,  0.0, -1.0,  2.0,  1.0,     -10.0,    0.0,      5.0,  0.0),
+    doubleArrayOf( 2.0,  0.0,  1.0,  2.0,  2.0,      -8.0,    0.0,      3.0,  0.0),
+    doubleArrayOf( 0.0,  1.0,  0.0,  2.0,  2.0,       7.0,    0.0,     -3.0,  0.0),
+    doubleArrayOf(-2.0,  1.0,  1.0,  0.0,  0.0,      -7.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 0.0, -1.0,  0.0,  2.0,  2.0,      -7.0,    0.0,      3.0,  0.0),
+    doubleArrayOf( 2.0,  0.0,  0.0,  2.0,  1.0,      -7.0,    0.0,      3.0,  0.0),
+    doubleArrayOf( 2.0,  0.0,  1.0,  0.0,  0.0,       6.0,    0.0,      0.0,  0.0),
+    doubleArrayOf(-2.0,  0.0,  2.0,  2.0,  2.0,       6.0,    0.0,     -3.0,  0.0),
+    doubleArrayOf(-2.0,  0.0,  1.0,  2.0,  1.0,       6.0,    0.0,     -3.0,  0.0),
+    doubleArrayOf( 2.0,  0.0, -2.0,  0.0,  1.0,      -6.0,    0.0,      3.0,  0.0),
+    doubleArrayOf( 2.0,  0.0,  0.0,  0.0,  1.0,      -6.0,    0.0,      3.0,  0.0),
+    doubleArrayOf( 0.0, -1.0,  1.0,  0.0,  0.0,       5.0,    0.0,      0.0,  0.0),
+    doubleArrayOf(-2.0, -1.0,  0.0,  2.0,  1.0,      -5.0,    0.0,      3.0,  0.0),
+    doubleArrayOf(-2.0,  0.0,  0.0,  0.0,  1.0,      -5.0,    0.0,      3.0,  0.0),
+    doubleArrayOf( 0.0,  0.0,  2.0,  2.0,  1.0,      -5.0,    0.0,      3.0,  0.0),
+    doubleArrayOf(-2.0,  0.0,  2.0,  0.0,  1.0,       4.0,    0.0,      0.0,  0.0),
+    doubleArrayOf(-2.0,  1.0,  0.0,  2.0,  1.0,       4.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 0.0,  0.0,  1.0, -2.0,  0.0,       4.0,    0.0,      0.0,  0.0),
+    doubleArrayOf(-1.0,  0.0,  1.0,  0.0,  0.0,      -4.0,    0.0,      0.0,  0.0),
+    doubleArrayOf(-2.0,  1.0,  0.0,  0.0,  0.0,      -4.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 1.0,  0.0,  0.0,  0.0,  0.0,      -4.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 0.0,  0.0,  1.0,  2.0,  0.0,       3.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 0.0,  0.0, -2.0,  2.0,  2.0,      -3.0,    0.0,      0.0,  0.0),
+    doubleArrayOf(-1.0, -1.0,  1.0,  0.0,  0.0,      -3.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 0.0,  1.0,  1.0,  0.0,  0.0,      -3.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 0.0, -1.0,  1.0,  2.0,  2.0,      -3.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 2.0, -1.0, -1.0,  2.0,  2.0,      -3.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 0.0,  0.0,  3.0,  2.0,  2.0,      -3.0,    0.0,      0.0,  0.0),
+    doubleArrayOf( 2.0, -1.0,  0.0,  2.0,  2.0,      -3.0,    0.0,      0.0,  0.0),
+)
+
+/**
+ * Evaluates full IAU 1980 Nutation (Meeus Chapter 22, Table 22.A) for Julian Century [t] (TT since J2000.0).
+ * Accurate to `< 0.001"` in both longitude (`Δψ`) and obliquity (`Δε`).
+ */
+internal fun calculateNutation(t: Double): Nutation {
+    val t2 = t * t
+    val t3 = t2 * t
+
+    val d = 297.85036 + 445267.111480 * t - 0.0019142 * t2 + t3 / 189474.0
+    val m = 357.52772 + 35999.050340 * t - 0.0001603 * t2 - t3 / 300000.0
+    val mPrime = 134.96298 + 477198.867398 * t + 0.0086972 * t2 + t3 / 56250.0
+    val f = 93.27191 + 483202.017538 * t - 0.0036825 * t2 + t3 / 327270.0
+    val omega = 125.04452 - 1934.136261 * t + 0.0020708 * t2 + t3 / 450000.0
+
+    var sumPsi = 0.0
+    var sumEps = 0.0
+    for (term in NUTATION_TERMS) {
+        val argRad = Math.toRadians(
+            term[0] * d + term[1] * m + term[2] * mPrime + term[3] * f + term[4] * omega,
+        )
+        sumPsi += (term[5] + term[6] * t) * sin(argRad)
+        val epsCoeff = term[7] + term[8] * t
+        if (epsCoeff != 0.0) {
+            sumEps += epsCoeff * cos(argRad)
+        }
+    }
+
+    return Nutation(
+        deltaPsiDeg = sumPsi / 36_000_000.0,
+        deltaEpsDeg = sumEps / 36_000_000.0,
+    )
+}
+
+/**
+ * Evaluates the Mean Obliquity of the Ecliptic (`ε₀`, in degrees) using Laskar's 10th-order
+ * polynomial (Meeus Chapter 22, Eq. 22.3; accurate to `0.01"` over 2,000 years).
+ */
+internal fun calculateMeanObliquityDeg(t: Double): Double {
+    val u = t / 100.0
+    val arcSec = 84381.448 + u * (
+        -4680.93 + u * (
+            -1.55 + u * (
+                1999.25 + u * (
+                    -51.38 + u * (
+                        -249.67 + u * (
+                            -39.05 + u * (
+                                7.12 + u * (
+                                    27.87 + u * (
+                                        5.79 + u * 2.45
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
+        )
+    )
+    return arcSec / 3600.0
+}
+
+/**
+ * Evaluates the True Obliquity of the Ecliptic (`ε = ε₀ + Δε`, in degrees) for Julian Century [t].
+ */
+internal fun calculateTrueObliquityDeg(t: Double, deltaEpsDeg: Double): Double =
+    calculateMeanObliquityDeg(t) + deltaEpsDeg
 
 /**
  * Calculates Delta T (Terrestrial Time - Universal Time) in seconds.

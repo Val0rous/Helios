@@ -79,14 +79,26 @@ enum class MoonColorTempMode(val label: String) {
 }
 
 enum class DistanceUnit(val label: String) {
-    AU("AU"),
-    KM("km");
+    KM("km"),
+    AU("AU");
 
     fun next(): DistanceUnit = entries[(ordinal + 1) % entries.size]
 
     companion object {
         fun fromName(name: String?): DistanceUnit =
-            entries.firstOrNull { it.name == name } ?: AU
+            entries.firstOrNull { it.name == name } ?: KM
+    }
+}
+
+enum class MoonDistanceUnit(val label: String) {
+    KM("km"),
+    LD("LD");
+
+    fun next(): MoonDistanceUnit = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        fun fromName(name: String?): MoonDistanceUnit =
+            entries.firstOrNull { it.name == name } ?: KM
     }
 }
 
@@ -129,7 +141,8 @@ enum class CoordinateFormat(val label: String) {
  * @property moonIlluminanceMode Selected display mode for the Moon Illuminance card (defaults to [MoonIlluminanceMode.GLOBAL]).
  * @property moonColorTempMode Selected display mode for the Moon Color Temp card (defaults to [MoonColorTempMode.PURKINJE]).
  * @property moonDeclinationMode Selected display mode for the Moon Declination card (defaults to [MoonDeclinationMode.GEOCENTRIC]).
- * @property distanceUnit Selected display unit for the Sun Distance card (defaults to [DistanceUnit.AU]).
+ * @property distanceUnit Selected display unit for the Sun Distance card (defaults to [DistanceUnit.KM]).
+ * @property moonDistanceUnit Selected display unit for the Moon Distance card (defaults to [MoonDistanceUnit.KM]).
  * @property coordinateFormat Selected display/input format for geographic coordinates (defaults to [CoordinateFormat.DECIMAL]).
  * @property customTimezoneId Optional user-selected IANA zone ID or fixed UTC offset overriding the location's default timezone.
  */
@@ -142,7 +155,8 @@ data class AppSettings(
     val moonIlluminanceMode: MoonIlluminanceMode = MoonIlluminanceMode.GLOBAL,
     val moonColorTempMode: MoonColorTempMode = MoonColorTempMode.PURKINJE,
     val moonDeclinationMode: MoonDeclinationMode = MoonDeclinationMode.GEOCENTRIC,
-    val distanceUnit: DistanceUnit = DistanceUnit.AU,
+    val distanceUnit: DistanceUnit = DistanceUnit.KM,
+    val moonDistanceUnit: MoonDistanceUnit = MoonDistanceUnit.KM,
     val coordinateFormat: CoordinateFormat = CoordinateFormat.DECIMAL,
     val customTimezoneId: String? = null,
 )
@@ -161,6 +175,7 @@ class SettingsDataStore(private val context: Context) {
     private val moonColorTempModeKey = stringPreferencesKey("moon_color_temp_mode")
     private val moonDeclinationModeKey = stringPreferencesKey("moon_declination_mode")
     private val distanceUnitKey = stringPreferencesKey("distance_unit")
+    private val moonDistanceUnitKey = stringPreferencesKey("moon_distance_unit")
     private val coordinateFormatKey = stringPreferencesKey("coordinate_format")
     private val customTimezoneIdKey = stringPreferencesKey("custom_timezone_id")
 
@@ -176,6 +191,7 @@ class SettingsDataStore(private val context: Context) {
                 moonColorTempMode = MoonColorTempMode.fromName(preferences[moonColorTempModeKey]),
                 moonDeclinationMode = MoonDeclinationMode.fromName(preferences[moonDeclinationModeKey]),
                 distanceUnit = DistanceUnit.fromName(preferences[distanceUnitKey]),
+                moonDistanceUnit = MoonDistanceUnit.fromName(preferences[moonDistanceUnitKey]),
                 coordinateFormat = CoordinateFormat.fromName(preferences[coordinateFormatKey]),
                 customTimezoneId = preferences[customTimezoneIdKey],
             )
@@ -232,6 +248,12 @@ class SettingsDataStore(private val context: Context) {
     suspend fun setDistanceUnit(unit: DistanceUnit) {
         context.dataStore.edit { preferences ->
             preferences[distanceUnitKey] = unit.name
+        }
+    }
+
+    suspend fun setMoonDistanceUnit(unit: MoonDistanceUnit) {
+        context.dataStore.edit { preferences ->
+            preferences[moonDistanceUnitKey] = unit.name
         }
     }
 

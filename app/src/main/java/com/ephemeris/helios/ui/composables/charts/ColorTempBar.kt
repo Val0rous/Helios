@@ -82,23 +82,21 @@ fun ColorTempBar(
         val trackTop = (size.height - trackHeight) / 2f
         val outerTrackTop = (size.height - outerTrackHeight) / 2f
 
-        // 1. Draw the Background Gradient Track (surrounded by matching cutout border when active)
+        // 1. Always draw the outer capsule border + inset track so width never wobbles between day and night (N/A)
+        drawRoundRect(
+            color = borderColor,
+            topLeft = Offset(0f, outerTrackTop),
+            size = Size(usableWidth, outerTrackHeight),
+            cornerRadius = CornerRadius(outerTrackHeight / 2f),
+        )
         if (isNight) {
             drawRoundRect(
                 color = colorScheme.onSurfaceVariant.copy(alpha = 0.15f),
-                topLeft = Offset(0f, trackTop),
-                size = Size(usableWidth, trackHeight),
+                topLeft = Offset(borderWidth, trackTop),
+                size = Size((usableWidth - borderWidth * 2f).coerceAtLeast(0f), trackHeight),
                 cornerRadius = CornerRadius(trackHeight / 2f),
             )
         } else {
-            // Outer capsule border matching the indicator thumb's ring so the slider pops off the card glow
-            drawRoundRect(
-                color = borderColor,
-                topLeft = Offset(0f, outerTrackTop),
-                size = Size(usableWidth, outerTrackHeight),
-                cornerRadius = CornerRadius(outerTrackHeight / 2f),
-            )
-            // Inner gradient track
             drawRoundRect(
                 brush = gradientBrush,
                 topLeft = Offset(borderWidth, trackTop),

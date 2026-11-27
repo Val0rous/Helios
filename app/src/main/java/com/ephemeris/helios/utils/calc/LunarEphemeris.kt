@@ -69,133 +69,133 @@ object LunarEphemeris {
     )
 
     // Format: [D, M, M', F, Longitude_Amplitude, Distance_Amplitude]
-    // The complete 60 terms from Meeus Table 47.A for absolute Longitude/Distance precision
+    // The complete 60 terms from Meeus Table 47.A (2nd ed., truncated ELP-2000/82)
     private val LUNAR_LONGITUDE_TERMS = arrayOf(
-        doubleArrayOf(0.0, 0.0, 1.0, 0.0, 6288774.0, -20905355.0),
-        doubleArrayOf(2.0, 0.0, -1.0, 0.0, 1274027.0, -3699111.0),
-        doubleArrayOf(2.0, 0.0, 0.0, 0.0, 658314.0, -2955968.0),
-        doubleArrayOf(0.0, 0.0, 2.0, 0.0, 213618.0, -569925.0),
-        doubleArrayOf(0.0, 1.0, 0.0, 0.0, -185116.0, 48888.0),
-        doubleArrayOf(0.0, 0.0, 0.0, 2.0, -114332.0, -3149.0),
-        doubleArrayOf(2.0, 0.0, -2.0, 0.0, 58793.0, 246158.0),
-        doubleArrayOf(2.0, -1.0, -1.0, 0.0, 57066.0, -152138.0),
-        doubleArrayOf(2.0, 0.0, 1.0, 0.0, 53322.0, -170733.0),
-        doubleArrayOf(2.0, -1.0, 0.0, 0.0, 45758.0, -204586.0),
-        doubleArrayOf(0.0, 1.0, -1.0, 0.0, -40923.0, -129620.0),
-        doubleArrayOf(1.0, 0.0, 0.0, 0.0, -34720.0, 108743.0),
-        doubleArrayOf(0.0, 1.0, 1.0, 0.0, -30383.0, 104755.0),
-        doubleArrayOf(2.0, 0.0, 0.0, -2.0, 15327.0, 10321.0),
-        doubleArrayOf(0.0, 0.0, 1.0, 2.0, -12528.0, 0.0),
-        doubleArrayOf(0.0, 0.0, 3.0, 0.0, 10980.0, 4392.0),
-        doubleArrayOf(4.0, 0.0, -1.0, 0.0, 10675.0, 6322.0),
-        doubleArrayOf(4.0, 0.0, -2.0, 0.0, 10034.0, -9884.0),
-        doubleArrayOf(2.0, 1.0, -1.0, 0.0, 8548.0, 5751.0),
-        doubleArrayOf(2.0, 1.0, 0.0, 0.0, -8190.0, 0.0),
-        doubleArrayOf(1.0, 0.0, -1.0, 0.0, -7927.0, -4664.0),
-        doubleArrayOf(1.0, 0.0, 1.0, 0.0, -6766.0, -3820.0),
-        doubleArrayOf(2.0, -1.0, 1.0, 0.0, 5163.0, 0.0),
-        doubleArrayOf(2.0, 0.0, 2.0, 0.0, 4987.0, -2734.0),
-        doubleArrayOf(4.0, 0.0, 0.0, 0.0, 4036.0, -4230.0),
-        doubleArrayOf(2.0, 0.0, -3.0, 0.0, 3470.0, 3352.0),
-        doubleArrayOf(0.0, 1.0, -2.0, 0.0, -3041.0, -1994.0),
-        doubleArrayOf(2.0, 0.0, -1.0, 2.0, 2981.0, 1693.0),
-        doubleArrayOf(2.0, -1.0, -2.0, 0.0, 2901.0, 1374.0),
-        doubleArrayOf(1.0, 0.0, 0.0, 2.0, -2603.0, 0.0),
-        doubleArrayOf(0.0, 1.0, 2.0, 0.0, -2268.0, 0.0),
-        doubleArrayOf(0.0, 2.0, 0.0, 0.0, -2043.0, 0.0),
-        doubleArrayOf(2.0, -2.0, 0.0, 0.0, 1827.0, 0.0),
-        doubleArrayOf(2.0, 1.0, -2.0, 0.0, 1726.0, 0.0),
-        doubleArrayOf(0.0, 2.0, -1.0, 0.0, -1590.0, 0.0),
-        doubleArrayOf(2.0, -2.0, -1.0, 0.0, -1455.0, 0.0),
-        doubleArrayOf(2.0, 0.0, 1.0, -2.0, 1377.0, 0.0),
-        doubleArrayOf(2.0, 0.0, 0.0, 2.0, -1355.0, 0.0),
-        doubleArrayOf(4.0, 0.0, -3.0, 0.0, 1282.0, 0.0),
-        doubleArrayOf(2.0, 1.0, 1.0, 0.0, -1257.0, 0.0),
-        doubleArrayOf(0.0, 2.0, 1.0, 0.0, -1202.0, 0.0),
-        doubleArrayOf(0.0, 0.0, 2.0, 2.0, -1193.0, 0.0),
-        doubleArrayOf(4.0, -1.0, -1.0, 0.0, 1150.0, 0.0),
-        doubleArrayOf(2.0, 1.0, 0.0, -2.0, 1085.0, 0.0),
-        doubleArrayOf(0.0, 1.0, 0.0, -2.0, 1058.0, 0.0),
-        doubleArrayOf(4.0, -1.0, -2.0, 0.0, 1037.0, 0.0),
-        doubleArrayOf(0.0, 1.0, 1.0, 2.0, -1026.0, 0.0),
-        doubleArrayOf(0.0, 1.0, -1.0, 2.0, -1014.0, 0.0),
-        doubleArrayOf(2.0, 0.0, 2.0, -2.0, 981.0, 0.0),
-        doubleArrayOf(1.0, 0.0, 1.0, -2.0, -912.0, 0.0),
-        doubleArrayOf(2.0, 1.0, -3.0, 0.0, 908.0, 0.0),
-        doubleArrayOf(4.0, 0.0, 1.0, 0.0, 893.0, 0.0),
-        doubleArrayOf(0.0, 0.0, 3.0, 2.0, -871.0, 0.0),
-        doubleArrayOf(4.0, -1.0, 0.0, 0.0, 856.0, 0.0),
-        doubleArrayOf(2.0, -2.0, 1.0, 0.0, -847.0, 0.0),
-        doubleArrayOf(1.0, 0.0, -2.0, 0.0, -840.0, 0.0),
-        doubleArrayOf(0.0, 0.0, 4.0, 0.0, 804.0, 0.0),
-        doubleArrayOf(4.0, 1.0, -1.0, 0.0, 775.0, 0.0),
-        doubleArrayOf(4.0, 0.0, -4.0, 0.0, 747.0, 0.0),
-        doubleArrayOf(1.0, 0.0, -1.0, 2.0, -738.0, 0.0)
+        doubleArrayOf(0.0,  0.0,  1.0,  0.0,  6288774.0, -20905355.0),
+        doubleArrayOf(2.0,  0.0, -1.0,  0.0,  1274027.0,  -3699111.0),
+        doubleArrayOf(2.0,  0.0,  0.0,  0.0,   658314.0,  -2955968.0),
+        doubleArrayOf(0.0,  0.0,  2.0,  0.0,   213618.0,   -569925.0),
+        doubleArrayOf(0.0,  1.0,  0.0,  0.0,  -185116.0,     48888.0),
+        doubleArrayOf(0.0,  0.0,  0.0,  2.0,  -114332.0,     -3149.0),
+        doubleArrayOf(2.0,  0.0, -2.0,  0.0,    58793.0,    246158.0),
+        doubleArrayOf(2.0, -1.0, -1.0,  0.0,    57066.0,   -152138.0),
+        doubleArrayOf(2.0,  0.0,  1.0,  0.0,    53322.0,   -170733.0),
+        doubleArrayOf(2.0, -1.0,  0.0,  0.0,    45758.0,   -204586.0),
+        doubleArrayOf(0.0,  1.0, -1.0,  0.0,   -40923.0,   -129620.0),
+        doubleArrayOf(1.0,  0.0,  0.0,  0.0,   -34720.0,    108743.0),
+        doubleArrayOf(0.0,  1.0,  1.0,  0.0,   -30383.0,    104755.0),
+        doubleArrayOf(2.0,  0.0,  0.0, -2.0,    15327.0,     10321.0),
+        doubleArrayOf(0.0,  0.0,  1.0,  2.0,   -12528.0,         0.0),
+        doubleArrayOf(0.0,  0.0,  1.0, -2.0,    10980.0,     79661.0),
+        doubleArrayOf(4.0,  0.0, -1.0,  0.0,    10675.0,    -34782.0),
+        doubleArrayOf(0.0,  0.0,  3.0,  0.0,    10034.0,    -23210.0),
+        doubleArrayOf(4.0,  0.0, -2.0,  0.0,     8548.0,    -21636.0),
+        doubleArrayOf(2.0,  1.0, -1.0,  0.0,    -7888.0,     24208.0),
+        doubleArrayOf(2.0,  1.0,  0.0,  0.0,    -6766.0,     30824.0),
+        doubleArrayOf(1.0,  0.0, -1.0,  0.0,    -5163.0,     -8379.0),
+        doubleArrayOf(1.0,  1.0,  0.0,  0.0,     4987.0,    -16675.0),
+        doubleArrayOf(2.0, -1.0,  1.0,  0.0,     4036.0,    -12831.0),
+        doubleArrayOf(2.0,  0.0,  2.0,  0.0,     3994.0,    -10445.0),
+        doubleArrayOf(4.0,  0.0,  0.0,  0.0,     3861.0,    -11650.0),
+        doubleArrayOf(2.0,  0.0, -3.0,  0.0,     3665.0,     14403.0),
+        doubleArrayOf(0.0,  1.0, -2.0,  0.0,    -2689.0,     -7003.0),
+        doubleArrayOf(2.0,  0.0, -1.0,  2.0,    -2602.0,         0.0),
+        doubleArrayOf(2.0, -1.0, -2.0,  0.0,     2390.0,     10056.0),
+        doubleArrayOf(1.0,  0.0,  1.0,  0.0,    -2348.0,      6322.0),
+        doubleArrayOf(2.0, -2.0,  0.0,  0.0,     2236.0,     -9884.0),
+        doubleArrayOf(0.0,  1.0,  2.0,  0.0,    -2120.0,      5751.0),
+        doubleArrayOf(0.0,  2.0,  0.0,  0.0,    -2069.0,         0.0),
+        doubleArrayOf(2.0, -2.0, -1.0,  0.0,     2048.0,     -4950.0),
+        doubleArrayOf(2.0,  0.0,  1.0, -2.0,    -1773.0,      4130.0),
+        doubleArrayOf(2.0,  0.0,  0.0,  2.0,    -1595.0,         0.0),
+        doubleArrayOf(4.0, -1.0, -1.0,  0.0,     1215.0,     -3958.0),
+        doubleArrayOf(0.0,  0.0,  2.0,  2.0,    -1110.0,         0.0),
+        doubleArrayOf(3.0,  0.0, -1.0,  0.0,     -892.0,      3258.0),
+        doubleArrayOf(2.0,  1.0,  1.0,  0.0,     -810.0,      2616.0),
+        doubleArrayOf(4.0, -1.0, -2.0,  0.0,      759.0,     -1897.0),
+        doubleArrayOf(0.0,  2.0, -1.0,  0.0,     -713.0,     -2117.0),
+        doubleArrayOf(2.0,  2.0, -1.0,  0.0,     -700.0,      2354.0),
+        doubleArrayOf(2.0,  1.0, -2.0,  0.0,      691.0,         0.0),
+        doubleArrayOf(2.0, -1.0,  0.0, -2.0,      596.0,         0.0),
+        doubleArrayOf(4.0,  0.0,  1.0,  0.0,      549.0,     -1423.0),
+        doubleArrayOf(0.0,  0.0,  4.0,  0.0,      537.0,     -1117.0),
+        doubleArrayOf(4.0, -1.0,  0.0,  0.0,      520.0,     -1571.0),
+        doubleArrayOf(1.0,  0.0, -2.0,  0.0,     -487.0,     -1739.0),
+        doubleArrayOf(2.0,  1.0,  0.0, -2.0,     -399.0,         0.0),
+        doubleArrayOf(0.0,  0.0,  2.0, -2.0,     -381.0,     -4421.0),
+        doubleArrayOf(1.0,  1.0,  1.0,  0.0,      351.0,         0.0),
+        doubleArrayOf(3.0,  0.0, -2.0,  0.0,     -340.0,         0.0),
+        doubleArrayOf(4.0,  0.0, -3.0,  0.0,      330.0,         0.0),
+        doubleArrayOf(2.0, -1.0,  2.0,  0.0,      327.0,         0.0),
+        doubleArrayOf(0.0,  2.0,  1.0,  0.0,     -323.0,      1165.0),
+        doubleArrayOf(1.0,  1.0, -1.0,  0.0,      299.0,         0.0),
+        doubleArrayOf(2.0,  0.0,  3.0,  0.0,      294.0,         0.0),
+        doubleArrayOf(2.0,  0.0, -1.0, -2.0,        0.0,      8752.0),
     )
 
     // Format: [D, M, M', F, Latitude_Amplitude]
-    // The complete 60 terms from Meeus Table 47.B for exact Lunar Declination tracking
+    // The complete 60 terms from Meeus Table 47.B (2nd ed., truncated ELP-2000/82)
     private val LUNAR_LATITUDE_TERMS = arrayOf(
-        doubleArrayOf(0.0, 0.0, 0.0, 1.0, 5128122.0),
-        doubleArrayOf(0.0, 0.0, 1.0, 1.0, 280602.0),
-        doubleArrayOf(0.0, 0.0, 1.0, -1.0, 277693.0),
-        doubleArrayOf(2.0, 0.0, 0.0, -1.0, 173237.0),
-        doubleArrayOf(2.0, 0.0, -1.0, 1.0, 55413.0),
-        doubleArrayOf(2.0, 0.0, -1.0, -1.0, 46271.0),
-        doubleArrayOf(2.0, 0.0, 0.0, 1.0, 32573.0),
-        doubleArrayOf(0.0, 0.0, 2.0, 1.0, 17198.0),
-        doubleArrayOf(2.0, 0.0, 1.0, -1.0, 9266.0),
-        doubleArrayOf(0.0, 0.0, 2.0, -1.0, 8822.0),
-        doubleArrayOf(2.0, -1.0, 0.0, -1.0, 8216.0),
-        doubleArrayOf(2.0, 0.0, -2.0, -1.0, 4324.0),
-        doubleArrayOf(0.0, 1.0, 0.0, -1.0, 4200.0),
-        doubleArrayOf(2.0, -1.0, -1.0, 1.0, -3359.0),
-        doubleArrayOf(0.0, 1.0, 0.0, 1.0, 2463.0),
-        doubleArrayOf(2.0, -1.0, 0.0, 1.0, 2211.0),
-        doubleArrayOf(0.0, 1.0, 1.0, 1.0, 2065.0),
-        doubleArrayOf(2.0, 0.0, 1.0, 1.0, -2059.0),
-        doubleArrayOf(2.0, 0.0, -2.0, 1.0, -1803.0),
-        doubleArrayOf(0.0, 1.0, -1.0, -1.0, -1594.0),
-        doubleArrayOf(2.0, 0.0, 0.0, -3.0, 1652.0),
-        doubleArrayOf(2.0, 0.0, -1.0, -3.0, -1322.0),
-        doubleArrayOf(0.0, 0.0, 3.0, 1.0, 1181.0),
-        doubleArrayOf(0.0, 0.0, 3.0, -1.0, 742.0),
-        doubleArrayOf(4.0, 0.0, -1.0, -1.0, 393.0),
-        doubleArrayOf(2.0, 1.0, 0.0, -1.0, 321.0),
-        doubleArrayOf(2.0, 1.0, -1.0, 1.0, 281.0),
-        doubleArrayOf(0.0, 1.0, 1.0, -1.0, -229.0),
-        doubleArrayOf(2.0, -1.0, -1.0, -1.0, 212.0),
-        doubleArrayOf(2.0, 0.0, 2.0, -1.0, -207.0),
-        doubleArrayOf(4.0, 0.0, -2.0, -1.0, 197.0),
-        doubleArrayOf(2.0, -1.0, -2.0, -1.0, 182.0),
-        doubleArrayOf(0.0, 1.0, -1.0, 1.0, 175.0),
-        doubleArrayOf(2.0, 1.0, 0.0, 1.0, 165.0),
-        doubleArrayOf(4.0, 0.0, 0.0, -1.0, -152.0),
-        doubleArrayOf(0.0, 0.0, 1.0, 3.0, -147.0),
-        doubleArrayOf(0.0, 0.0, 1.0, -3.0, -139.0),
-        doubleArrayOf(0.0, 2.0, 0.0, 1.0, -136.0),
-        doubleArrayOf(2.0, 1.0, -1.0, -1.0, 132.0),
-        doubleArrayOf(0.0, 2.0, 0.0, -1.0, 127.0),
-        doubleArrayOf(2.0, -1.0, 1.0, -1.0, -115.0),
-        doubleArrayOf(2.0, 0.0, -3.0, -1.0, 113.0),
-        doubleArrayOf(2.0, -2.0, 0.0, -1.0, 108.0),
-        doubleArrayOf(2.0, 0.0, -3.0, 1.0, -106.0),
-        doubleArrayOf(2.0, -1.0, 1.0, 1.0, -101.0),
-        doubleArrayOf(2.0, 0.0, 2.0, 1.0, -100.0),
-        doubleArrayOf(0.0, 0.0, 2.0, 3.0, -96.0),
-        doubleArrayOf(2.0, 0.0, 0.0, 3.0, 87.0),
-        doubleArrayOf(4.0, 0.0, -1.0, 1.0, -85.0),
-        doubleArrayOf(2.0, 1.0, 1.0, -1.0, -81.0),
-        doubleArrayOf(0.0, 0.0, 4.0, 1.0, 79.0),
-        doubleArrayOf(4.0, -1.0, -1.0, -1.0, -76.0),
-        doubleArrayOf(4.0, 0.0, -2.0, 1.0, -74.0),
-        doubleArrayOf(0.0, 1.0, 2.0, 1.0, -74.0),
-        doubleArrayOf(2.0, 1.0, -2.0, -1.0, -73.0),
-        doubleArrayOf(0.0, 1.0, 2.0, -1.0, -68.0),
-        doubleArrayOf(2.0, -1.0, 2.0, -1.0, 68.0),
-        doubleArrayOf(2.0, 0.0, -1.0, 3.0, -67.0),
-        doubleArrayOf(4.0, 0.0, -3.0, -1.0, 66.0),
-        doubleArrayOf(2.0, -1.0, -2.0, 1.0, -65.0)
+        doubleArrayOf(0.0,  0.0,  0.0,  1.0, 5128122.0),
+        doubleArrayOf(0.0,  0.0,  1.0,  1.0,  280602.0),
+        doubleArrayOf(0.0,  0.0,  1.0, -1.0,  277693.0),
+        doubleArrayOf(2.0,  0.0,  0.0, -1.0,  173237.0),
+        doubleArrayOf(2.0,  0.0, -1.0,  1.0,   55413.0),
+        doubleArrayOf(2.0,  0.0, -1.0, -1.0,   46271.0),
+        doubleArrayOf(2.0,  0.0,  0.0,  1.0,   32573.0),
+        doubleArrayOf(0.0,  0.0,  2.0,  1.0,   17198.0),
+        doubleArrayOf(2.0,  0.0,  1.0, -1.0,    9266.0),
+        doubleArrayOf(0.0,  0.0,  2.0, -1.0,    8822.0),
+        doubleArrayOf(2.0, -1.0,  0.0, -1.0,    8216.0),
+        doubleArrayOf(2.0,  0.0, -2.0, -1.0,    4324.0),
+        doubleArrayOf(2.0,  0.0,  1.0,  1.0,    4200.0),
+        doubleArrayOf(2.0,  1.0,  0.0, -1.0,   -3359.0),
+        doubleArrayOf(2.0, -1.0, -1.0,  1.0,    2463.0),
+        doubleArrayOf(2.0, -1.0,  0.0,  1.0,    2211.0),
+        doubleArrayOf(2.0, -1.0, -1.0, -1.0,    2065.0),
+        doubleArrayOf(0.0,  1.0, -1.0, -1.0,   -1870.0),
+        doubleArrayOf(4.0,  0.0, -1.0, -1.0,    1828.0),
+        doubleArrayOf(0.0,  1.0,  0.0,  1.0,   -1794.0),
+        doubleArrayOf(0.0,  0.0,  0.0,  3.0,   -1749.0),
+        doubleArrayOf(0.0,  1.0, -1.0,  1.0,   -1565.0),
+        doubleArrayOf(1.0,  0.0,  0.0,  1.0,   -1491.0),
+        doubleArrayOf(0.0,  1.0,  1.0,  1.0,   -1475.0),
+        doubleArrayOf(0.0,  1.0,  1.0, -1.0,   -1410.0),
+        doubleArrayOf(0.0,  1.0,  0.0, -1.0,   -1344.0),
+        doubleArrayOf(1.0,  0.0,  0.0, -1.0,   -1335.0),
+        doubleArrayOf(0.0,  0.0,  3.0,  1.0,    1107.0),
+        doubleArrayOf(4.0,  0.0,  0.0, -1.0,    1021.0),
+        doubleArrayOf(4.0,  0.0, -1.0,  1.0,     833.0),
+        doubleArrayOf(0.0,  0.0,  1.0, -3.0,     777.0),
+        doubleArrayOf(4.0,  0.0, -2.0,  1.0,     671.0),
+        doubleArrayOf(2.0,  0.0,  0.0, -3.0,     607.0),
+        doubleArrayOf(2.0,  0.0,  2.0, -1.0,     596.0),
+        doubleArrayOf(2.0, -1.0,  1.0, -1.0,     491.0),
+        doubleArrayOf(2.0,  0.0, -2.0,  1.0,    -451.0),
+        doubleArrayOf(0.0,  0.0,  3.0, -1.0,     439.0),
+        doubleArrayOf(2.0,  0.0,  2.0,  1.0,     422.0),
+        doubleArrayOf(2.0,  0.0, -3.0, -1.0,     421.0),
+        doubleArrayOf(2.0,  1.0, -1.0,  1.0,    -366.0),
+        doubleArrayOf(2.0,  1.0,  0.0,  1.0,    -351.0),
+        doubleArrayOf(4.0,  0.0,  0.0,  1.0,     331.0),
+        doubleArrayOf(2.0, -1.0,  1.0,  1.0,     315.0),
+        doubleArrayOf(2.0, -2.0,  0.0, -1.0,     302.0),
+        doubleArrayOf(0.0,  0.0,  1.0,  3.0,    -283.0),
+        doubleArrayOf(2.0,  1.0,  1.0, -1.0,    -229.0),
+        doubleArrayOf(1.0,  1.0,  0.0, -1.0,     223.0),
+        doubleArrayOf(1.0,  1.0,  0.0,  1.0,     223.0),
+        doubleArrayOf(0.0,  1.0, -2.0, -1.0,    -220.0),
+        doubleArrayOf(2.0,  1.0, -1.0, -1.0,    -220.0),
+        doubleArrayOf(1.0,  0.0,  1.0,  1.0,    -185.0),
+        doubleArrayOf(2.0, -1.0, -2.0, -1.0,     181.0),
+        doubleArrayOf(0.0,  1.0,  2.0,  1.0,    -177.0),
+        doubleArrayOf(4.0,  0.0, -2.0, -1.0,     176.0),
+        doubleArrayOf(4.0, -1.0, -1.0, -1.0,     166.0),
+        doubleArrayOf(1.0,  0.0,  1.0, -1.0,    -164.0),
+        doubleArrayOf(4.0,  0.0,  1.0, -1.0,     132.0),
+        doubleArrayOf(1.0,  0.0, -1.0, -1.0,    -119.0),
+        doubleArrayOf(4.0, -1.0,  0.0, -1.0,     115.0),
+        doubleArrayOf(2.0, -2.0,  0.0,  1.0,     107.0),
     )
 
     /**
@@ -222,10 +222,12 @@ object LunarEphemeris {
         val distanceKm: Double,
     )
 
-    private data class GeocentricLunarCoords(
+    internal data class GeocentricLunarCoords(
+        val apparentLongitudeDeg: Double,
         val raRad: Double,
         val decRad: Double,
         val distanceKm: Double,
+        val equationOfEquinoxesDeg: Double,
     )
 
     /**
@@ -287,11 +289,42 @@ object LunarEphemeris {
             115.0 * sin(lPrimeRad + Math.toRadians(mPrime))
 
         // 3. Geocentric Ecliptic Coordinates
-        val trueLongitudeDeg = lPrime + (sumL / 1000000.0)
+        val trueLongitudeDeg = ((lPrime + (sumL / 1000000.0)) % 360.0 + 360.0) % 360.0
         val trueLatitudeDeg = sumB / 1000000.0
         val distanceKm = 385000.56 + (sumR / 1000.0)
 
         return GeocentricEcliptic(trueLongitudeDeg, trueLatitudeDeg, distanceKm)
+    }
+
+    /**
+     * Evaluates apparent geocentric lunar equatorial coordinates (including full IAU 1980 Nutation
+     * and Laskar True Obliquity) for Julian Century [t] (TT since J2000.0).
+     */
+    internal fun calculateApparentGeocentric(t: Double): GeocentricLunarCoords {
+        val ecliptic = calculateGeocentricEcliptic(t)
+        val nutation = calculateNutation(t)
+
+        val apparentLongitudeDeg = ((ecliptic.longitudeDeg + nutation.deltaPsiDeg) % 360.0 + 360.0) % 360.0
+        val lambdaRad = Math.toRadians(apparentLongitudeDeg)
+        val betaRad = Math.toRadians(ecliptic.latitudeDeg)
+
+        val epsRad = Math.toRadians(calculateTrueObliquityDeg(t, nutation.deltaEpsDeg))
+        val sinEps = sin(epsRad)
+        val cosEps = cos(epsRad)
+
+        val raRad = atan2(sin(lambdaRad) * cosEps - tan(betaRad) * sinEps, cos(lambdaRad))
+        val decRad = asin(
+            (sin(betaRad) * cosEps + cos(betaRad) * sinEps * sin(lambdaRad)).coerceIn(-1.0, 1.0),
+        )
+        val eqOfEquinoxesDeg = nutation.deltaPsiDeg * cosEps
+
+        return GeocentricLunarCoords(
+            apparentLongitudeDeg = apparentLongitudeDeg,
+            raRad = raRad,
+            decRad = decRad,
+            distanceKm = ecliptic.distanceKm,
+            equationOfEquinoxesDeg = eqOfEquinoxesDeg,
+        )
     }
 
     private fun calculateGeocentricAtHour(
@@ -300,40 +333,41 @@ object LunarEphemeris {
         tzOffsetHours: Double,
     ): GeocentricLunarCoords {
         val t = calculateJulianCentury(date.year, date.monthValue, date.dayOfMonth, decimalHour, tzOffsetHours)
-        val ecliptic = calculateGeocentricEcliptic(t)
-
-        val lambdaRad = Math.toRadians(ecliptic.longitudeDeg)
-        val betaRad = Math.toRadians(ecliptic.latitudeDeg)
-
-        // 4. Ecliptic to Equatorial (Right Ascension & Declination)
-        val epsilonDeg = 23.439291 - 0.0130042 * t
-        val epsRad = Math.toRadians(epsilonDeg)
-
-        val raRad = atan2(sin(lambdaRad) * cos(epsRad) - tan(betaRad) * sin(epsRad), cos(lambdaRad))
-        val decRad = asin(sin(betaRad) * cos(epsRad) + cos(betaRad) * sin(epsRad) * sin(lambdaRad))
-
-        return GeocentricLunarCoords(raRad, decRad, ecliptic.distanceKm)
+        return calculateApparentGeocentric(t)
     }
 
     /**
-     * Lightweight Earth–Moon geocentric distance evaluation in kilometers for a given instant.
+     * Lightweight Earth–Moon geocentric distance evaluation in kilometers for a given instant
+     * (exact full Meeus Table 47.A `Σr` series with `t⁴` arguments and eccentricity factor `E`).
      */
     fun calculateDistanceKm(time: ZonedDateTime): Double {
         val decimalHour = time.hour + (time.minute / 60.0) + (time.second / 3600.0)
         val tzOffsetHours = time.offset.totalSeconds / 3600.0
         val t = calculateJulianCentury(time.year, time.monthValue, time.dayOfMonth, decimalHour, tzOffsetHours)
+        val t2 = t * t
+        val t3 = t2 * t
+        val t4 = t3 * t
 
-        val d = (297.8501921 + 445267.1114034 * t) % 360.0
-        val m = (357.5291092 + 35999.0502909 * t) % 360.0
-        val mPrime = (134.9633964 + 477198.8675055 * t) % 360.0
-        val f = (93.2720950 + 483202.0175233 * t) % 360.0
+        val d = (297.8501921 + 445267.1114034 * t - 0.0018819 * t2 + t3 / 545868.0 - t4 / 113065000.0) % 360.0
+        val m = (357.5291092 + 35999.0502909 * t - 0.0001536 * t2 + t3 / 24490000.0) % 360.0
+        val mPrime = (134.9633964 + 477198.8675055 * t + 0.0087414 * t2 + t3 / 69699.0 - t4 / 14712000.0) % 360.0
+        val f = (93.2720950 + 483202.0175233 * t - 0.0036539 * t2 - t3 / 3526000.0 + t4 / 863310000.0) % 360.0
+
+        val e = 1.0 - 0.002516 * t - 0.0000074 * t2
+        val e2 = e * e
 
         var sumR = 0.0
         for (term in LUNAR_LONGITUDE_TERMS) {
             val distAmp = term[5]
             if (distAmp != 0.0) {
+                val mCoeff = abs(term[1])
+                val eFactor = when (mCoeff) {
+                    1.0 -> e
+                    2.0 -> e2
+                    else -> 1.0
+                }
                 val angleRad = Math.toRadians(term[0] * d + term[1] * m + term[2] * mPrime + term[3] * f)
-                sumR += distAmp * cos(angleRad)
+                sumR += distAmp * eFactor * cos(angleRad)
             }
         }
         return 385000.56 + (sumR / 1000.0)
@@ -847,15 +881,6 @@ object LunarEphemeris {
         val rhoSinPhiPrime = bA * sin(u) + (elevKm / 6378.14) * sinLat
         val rhoCosPhiPrime = cos(u) + (elevKm / 6378.14) * cosLat
 
-        // Exact Local Sidereal Time at local start-of-day (elapsedHour = 0.0)
-        val jd0 = calculateJulianDay(date.year, date.monthValue, date.dayOfMonth, 0.0, tzOffsetHours)
-        val jdMidnight = floor(jd0 - 0.5) + 0.5
-        val timeInDays0 = jd0 - jdMidnight
-        val tMidnight = (jdMidnight - 2451545.0) / 36525.0
-        val gmst0 = 24110.54841 + 8640184.812866 * tMidnight + 0.093104 * tMidnight * tMidnight
-        val gmstHour0 = (gmst0 / 3600.0 + timeInDays0 * 24.0 * 1.00273790935) % 24.0
-        val lstRad0 = Math.toRadians((gmstHour0 * 15.0) + coordinates.longitude)
-
         // Half-hour knots covering [0, durationHours] (47 for 23h, 49 for 24h, 51 for 25h)
         val numKnots = max(2, ceil(timeline.durationHours * 2.0).toInt() + 1)
         val raKnots = DoubleArray(numKnots)
@@ -863,9 +888,11 @@ object LunarEphemeris {
         val sinPiKnots = DoubleArray(numKnots)
         val distKnots = DoubleArray(numKnots)
         val twoPi = 2.0 * PI
+        var eqOfEquinoxesDeg0 = 0.0
 
         for (k in 0 until numKnots) {
             val geo = calculateGeocentricAtHour(date, k * 0.5, tzOffsetHours)
+            if (k == 0) eqOfEquinoxesDeg0 = geo.equationOfEquinoxesDeg
             var ra = geo.raRad
             if (k > 0) {
                 var delta = ra - raKnots[k - 1]
@@ -883,6 +910,15 @@ object LunarEphemeris {
             sinPiKnots[k] = 6378.14 / geo.distanceKm
             distKnots[k] = geo.distanceKm
         }
+
+        // Exact Apparent Local Sidereal Time (LAST = GMST + Δψ·cosε + λ) at local start-of-day
+        val jd0 = calculateJulianDay(date.year, date.monthValue, date.dayOfMonth, 0.0, tzOffsetHours)
+        val jdMidnight = floor(jd0 - 0.5) + 0.5
+        val timeInDays0 = jd0 - jdMidnight
+        val tMidnight = (jdMidnight - 2451545.0) / 36525.0
+        val gmst0 = 24110.54841 + 8640184.812866 * tMidnight + 0.093104 * tMidnight * tMidnight
+        val gmstHour0 = (gmst0 / 3600.0 + timeInDays0 * 24.0 * 1.00273790935) % 24.0
+        val lstRad0 = Math.toRadians((gmstHour0 * 15.0) + eqOfEquinoxesDeg0 + coordinates.longitude)
 
         return LunarDayModel(
             coordinates = coordinates,
@@ -915,14 +951,14 @@ object LunarEphemeris {
         val decRad = geo.decRad
         val distanceKm = geo.distanceKm
 
-        // 5. Calculate Local Sidereal Time (LST) to align Earth's rotation
+        // 5. Calculate Apparent Local Sidereal Time (LAST = GMST + Δψ·cosε + λ) to align Earth's rotation
         val jd = calculateJulianDay(date.year, date.monthValue, date.dayOfMonth, decimalHour, tzOffsetHours)
         val jdMidnight = floor(jd - 0.5) + 0.5
         val timeInDays = jd - jdMidnight
         val tMidnight = (jdMidnight - 2451545.0) / 36525.0
         val gmst0 = 24110.54841 + 8640184.812866 * tMidnight + 0.093104 * tMidnight * tMidnight
         val gmstHour = (gmst0 / 3600.0 + timeInDays * 24.0 * 1.00273790935) % 24.0
-        val lstRad = Math.toRadians((gmstHour * 15.0) + longitude)
+        val lstRad = Math.toRadians((gmstHour * 15.0) + geo.equationOfEquinoxesDeg + longitude)
 
         // 6. Geocentric Hour Angle
         val hRad = lstRad - raRad

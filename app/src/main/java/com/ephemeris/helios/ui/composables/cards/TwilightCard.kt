@@ -42,7 +42,6 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.entries.HeaderEntry
-import com.ephemeris.helios.ui.theme.GoogleSansFlex
 import com.ephemeris.helios.ui.theme.GoogleSansFlexRounded
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.calc.SolarEphemeris
@@ -687,7 +686,7 @@ private fun TwilightSlotChip(
             Text(
                 text = rangeText,
                 style = MaterialTheme.typography.titleSmall.copy(
-                    fontFamily = if (stage.isAllDay) GoogleSansFlex else GoogleSansFlexRounded,
+                    fontFamily = GoogleSansFlexRounded,
                     lineHeight = 1.15.em,
                     fontWeight = FontWeight.Bold,
                     fontFeatureSettings = "tnum",

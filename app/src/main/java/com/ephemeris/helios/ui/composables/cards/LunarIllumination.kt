@@ -110,6 +110,14 @@ fun LunarIllumination(
                 )
             }
 
+            val valueStyle = MaterialTheme.typography.headlineMedium.copy(
+                fontSize = 28.sp,
+                lineHeight = 32.sp,
+                fontWeight = FontWeight.Black,
+                fontFeatureSettings = "tnum",
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+
             Row(
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 modifier = Modifier
@@ -118,25 +126,14 @@ fun LunarIllumination(
             ) {
                 Text(
                     text = formattedPercent,
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = 28.sp,
-                        lineHeight = 32.sp,
-                        fontWeight = FontWeight.Black,
-                        fontFeatureSettings = "tnum",
-                        color = MaterialTheme.colorScheme.onSurface,
-                    ),
+                    style = valueStyle,
                     maxLines = 1,
                     softWrap = false,
                     modifier = Modifier.alignByBaseline(),
                 )
                 Text(
                     text = "%",
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        fontSize = 15.sp,
-                        lineHeight = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
+                    style = valueStyle,
                     maxLines = 1,
                     softWrap = false,
                     modifier = Modifier.alignByBaseline(),

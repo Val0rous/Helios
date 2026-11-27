@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -21,8 +22,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,7 +74,7 @@ fun SolarDistance(
     currentDistanceKm: Double,
     currentTime: ZonedDateTime,
     modifier: Modifier = Modifier,
-    distanceUnit: DistanceUnit = DistanceUnit.AU,
+    distanceUnit: DistanceUnit = DistanceUnit.KM,
     onToggleUnit: () -> Unit = {},
 ) {
     val locale = LocalLocale.current.platformLocale
@@ -103,11 +109,11 @@ fun SolarDistance(
         else -> null
     }
 
-    // AU always displays 5 decimal places (e.g., "0.98850", "1.01671"); km displays mln with 2 decimals
+    // AU displays 6 decimal places (e.g., "0.988502"); km displays 3 decimal places as "147.950M km"
     val formattedNumber = if (distanceUnit == DistanceUnit.AU) {
-        String.format(locale, "%.5f", currentDistanceAu)
+        String.format(locale, "%.6f", currentDistanceAu)
     } else {
-        String.format(locale, "%.2f", currentDistanceKm / 1_000_000.0)
+        String.format(locale, "%.3f", currentDistanceKm / 1_000_000.0)
     }
 
     /*
@@ -147,6 +153,7 @@ fun SolarDistance(
                 .fillMaxWidth()
                 .align(Alignment.CenterStart),
         ) {
+            val onSurfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
             val valueStyle = MaterialTheme.typography.headlineMedium.copy(
                 fontSize = 25.5.sp,
                 lineHeight = 32.sp,
@@ -154,25 +161,55 @@ fun SolarDistance(
                 fontFeatureSettings = "tnum",
                 letterSpacing = (-0.5).sp,
                 color = MaterialTheme.colorScheme.onSurface,
+                platformStyle = PlatformTextStyle(includeFontPadding = false),
+                lineHeightStyle = LineHeightStyle(
+                    alignment = LineHeightStyle.Alignment.Center,
+                    trim = LineHeightStyle.Trim.None,
+                ),
             )
-
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(
+                    if (distanceUnit == DistanceUnit.AU) 4.dp else 0.dp,
+                ),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(
                     text = formattedNumber,
                     style = valueStyle,
                     maxLines = 1,
                     softWrap = false,
-                    modifier = Modifier.alignByBaseline(),
+                    autoSize = TextAutoSize.StepBased(
+                        minFontSize = 18.sp,
+                        maxFontSize = 25.5.sp,
+                        stepSize = 0.5.sp,
+                    ),
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .alignByBaseline(),
                 )
+                val onSurface = MaterialTheme.colorScheme.onSurface
                 Text(
-                    text = if (distanceUnit == DistanceUnit.AU) "AU" else "mln km",
+                    text = buildAnnotatedString {
+                        if (distanceUnit == DistanceUnit.AU) {
+                            append("AU")
+                        } else {
+                            withStyle(
+                                SpanStyle(
+                                    fontWeight = FontWeight.Black,
+                                    color = onSurface,
+                                ),
+                            ) {
+                                append("M")
+                            }
+                            append(" km")
+                        }
+                    },
                     style = MaterialTheme.typography.labelLarge.copy(
                         fontSize = 13.sp,
                         lineHeight = 16.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = onSurfaceVariant,
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
                     ),
                     maxLines = 1,
                     softWrap = false,
@@ -192,7 +229,6 @@ fun SolarDistance(
 
             SolarDistanceBar(
                 distanceAu = currentDistanceAu.toFloat(),
-                showTrackBorder = tintColor != null,
                 borderColor = surfaceColor,
                 modifier = Modifier
                     .fillMaxWidth()

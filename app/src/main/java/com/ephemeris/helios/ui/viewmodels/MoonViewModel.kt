@@ -12,6 +12,7 @@ import com.ephemeris.helios.utils.calc.MoonLiveSnapshot
 import com.ephemeris.helios.utils.datastore.AppSettings
 import com.ephemeris.helios.utils.datastore.MoonColorTempMode
 import com.ephemeris.helios.utils.datastore.MoonDeclinationMode
+import com.ephemeris.helios.utils.datastore.MoonDistanceUnit
 import com.ephemeris.helios.utils.datastore.MoonIlluminanceMode
 import com.ephemeris.helios.utils.datastore.SettingsDataStore
 import com.ephemeris.helios.utils.location.Coordinates
@@ -29,6 +30,7 @@ data class MoonUiState(
     val illuminanceMode: MoonIlluminanceMode = MoonIlluminanceMode.GLOBAL,
     val colorTempMode: MoonColorTempMode = MoonColorTempMode.PURKINJE,
     val declinationMode: MoonDeclinationMode = MoonDeclinationMode.GEOCENTRIC,
+    val distanceUnit: MoonDistanceUnit = MoonDistanceUnit.KM,
 )
 
 class MoonViewModel(
@@ -79,6 +81,13 @@ class MoonViewModel(
         }
     }
 
+    fun toggleDistanceUnit() {
+        val current = uiState.value?.distanceUnit ?: MoonDistanceUnit.KM
+        viewModelScope.launch {
+            settingsDataStore.setMoonDistanceUnit(current.next())
+        }
+    }
+
     fun jumpToCulmination() {
         val state = uiState.value ?: return
         val culminationElapsedHours = state.moon.events.culminationElapsedHours ?: return
@@ -111,6 +120,7 @@ class MoonViewModel(
             illuminanceMode = settings.moonIlluminanceMode,
             colorTempMode = settings.moonColorTempMode,
             declinationMode = settings.moonDeclinationMode,
+            distanceUnit = settings.moonDistanceUnit,
         )
     }
 }

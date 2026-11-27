@@ -92,6 +92,8 @@ fun Moon(
                         illuminationPercent = moon.metrics.illuminationPercent,
                         phase = moon.metrics.phase,
                         moonPhase = moonPhase,
+                        distanceUnit = ui.distanceUnit,
+                        onToggleUnit = viewModel::toggleDistanceUnit,
                     )
                 },
             )

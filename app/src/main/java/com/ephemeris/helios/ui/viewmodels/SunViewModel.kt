@@ -31,7 +31,7 @@ data class SunUiState(
     val irradianceMode: IrradianceMode = IrradianceMode.DIRECT,
     val illuminanceMode: IlluminanceMode = IlluminanceMode.GLOBAL,
     val colorTempMode: ColorTempMode = ColorTempMode.DIRECT,
-    val distanceUnit: DistanceUnit = DistanceUnit.AU,
+    val distanceUnit: DistanceUnit = DistanceUnit.KM,
 )
 
 class SunViewModel(
@@ -83,7 +83,7 @@ class SunViewModel(
     }
 
     fun toggleDistanceUnit() {
-        val current = uiState.value?.distanceUnit ?: DistanceUnit.AU
+        val current = uiState.value?.distanceUnit ?: DistanceUnit.KM
         viewModelScope.launch {
             settingsDataStore.setDistanceUnit(current.next())
         }

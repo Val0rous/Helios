@@ -42,7 +42,7 @@ fun Illuminance(
 ) {
     val displayValue = if (isLunar) currentIlluminance * 1000.0 else currentIlluminance
     val waveValue = displayValue.toFloat()
-    val unitLabel = if (isLunar) "mlx" else "lux"
+    val unitLabel = if (isLunar) "mlx" else "lx"
     // Human-eye visibility floor (same units as waveValue):
     // - Moon (mlx): 2 mlx (~0.002 lux, natural starlight + airglow ceiling) hides pre-moonrise
     //   lunar twilight and invisible near-New-Moon crescents.

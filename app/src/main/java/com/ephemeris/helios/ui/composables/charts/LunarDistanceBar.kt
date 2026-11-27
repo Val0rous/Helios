@@ -28,7 +28,6 @@ fun LunarDistanceBar(
     distanceKm: Float,
     moonPhase: MoonPhaseAppearance,
     modifier: Modifier = Modifier,
-    showTrackBorder: Boolean = false,
     borderColor: Color = MaterialTheme.colorScheme.surface,
 ) {
     val colorScheme = MaterialTheme.colorScheme
@@ -55,7 +54,7 @@ fun LunarDistanceBar(
     val moonPath = remember { Path() }
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        val borderWidth = if (showTrackBorder) 2.dp.toPx() else 0f
+        val borderWidth = 2.dp.toPx()
         val trackHeight = 8.dp.toPx()
         val outerTrackHeight = trackHeight + borderWidth * 2f
         val earthIconSize = 20.dp.toPx()
@@ -69,7 +68,7 @@ fun LunarDistanceBar(
         val trackStart = earthIconSize + earthGap
         val trackWidth = (size.width - trackStart).coerceAtLeast(0f)
 
-        // Bind gradient explicitly to [trackStart, size.width] so red and blue are 100% symmetrical
+        // Bind gradient explicitly to [trackStart + borderWidth, size.width - borderWidth] so red and blue are 100% symmetrical
         val gradientBrush = Brush.horizontalGradient(
             0.00f to nearColor,
             0.18f to lerp(nearColor, neutralColor, 0.35f),
@@ -103,15 +102,13 @@ fun LunarDistanceBar(
             style = Stroke(width = earthIconSize * 0.09f),
         )
 
-        // 2. Draw the symmetric Red -> Neutral -> Blue Gradient Track
-        if (showTrackBorder) {
-            drawRoundRect(
-                color = borderColor,
-                topLeft = Offset(trackStart, outerTrackTop),
-                size = Size(trackWidth, outerTrackHeight),
-                cornerRadius = CornerRadius(outerTrackHeight / 2f),
-            )
-        }
+        // 2. Always draw the outer capsule border + inset track so track width never wobbles across card tint changes
+        drawRoundRect(
+            color = borderColor,
+            topLeft = Offset(trackStart, outerTrackTop),
+            size = Size(trackWidth, outerTrackHeight),
+            cornerRadius = CornerRadius(outerTrackHeight / 2f),
+        )
         drawRoundRect(
             brush = gradientBrush,
             topLeft = Offset(trackStart + borderWidth, trackTop),
