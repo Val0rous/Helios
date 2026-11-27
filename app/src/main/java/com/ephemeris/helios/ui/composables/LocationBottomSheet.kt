@@ -40,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -53,6 +54,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,6 +68,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.navigationevent.NavigationEventInfo
+import androidx.navigationevent.compose.NavigationBackHandler
+import androidx.navigationevent.compose.rememberNavigationEventState
 import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.composables.cards.MapCard
 import com.ephemeris.helios.ui.composables.entries.MetricModePill
@@ -80,6 +85,7 @@ import com.ephemeris.helios.utils.formatTimeZone
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.printRounded
 import com.ephemeris.helios.utils.toDmsCoordinate
+import kotlinx.coroutines.launch
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.ZoneId
@@ -104,13 +110,37 @@ fun LocationBottomSheet(
     var showTimezoneDialog by remember { mutableStateOf(false) }
 
     if (showBottomSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val scope = rememberCoroutineScope()
+
         ModalBottomSheet(
             onDismissRequest = {
                 onShowBottomSheetChange(false)
                 isEditing = false // Reset edit state when closed
             },
-            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            sheetState = sheetState,
+            // Disable ModalBottomSheet's built-in predictive-back scaling handler;
+            // handle back cleanly below (Edit -> Details, or Details -> hide sheet).
+            properties = ModalBottomSheetProperties(shouldDismissOnBackPress = false),
         ) {
+            val navigationState = rememberNavigationEventState(currentInfo = NavigationEventInfo.None)
+            NavigationBackHandler(
+                state = navigationState,
+                isBackEnabled = true,
+                onBackCompleted = {
+                    if (isEditing) {
+                        isEditing = false
+                    } else {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                            if (!sheetState.isVisible) {
+                                onShowBottomSheetChange(false)
+                                isEditing = false
+                            }
+                        }
+                    }
+                },
+            )
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
