@@ -6,6 +6,7 @@ import com.ephemeris.helios.data.EphemerisRepository
 import com.ephemeris.helios.data.LocationRepository
 import com.ephemeris.helios.data.TimeRepository
 import com.ephemeris.helios.utils.LocationStatus
+import com.ephemeris.helios.utils.calc.AtmosphericConditions
 import com.ephemeris.helios.utils.datastore.CoordinateFormat
 import com.ephemeris.helios.utils.datastore.SettingsDataStore
 import com.ephemeris.helios.utils.location.Coordinates
@@ -52,6 +53,14 @@ class MainViewModel(
             initialValue = null,
         )
 
+    val atmosphericConditions: StateFlow<AtmosphericConditions> = settingsDataStore.settingsFlow
+        .map { it.atmosphericConditions }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = AtmosphericConditions.DEFAULT,
+        )
+
     fun saveCoordinates(
         coordinates: Coordinates,
         isFromGPS: Boolean = false,
@@ -70,6 +79,12 @@ class MainViewModel(
     fun setCustomTimezoneId(timezoneId: String?) {
         viewModelScope.launch {
             settingsDataStore.setCustomTimezoneId(timezoneId)
+        }
+    }
+
+    fun setAtmosphericConditions(conditions: AtmosphericConditions) {
+        viewModelScope.launch {
+            settingsDataStore.setAtmosphericConditions(conditions)
         }
     }
 

@@ -77,6 +77,7 @@ class MainActivity : ComponentActivity() {
             val isEphemerisReady by vm.isEphemerisReady.collectAsStateWithLifecycle()
             val coordinateFormat by vm.coordinateFormat.collectAsStateWithLifecycle()
             val customTimezoneId by vm.customTimezoneId.collectAsStateWithLifecycle()
+            val atmosphericConditions by vm.atmosphericConditions.collectAsStateWithLifecycle()
 
             val snackbarHostState = remember { SnackbarHostState() }
 
@@ -124,6 +125,8 @@ class MainActivity : ComponentActivity() {
                                         stopTracking()
                                     }
                                 },
+                                atmosphericConditions = atmosphericConditions,
+                                onAtmosphericConditionsChange = vm::setAtmosphericConditions,
                             )
                         },
                         bottomBar = {

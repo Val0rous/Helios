@@ -8,7 +8,6 @@ import kotlin.math.*
 object SunMetrics {
     private const val SOLAR_CONSTANT = 1361.0
     private const val DIRECT_LUMINOUS_EFFICACY = 105.0
-    private const val DIFFUSE_LUMINOUS_EFFICACY = 115.0
     private const val NAUTICAL_TWILIGHT_DEG = -12.0
     private const val ASTRONOMICAL_TWILIGHT_DEG = -18.0
     private const val DEFAULT_OZONE_DU = 300.0
@@ -146,7 +145,8 @@ object SunMetrics {
         distanceAu: Double = 1.0,   // Default to 1 for safety
         ozoneDU: Double = DEFAULT_OZONE_DU,
         solarSpeed: Double = 0.0,
-        horizonAltDeg: Double = -0.833
+        horizonAltDeg: Double = -0.833,
+        conditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
     ): SunMetricsResult {
         val outIrradiance = FloatArray(1)
         val outGlobalIrradiance = FloatArray(1)
@@ -179,6 +179,7 @@ object SunMetrics {
             outDiffuseIlluminance = outDiffuseIlluminance,
             outGlobalColorTemp = outGlobalColorTemp,
             outDiffuseColorTemp = outDiffuseColorTemp,
+            conditions = conditions,
         )
 
         // 1 AU is exactly 149,597,870.7 kilometers
@@ -277,6 +278,7 @@ object SunMetrics {
      * @param outDiffuseIlluminance Optional pre-allocated array for Diffuse/Ambient Illuminance (lux).
      * @param outGlobalColorTemp Optional pre-allocated array for Global Horizontal daylight Color Temp (K).
      * @param outDiffuseColorTemp Optional pre-allocated array for Diffuse/Ambient skylight Color Temp (K).
+     * @param conditions Weather (cloud cover & layer) and ground surface albedo modifiers.
      */
     fun calculateMetrics(
         sunElevationsDeg: DoubleArray,
@@ -296,6 +298,7 @@ object SunMetrics {
         outDiffuseIlluminance: FloatArray? = null,
         outGlobalColorTemp: FloatArray? = null,
         outDiffuseColorTemp: FloatArray? = null,
+        conditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
     ) {
         val size = sunElevationsDeg.size
 
@@ -309,6 +312,13 @@ object SunMetrics {
         val temisConstantTerm = TEMIS_H / safeOzone + TEMIS_J
         val uvAltitudeModifier = (1.0 + UV_ALTITUDE_PRESSURE_GAIN * (1.0 - amElevationModifier))
             .coerceAtLeast(MIN_UV_ALTITUDE_MODIFIER)
+
+        // 3. Weather & ground surface modifiers (all identity when conditions.isDefault)
+        val cloudBeamTransmittance = conditions.directBeamTransmittance()
+        val cloudGlobalSwTransmittance = conditions.globalSwTransmittance()
+        val uvCloudFactor = conditions.uvCloudModificationFactor()
+        val shadowOccluded = conditions.isDirectShadowOccluded()
+        val diffuseLuminousEfficacy = conditions.diffuseLuminousEfficacy()
 
         for (i in 0 until size) {
             val sunElevDeg = sunElevationsDeg[i]
@@ -328,27 +338,34 @@ object SunMetrics {
                 outShadowRatio[i] = 0f
                 outColorTemp[i] = Float.NaN
 
-                outUvi[i] = computeTemisUvi(
+                val clearTwilightUvi = computeTemisUvi(
                     sunElevDeg = sunElevDeg,
                     posSinElev = 0.0,
                     invOzoneThousand = invOzoneThousand,
                     temisConstantTerm = temisConstantTerm,
                     distanceModifier = distanceModifier,
                     uvAltitudeModifier = uvAltitudeModifier,
-                ).toFloat()
+                )
+                outUvi[i] = (clearTwilightUvi * uvCloudFactor * conditions.uvSurfaceMultiplier(smoothSinElev)).toFloat()
 
-                val twilightDhi = if (sunElevDeg > ASTRONOMICAL_TWILIGHT_DEG) {
+                val clearTwilightDhi = if (sunElevDeg > ASTRONOMICAL_TWILIGHT_DEG) {
                     val altScale = smoothTwilightAltitudeScale(sinElev, amElevationModifier)
                     0.271 * extraterrestrialIrradiance * smoothSinElev * altScale
                 } else {
                     0.0
                 }
-                val twilightLux = twilightDhi * DIFFUSE_LUMINOUS_EFFICACY
-                val twilightColorTemp = computeDiffuseColorTempKelvin(
+                val cloudTwilightDhi = clearTwilightDhi * cloudGlobalSwTransmittance
+                val twilightDhi = max(
+                    0.0,
+                    cloudTwilightDhi + conditions.groundSwExtraDiffuse(cloudTwilightDhi, smoothSinElev),
+                )
+                val twilightLux = twilightDhi * diffuseLuminousEfficacy
+                val clearTwilightColorTemp = computeDiffuseColorTempKelvin(
                     sunElevDeg = sunElevDeg,
                     smoothSinElev = smoothSinElev,
                     amElevationModifier = amElevationModifier,
-                ).toFloat()
+                )
+                val twilightColorTemp = conditions.adjustDiffuseColorTemp(clearTwilightColorTemp).toFloat()
 
                 outIlluminance[i] = twilightLux.toFloat()
                 outDirectIlluminance?.set(i, 0f)
@@ -372,15 +389,30 @@ object SunMetrics {
             outAirMass[i] = actualAirMass.toFloat()
 
             // 2. Irradiance (Direct Normal, Diffuse Horizontal, Global Horizontal)
-            val directIrradiance = extraterrestrialIrradiance * 0.7.pow(actualAirMass)
-            val directHorizontalIrradiance = directIrradiance * posSinElev
+            val clearDirectIrradiance = extraterrestrialIrradiance * 0.7.pow(actualAirMass)
+            val clearDirectHorizontalIrradiance = clearDirectIrradiance * posSinElev
 
             // Unified C∞-smooth Liu-Jordan clear-sky + twilight diffuse model (zero kink at 0°)
             val altScale = smoothTwilightAltitudeScale(sinElev, amElevationModifier)
-            val diffuseIrradiance = max(
+            val clearDiffuseIrradiance = max(
                 0.0,
-                (0.271 * extraterrestrialIrradiance - 0.2939 * directIrradiance) * smoothSinElev * altScale,
+                (0.271 * extraterrestrialIrradiance - 0.2939 * clearDirectIrradiance) * smoothSinElev * altScale,
             )
+            val clearGlobalIrradiance = clearDirectHorizontalIrradiance + clearDiffuseIrradiance
+
+            // Cloud attenuation & broken-cloud diffuse scattering + ground-sky multiple bounce
+            val directIrradiance = clearDirectIrradiance * cloudBeamTransmittance
+            val directHorizontalIrradiance = directIrradiance * posSinElev
+            val cloudGlobalIrradiance = clearGlobalIrradiance * cloudGlobalSwTransmittance
+            val cloudDiffuseIrradiance = max(
+                clearDiffuseIrradiance * cloudGlobalSwTransmittance,
+                cloudGlobalIrradiance - directHorizontalIrradiance,
+            )
+            val groundExtraDiffuse = conditions.groundSwExtraDiffuse(
+                downwellingBeforeGround = directHorizontalIrradiance + cloudDiffuseIrradiance,
+                smoothSinElev = smoothSinElev,
+            )
+            val diffuseIrradiance = max(0.0, cloudDiffuseIrradiance + groundExtraDiffuse)
             val globalIrradiance = directHorizontalIrradiance + diffuseIrradiance
 
             outIrradiance[i] = directIrradiance.toFloat()
@@ -390,45 +422,54 @@ object SunMetrics {
             // 3. Illuminance (Global Horizontal default, Direct Beam, Diffuse/Ambient Sky)
             val directIlluminance = directIrradiance * DIRECT_LUMINOUS_EFFICACY
             val directHorizontalIlluminance = directHorizontalIrradiance * DIRECT_LUMINOUS_EFFICACY
-            val diffuseIlluminance = diffuseIrradiance * DIFFUSE_LUMINOUS_EFFICACY
+            val diffuseIlluminance = diffuseIrradiance * diffuseLuminousEfficacy
             val globalIlluminance = directHorizontalIlluminance + diffuseIlluminance
 
             outIlluminance[i] = globalIlluminance.toFloat()
             outDirectIlluminance?.set(i, directIlluminance.toFloat())
             outDiffuseIlluminance?.set(i, diffuseIlluminance.toFloat())
 
-            // 4. UV Index (KNMI TEMIS v2.x clear-sky erythemal model with C1-smooth twilight decay)
-            outUvi[i] = computeTemisUvi(
+            // 4. UV Index (KNMI TEMIS v2.x with cloud CMF & ground surface albedo amplification)
+            val clearUvi = computeTemisUvi(
                 sunElevDeg = sunElevDeg,
                 posSinElev = posSinElev,
                 invOzoneThousand = invOzoneThousand,
                 temisConstantTerm = temisConstantTerm,
                 distanceModifier = distanceModifier,
                 uvAltitudeModifier = uvAltitudeModifier,
-            ).toFloat()
+            )
+            outUvi[i] = (clearUvi * uvCloudFactor * conditions.uvSurfaceMultiplier(smoothSinElev)).toFloat()
 
-            // 5. Shadow Ratio (Refracted apparent elevation with smooth partial-disk rise/set)
-            outShadowRatio[i] = computeShadowRatio(
-                geometricAltDeg = sunElevDeg,
-                horizonAltDeg = horizonAltDeg,
-                semiDiameterDeg = SUN_SEMI_DIAMETER_DEG,
-            ).toFloat()
+            // 5. Shadow Ratio (Refracted apparent elevation; diffused to 0 under opaque overcast)
+            outShadowRatio[i] = if (shadowOccluded) {
+                0f
+            } else {
+                computeShadowRatio(
+                    geometricAltDeg = sunElevDeg,
+                    horizonAltDeg = horizonAltDeg,
+                    semiDiameterDeg = SUN_SEMI_DIAMETER_DEG,
+                ).toFloat()
+            }
 
             // 6. Color Temperature (Direct Beam, Diffuse/Ambient Skylight, and Mired-Weighted Global Daylight)
-            val directColorTemp = 1800.0 + 3700.0 * exp(-0.1 * (actualAirMass - 1.0))
-            val diffuseColorTemp = computeDiffuseColorTempKelvin(
+            val clearDirectColorTemp = 1800.0 + 3700.0 * exp(-0.1 * (actualAirMass - 1.0))
+            val directColorTemp = conditions.adjustDirectColorTemp(clearDirectColorTemp)
+            val clearDiffuseColorTemp = computeDiffuseColorTempKelvin(
                 sunElevDeg = sunElevDeg,
                 smoothSinElev = smoothSinElev,
                 amElevationModifier = amElevationModifier,
             )
-            val globalColorTemp = if (globalIlluminance > 0.0 && !diffuseColorTemp.isNaN()) {
-                val directWeight = directHorizontalIlluminance / globalIlluminance
-                val diffuseWeight = diffuseIlluminance / globalIlluminance
-                val mixedMired = directWeight * (1_000_000.0 / directColorTemp) +
-                    diffuseWeight * (1_000_000.0 / diffuseColorTemp)
-                1_000_000.0 / mixedMired
-            } else {
-                directColorTemp
+            val diffuseColorTemp = conditions.adjustDiffuseColorTemp(clearDiffuseColorTemp)
+            val globalColorTemp = when {
+                directColorTemp.isNaN() -> diffuseColorTemp
+                globalIlluminance > 0.0 && !diffuseColorTemp.isNaN() -> {
+                    val directWeight = directHorizontalIlluminance / globalIlluminance
+                    val diffuseWeight = diffuseIlluminance / globalIlluminance
+                    val mixedMired = directWeight * (1_000_000.0 / directColorTemp) +
+                        diffuseWeight * (1_000_000.0 / diffuseColorTemp)
+                    1_000_000.0 / mixedMired
+                }
+                else -> directColorTemp
             }
 
             outColorTemp[i] = directColorTemp.toFloat()

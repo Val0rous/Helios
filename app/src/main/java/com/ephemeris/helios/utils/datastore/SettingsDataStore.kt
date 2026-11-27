@@ -3,7 +3,11 @@ package com.ephemeris.helios.utils.datastore
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.ephemeris.helios.utils.calc.AtmosphericConditions
+import com.ephemeris.helios.utils.calc.CloudType
+import com.ephemeris.helios.utils.calc.GroundSurface
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -159,6 +163,7 @@ data class AppSettings(
     val moonDistanceUnit: MoonDistanceUnit = MoonDistanceUnit.KM,
     val coordinateFormat: CoordinateFormat = CoordinateFormat.DECIMAL,
     val customTimezoneId: String? = null,
+    val atmosphericConditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
 )
 
 /**
@@ -178,6 +183,9 @@ class SettingsDataStore(private val context: Context) {
     private val moonDistanceUnitKey = stringPreferencesKey("moon_distance_unit")
     private val coordinateFormatKey = stringPreferencesKey("coordinate_format")
     private val customTimezoneIdKey = stringPreferencesKey("custom_timezone_id")
+    private val cloudCoverPercentKey = intPreferencesKey("cloud_cover_percent")
+    private val cloudTypeKey = stringPreferencesKey("cloud_type")
+    private val groundSurfaceKey = stringPreferencesKey("ground_surface")
 
     val settingsFlow: Flow<AppSettings> = context.dataStore.data
         .map { preferences ->
@@ -194,6 +202,11 @@ class SettingsDataStore(private val context: Context) {
                 moonDistanceUnit = MoonDistanceUnit.fromName(preferences[moonDistanceUnitKey]),
                 coordinateFormat = CoordinateFormat.fromName(preferences[coordinateFormatKey]),
                 customTimezoneId = preferences[customTimezoneIdKey],
+                atmosphericConditions = AtmosphericConditions(
+                    cloudCoverPercent = (preferences[cloudCoverPercentKey] ?: 0).coerceIn(0, 100),
+                    cloudType = CloudType.fromName(preferences[cloudTypeKey]),
+                    groundSurface = GroundSurface.fromName(preferences[groundSurfaceKey]),
+                ),
             )
         }
 
@@ -270,6 +283,14 @@ class SettingsDataStore(private val context: Context) {
             } else {
                 preferences[customTimezoneIdKey] = timezoneId
             }
+        }
+    }
+
+    suspend fun setAtmosphericConditions(conditions: AtmosphericConditions) {
+        context.dataStore.edit { preferences ->
+            preferences[cloudCoverPercentKey] = conditions.clampedCloudCover
+            preferences[cloudTypeKey] = conditions.cloudType.name
+            preferences[groundSurfaceKey] = conditions.groundSurface.name
         }
     }
 }

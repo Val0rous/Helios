@@ -181,7 +181,8 @@ object MoonMetrics {
 
     /**
      * Computes Direct Beam, Diffuse/Ambient Sky, and Global Horizontal lunar illuminance,
-     * mirroring [SunMetrics]'s Liu-Jordan clear-sky + twilight scattering model.
+     * mirroring [SunMetrics]'s Liu-Jordan clear-sky + twilight scattering model with
+     * cloud attenuation and ground-albedo multiple reflection.
      */
     private fun computeIlluminanceComponents(
         moonElevDeg: Double,
@@ -190,18 +191,25 @@ object MoonMetrics {
         distanceKm: Double,
         actualAirMass: Double,
         amElevationModifier: Double,
+        conditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
     ): LunarIlluminanceComponents {
         val exoAtmosphericLux = computeExoAtmosphericLux(alphaDeg, distanceKm)
         val sinElev = sin(Math.toRadians(moonElevDeg))
         val smoothSinElev = SunMetrics.smoothDiffuseSinElev(sinElev)
         val altScale = SunMetrics.smoothTwilightAltitudeScale(sinElev, amElevationModifier)
+        val cloudGlobalSwTransmittance = conditions.globalSwTransmittance()
 
         if (moonElevDeg <= horizonAltDeg) {
-            val twilightDiffuse = if (moonElevDeg > ASTRONOMICAL_TWILIGHT_DEG) {
+            val clearTwilightDiffuse = if (moonElevDeg > ASTRONOMICAL_TWILIGHT_DEG) {
                 0.271 * exoAtmosphericLux * smoothSinElev * altScale
             } else {
                 0.0
             }
+            val cloudTwilightDiffuse = clearTwilightDiffuse * cloudGlobalSwTransmittance
+            val twilightDiffuse = max(
+                0.0,
+                cloudTwilightDiffuse + conditions.groundSwExtraDiffuse(cloudTwilightDiffuse, smoothSinElev),
+            )
             return LunarIlluminanceComponents(
                 directLux = 0.0,
                 diffuseLux = twilightDiffuse,
@@ -210,15 +218,29 @@ object MoonMetrics {
         }
 
         val posSinElev = max(0.0, sinElev)
-        val beamTransmittance = 0.74.pow(actualAirMass)
-        val directLux = exoAtmosphericLux * beamTransmittance
-        val directHorizontalLux = directLux * posSinElev
+        val clearBeamTransmittance = 0.74.pow(actualAirMass)
+        val clearDirectLux = exoAtmosphericLux * clearBeamTransmittance
+        val clearDirectHorizontalLux = clearDirectLux * posSinElev
 
         // Unified C∞-smooth Liu-Jordan clear-sky + lunar twilight scatter (zero kink at 0°)
-        val diffuseLux = max(
+        val clearDiffuseLux = max(
             0.0,
-            (0.271 - 0.2939 * beamTransmittance) * exoAtmosphericLux * smoothSinElev * altScale,
+            (0.271 - 0.2939 * clearBeamTransmittance) * exoAtmosphericLux * smoothSinElev * altScale,
         )
+        val clearGlobalLux = clearDirectHorizontalLux + clearDiffuseLux
+
+        val directLux = clearDirectLux * conditions.directBeamTransmittance()
+        val directHorizontalLux = directLux * posSinElev
+        val cloudGlobalLux = clearGlobalLux * cloudGlobalSwTransmittance
+        val cloudDiffuseLux = max(
+            clearDiffuseLux * cloudGlobalSwTransmittance,
+            cloudGlobalLux - directHorizontalLux,
+        )
+        val groundExtraDiffuse = conditions.groundSwExtraDiffuse(
+            downwellingBeforeGround = directHorizontalLux + cloudDiffuseLux,
+            smoothSinElev = smoothSinElev,
+        )
+        val diffuseLux = max(0.0, cloudDiffuseLux + groundExtraDiffuse)
         val globalLux = directHorizontalLux + diffuseLux
 
         return LunarIlluminanceComponents(
@@ -245,14 +267,15 @@ object MoonMetrics {
     fun computePerceivedColorTempKelvin(
         physicalColorTempKelvin: Double,
         illuminanceLux: Double,
+        landscapeReflectance: Double = AtmosphericConditions.BASELINE_LUNAR_REFLECTANCE,
     ): Double {
         if (physicalColorTempKelvin.isNaN() || illuminanceLux <= 0.0) return Double.NaN
 
-        // Convert horizontal illuminance (lx) to typical landscape luminance (cd/m², 18% reflectance).
+        // Convert horizontal illuminance (lx) to landscape luminance (cd/m², default 18% reflectance).
         // Use a smooth Hill/sigmoid rod-dominance curve across the mesopic range (half-saturation at
         // 0.16 cd/m², the geometric midpoint of CIE 191's [0.005, 5.0] cd/m² bounds) so there are
         // no hard-clamp corners or artificial plateaus on bright Full Moon nights.
-        val landscapeLuminance = illuminanceLux * (0.18 / PI)
+        val landscapeLuminance = illuminanceLux * (landscapeReflectance / PI)
         val rodFactor = 1.0 / (1.0 + (landscapeLuminance / 0.16).pow(0.75))
 
         // Short-wavelength availability for rod stimulation (drops sharply near the horizon)
@@ -269,7 +292,8 @@ object MoonMetrics {
 
     fun calculateMetrics(
         time: ZonedDateTime,
-        coordinates: Coordinates
+        coordinates: Coordinates,
+        conditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
     ): LunarMetricsResult {
         val position = LunarEphemeris.calculatePosition(
             time = time,
@@ -349,16 +373,32 @@ object MoonMetrics {
             distanceKm = position.distanceKm,
             actualAirMass = actualAirMass,
             amElevationModifier = amElevationModifier,
+            conditions = conditions,
         )
 
         if (isAboveHorizon) {
-            shadowRatio = computeShadowRatio(
-                geometricAltDeg = position.altitude,
-                horizonAltDeg = horizonAltDeg,
-                semiDiameterDeg = semiDiameterDeg,
+            shadowRatio = if (conditions.isDirectShadowOccluded()) {
+                0.0
+            } else {
+                computeShadowRatio(
+                    geometricAltDeg = position.altitude,
+                    horizonAltDeg = horizonAltDeg,
+                    semiDiameterDeg = semiDiameterDeg,
+                )
+            }
+            val clearColorTemp = computeColorTempKelvin(actualAirMass)
+            colorTempKelvin = conditions.adjustDirectColorTemp(clearColorTemp)
+            val purkinjePhysicalBase = if (colorTempKelvin.isNaN()) {
+                conditions.adjustDiffuseColorTemp(clearColorTemp)
+            } else {
+                colorTempKelvin
+            }
+            val smoothSinElev = SunMetrics.smoothDiffuseSinElev(sin(Math.toRadians(position.altitude)))
+            perceivedColorTempKelvin = computePerceivedColorTempKelvin(
+                physicalColorTempKelvin = purkinjePhysicalBase,
+                illuminanceLux = illuminance.globalLux,
+                landscapeReflectance = conditions.effectiveLunarReflectance(smoothSinElev),
             )
-            colorTempKelvin = computeColorTempKelvin(actualAirMass)
-            perceivedColorTempKelvin = computePerceivedColorTempKelvin(colorTempKelvin, illuminance.globalLux)
         }
 
         return LunarMetricsResult(
@@ -398,6 +438,7 @@ object MoonMetrics {
         outAirMass: FloatArray,
         outDirectIlluminance: FloatArray? = null,
         outDiffuseIlluminance: FloatArray? = null,
+        conditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
     ) {
         calculateMetrics(
             date = date,
@@ -413,6 +454,7 @@ object MoonMetrics {
             outAirMass = outAirMass,
             outDirectIlluminance = outDirectIlluminance,
             outDiffuseIlluminance = outDiffuseIlluminance,
+            conditions = conditions,
         )
     }
 
@@ -433,9 +475,11 @@ object MoonMetrics {
         outAirMass: FloatArray,
         outDirectIlluminance: FloatArray? = null,
         outDiffuseIlluminance: FloatArray? = null,
+        conditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
     ) {
         val size = moonElevationsDeg.size
         val amElevationModifier = exp(-observerAltitudeMeters / ATMOSPHERE_SCALE_HEIGHT)
+        val shadowOccluded = conditions.isDirectShadowOccluded()
         val timeline = LocalDayTimeline(date, zoneId)
         val anchorOffset = timeline.startUtcAnchorOffsetHours
         val dayHours = timeline.durationHours
@@ -466,6 +510,7 @@ object MoonMetrics {
                     distanceKm = distancesKm[i],
                     actualAirMass = 0.0,
                     amElevationModifier = amElevationModifier,
+                    conditions = conditions,
                 )
                 outIlluminance[i] = illuminance.globalLux.toFloat()
                 outDirectIlluminance?.set(i, 0f)
@@ -483,19 +528,35 @@ object MoonMetrics {
                 distanceKm = distancesKm[i],
                 actualAirMass = actualAirMass,
                 amElevationModifier = amElevationModifier,
+                conditions = conditions,
             )
             outIlluminance[i] = illuminance.globalLux.toFloat()
             outDirectIlluminance?.set(i, illuminance.directLux.toFloat())
             outDiffuseIlluminance?.set(i, illuminance.diffuseLux.toFloat())
 
-            outShadowRatio[i] = computeShadowRatio(
-                geometricAltDeg = moonElevDeg,
-                horizonAltDeg = horizonAltDeg,
-                semiDiameterDeg = MOON_SEMI_DIAMETER_DEG,
-            ).toFloat()
+            outShadowRatio[i] = if (shadowOccluded) {
+                0f
+            } else {
+                computeShadowRatio(
+                    geometricAltDeg = moonElevDeg,
+                    horizonAltDeg = horizonAltDeg,
+                    semiDiameterDeg = MOON_SEMI_DIAMETER_DEG,
+                ).toFloat()
+            }
 
-            val physicalColorTemp = computeColorTempKelvin(actualAirMass)
-            outColorTemp[i] = computePerceivedColorTempKelvin(physicalColorTemp, illuminance.globalLux).toFloat()
+            val clearPhysicalColorTemp = computeColorTempKelvin(actualAirMass)
+            val directColorTemp = conditions.adjustDirectColorTemp(clearPhysicalColorTemp)
+            val purkinjePhysicalBase = if (directColorTemp.isNaN()) {
+                conditions.adjustDiffuseColorTemp(clearPhysicalColorTemp)
+            } else {
+                directColorTemp
+            }
+            val smoothSinElev = SunMetrics.smoothDiffuseSinElev(sin(Math.toRadians(moonElevDeg)))
+            outColorTemp[i] = computePerceivedColorTempKelvin(
+                physicalColorTempKelvin = purkinjePhysicalBase,
+                illuminanceLux = illuminance.globalLux,
+                landscapeReflectance = conditions.effectiveLunarReflectance(smoothSinElev),
+            ).toFloat()
         }
     }
 
@@ -508,6 +569,7 @@ object MoonMetrics {
         time: ZonedDateTime, // Pass any time during the target day
         coordinates: Coordinates,
         dailyEvents: LunarEphemeris.LunarDailyEvents? = null,
+        conditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
     ): LunarMetricsResult? {
         // 1. Reuse precomputed daily events when available to avoid scanning the day twice
         val resolvedEvents = dailyEvents ?: LunarEphemeris.calculateDailyEvents(
@@ -525,7 +587,8 @@ object MoonMetrics {
         // 3. Run the full physics engine at that exact second
         return calculateMetrics(
             time = peakTime,
-            coordinates = coordinates
+            coordinates = coordinates,
+            conditions = conditions,
         )
     }
 

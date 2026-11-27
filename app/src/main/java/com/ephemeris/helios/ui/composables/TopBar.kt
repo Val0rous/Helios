@@ -1,5 +1,6 @@
 package com.ephemeris.helios.ui.composables
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.RepeatMode
@@ -7,7 +8,11 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -52,6 +57,8 @@ import com.ephemeris.helios.R
 import com.ephemeris.helios.ui.theme.GoogleSansFlexRounded
 import com.ephemeris.helios.ui.theme.HeliosTheme
 import com.ephemeris.helios.utils.LocationStatus
+import com.ephemeris.helios.utils.calc.AtmosphericConditions
+import com.ephemeris.helios.utils.calc.GroundSurface
 import com.ephemeris.helios.utils.datastore.CoordinateFormat
 import com.ephemeris.helios.utils.formatShortLatitude
 import com.ephemeris.helios.utils.formatShortLongitude
@@ -75,8 +82,11 @@ fun TopBar(
     onLocationClick: () -> Unit,
     isTracking: Boolean,
     onToggleTracking: (Boolean) -> Unit,
+    atmosphericConditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
+    onAtmosphericConditionsChange: (AtmosphericConditions) -> Unit = {},
 ) {
     var showBottomSheet by remember { mutableStateOf(false) }
+    var showWeatherSheet by remember { mutableStateOf(false) }
     val locale = LocalLocale.current.platformLocale
 
     val isThinking = locationStatus == LocationStatus.SEARCHING || isTracking
@@ -166,6 +176,15 @@ fun TopBar(
             }
         },
         actions = {
+            WeatherConditionIconButton(
+                conditions = atmosphericConditions,
+                onClick = { showWeatherSheet = true },
+                onLongClick = {
+                    if (!atmosphericConditions.isDefault) {
+                        onAtmosphericConditionsChange(AtmosphericConditions.DEFAULT)
+                    }
+                },
+            )
             IconButton(
                 onClick = {}
             ) {
@@ -195,6 +214,95 @@ fun TopBar(
             isTracking = isTracking,
             onToggleTracking = onToggleTracking,
         )
+    }
+
+    WeatherBottomSheet(
+        conditions = atmosphericConditions,
+        onConditionsChange = onAtmosphericConditionsChange,
+        showBottomSheet = showWeatherSheet,
+        onShowBottomSheetChange = { showWeatherSheet = it },
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun WeatherConditionIconButton(
+    conditions: AtmosphericConditions,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
+    val haptic = LocalHapticFeedback.current
+    val isModified = !conditions.isDefault
+    val containerColor by animateColorAsState(
+        targetValue = if (isModified) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            Color.Transparent
+        },
+        label = "weatherButtonContainer",
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isModified) {
+            MaterialTheme.colorScheme.onSecondaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "weatherButtonContent",
+    )
+
+    Box(
+        modifier = Modifier.minimumInteractiveComponentSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = containerColor,
+            contentColor = contentColor,
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .combinedClickable(
+                    role = Role.Button,
+                    onClick = onClick,
+                    onLongClickLabel = "Reset weather and ground to default",
+                    onLongClick = {
+                        if (isModified) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongClick()
+                        }
+                    },
+                ),
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center,
+            ) {
+                AnimatedContent(
+                    targetState = conditions.weatherIconRes,
+                    transitionSpec = {
+                        fadeIn(tween(150)).togetherWith(fadeOut(tween(120)))
+                    },
+                    label = "topBarWeatherIcon",
+                ) { iconRes ->
+                    Icon(
+                        painter = painterResource(id = iconRes),
+                        contentDescription = "Weather & ground: ${conditions.skyConditionLabel}",
+                    )
+                }
+
+                // Subtle accent dot when a non-default ground surface is active
+                if (conditions.hasCustomGround) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 6.dp, end = 6.dp)
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -314,6 +422,10 @@ private fun TopBarDmsPreview() {
             onLocationClick = {},
             isTracking = false,
             onToggleTracking = {},
+            atmosphericConditions = AtmosphericConditions(
+                cloudCoverPercent = 40,
+                groundSurface = GroundSurface.BEACH,
+            ),
         )
     }
 }

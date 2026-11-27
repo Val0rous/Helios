@@ -4,6 +4,7 @@ import com.ephemeris.helios.ui.composables.cards.ChartArrays
 import com.ephemeris.helios.ui.composables.cards.X_SIZE
 import com.ephemeris.helios.ui.composables.cards.generateMoonData
 import com.ephemeris.helios.ui.composables.cards.generateSunData
+import com.ephemeris.helios.utils.calc.AtmosphericConditions
 import com.ephemeris.helios.utils.calc.LiveUpdatesData
 import com.ephemeris.helios.utils.calc.LunarEphemeris
 import com.ephemeris.helios.utils.calc.LunarLunisticeEphemeris
@@ -16,6 +17,7 @@ import com.ephemeris.helios.utils.calc.SunLiveSnapshot
 import com.ephemeris.helios.utils.calc.SunMetrics
 import com.ephemeris.helios.utils.calc.getLiveUpdates
 import com.ephemeris.helios.utils.calc.getSeasonalEphemerisData
+import com.ephemeris.helios.utils.datastore.SettingsDataStore
 import com.ephemeris.helios.utils.location.Coordinates
 import com.ephemeris.helios.utils.location.estimateHistoricalOzone
 import kotlinx.coroutines.CoroutineScope
@@ -124,6 +126,14 @@ private data class DailyCacheKey(
     val coords: Coordinates,
     val date: LocalDate,
     val zoneId: ZoneId,
+    val conditions: AtmosphericConditions,
+)
+
+private data class LiveQueryParams(
+    val coords: Coordinates,
+    val isAuto: Boolean,
+    val zoneId: ZoneId,
+    val conditions: AtmosphericConditions,
 )
 
 /**
@@ -139,6 +149,7 @@ private data class DailyCacheKey(
 class EphemerisRepository(
     private val locationRepository: LocationRepository,
     private val timeRepository: TimeRepository,
+    settingsDataStore: SettingsDataStore,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -170,6 +181,10 @@ class EphemerisRepository(
         initialValue = false,
     )
 
+    private val atmosphericConditionsFlow = settingsDataStore.settingsFlow
+        .map { it.atmosphericConditions }
+        .distinctUntilChanged()
+
     init {
         // 1. Daily ephemeris & 1441-point chart arrays:
         scope.launch {
@@ -177,16 +192,18 @@ class EphemerisRepository(
                 combine(
                     locationRepository.coordinates.filterNotNull(),
                     timeRepository.currentTime,
-                ) { coords, time -> coords to time }
-                    .distinctUntilChanged { (oldCoords, oldTime), (newCoords, newTime) ->
+                    atmosphericConditionsFlow,
+                ) { coords, time, conditions -> Triple(coords, time, conditions) }
+                    .distinctUntilChanged { (oldCoords, oldTime, oldCond), (newCoords, newTime, newCond) ->
                         oldCoords == newCoords &&
                             oldTime.toLocalDate() == newTime.toLocalDate() &&
-                            oldTime.zone == newTime.zone
+                            oldTime.zone == newTime.zone &&
+                            oldCond == newCond
                     }
                     .conflate()
-                    .collect { (coords, targetTime) ->
+                    .collect { (coords, targetTime, conditions) ->
                         val localDate = targetTime.toLocalDate()
-                        val dailyKey = DailyCacheKey(coords, localDate, targetTime.zone)
+                        val dailyKey = DailyCacheKey(coords, localDate, targetTime.zone, conditions)
                         if (dailyKey == lastPublishedDailyKey && _dailyData.value != null) {
                             return@collect
                         }
@@ -233,9 +250,17 @@ class EphemerisRepository(
                                     distanceAu = events.distanceAu,
                                     ozoneDU = dailyOzone,
                                     horizonAltDeg = coords.sunApparentHorizonAlt(events.distanceAu),
+                                    conditions = conditions,
                                 )
                                 currentCoroutineContext().ensureActive()
-                                val (xSun, ySun) = generateSunData(localDate, hoursCalc, coords, targetTime.zone, dailyOzone)
+                                val (xSun, ySun) = generateSunData(
+                                    localDate = localDate,
+                                    hoursCalc = hoursCalc,
+                                    coordinates = coords,
+                                    zoneId = targetTime.zone,
+                                    dailyOzone = dailyOzone,
+                                    conditions = conditions,
+                                )
                                 SunDailyData(
                                     events = events,
                                     durations = durations,
@@ -254,6 +279,7 @@ class EphemerisRepository(
                                     time = targetTime,
                                     coordinates = coords,
                                     dailyEvents = lunarEvents,
+                                    conditions = conditions,
                                 )
                                 currentCoroutineContext().ensureActive()
                                 val (xMoon, yMoon) = generateMoonData(
@@ -262,6 +288,7 @@ class EphemerisRepository(
                                     hoursCalc = hoursCalc,
                                     coordinates = coords,
                                     zoneId = targetTime.zone,
+                                    conditions = conditions,
                                 )
                                 val lunistices = if (seasonalKey == cachedLunisticeKey && cachedLunisticeData != null) {
                                     cachedLunisticeData!!
@@ -304,22 +331,25 @@ class EphemerisRepository(
                     locationRepository.coordinates.filterNotNull(),
                     timeRepository.isAutoUpdateEnabled,
                     timeRepository.currentZoneId,
-                ) { coords, isAuto, zoneId -> Triple(coords, isAuto, zoneId) }
-                    .flatMapLatest { (coords, isAuto, zoneId) ->
+                    atmosphericConditionsFlow,
+                ) { coords, isAuto, zoneId, conditions ->
+                    LiveQueryParams(coords, isAuto, zoneId, conditions)
+                }
+                    .flatMapLatest { (coords, isAuto, zoneId, conditions) ->
                         if (isAuto) {
                             flow {
                                 while (true) {
-                                    emit(coords to ZonedDateTime.now(zoneId))
+                                    emit(Triple(coords, ZonedDateTime.now(zoneId), conditions))
                                     delay(12.seconds)
                                 }
                             }
                         } else {
-                            timeRepository.currentTime.map { time -> coords to time }
+                            timeRepository.currentTime.map { time -> Triple(coords, time, conditions) }
                         }
                     }
                     .conflate()
-                    .collect { (coords, targetTime) ->
-                        val live = getLiveUpdates(targetTime, coords)
+                    .collect { (coords, targetTime, conditions) ->
+                        val live = getLiveUpdates(targetTime, coords, conditions)
                         currentCoroutineContext().ensureActive()
                         _liveUpdates.value = live
                     }

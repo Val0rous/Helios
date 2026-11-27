@@ -906,7 +906,8 @@ internal fun generateSunData(
     hoursCalc: DoubleArray,
     coordinates: Coordinates,
     zoneId: ZoneId,
-    dailyOzone: Double
+    dailyOzone: Double,
+    conditions: com.ephemeris.helios.utils.calc.AtmosphericConditions = com.ephemeris.helios.utils.calc.AtmosphericConditions.DEFAULT,
 ): Pair<Map<Charts, FloatArray>, Map<Charts, FloatArray>> {
     val timeline = LocalDayTimeline(localDate, zoneId)
     val anchorOffset = timeline.startUtcAnchorOffsetHours
@@ -947,7 +948,8 @@ internal fun generateSunData(
         outIlluminance = illuminance,
         outShadowRatio = shadowRatio,
         outColorTemp = colorTemp,
-        outAirMass = airMass
+        outAirMass = airMass,
+        conditions = conditions,
     )
 
     // Map the arrays to their specific Sun enum keys
@@ -971,6 +973,7 @@ internal fun generateMoonData(
     hoursCalc: DoubleArray,
     coordinates: Coordinates,
     zoneId: ZoneId,
+    conditions: com.ephemeris.helios.utils.calc.AtmosphericConditions = com.ephemeris.helios.utils.calc.AtmosphericConditions.DEFAULT,
 ): Pair<Map<Charts, FloatArray>, Map<Charts, FloatArray>> {
     val elevation = FloatArray(X_SIZE)
     val azimuthsCalc = FloatArray(X_SIZE)
@@ -999,6 +1002,7 @@ internal fun generateMoonData(
         outShadowRatio = shadowRatio,
         outColorTemp = colorTemp,
         outAirMass = airMass,
+        conditions = conditions,
     )
 
     val xMap = mutableMapOf<Charts, FloatArray>()

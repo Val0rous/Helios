@@ -154,4 +154,56 @@ class RiseSetEventsTest {
         assertEquals("12h 34m 18s", (12.0 + 34.0 / 60.0 + 18.0 / 3600.0).formatDuration(showSeconds = true))
         assertTrue(abs(12.5716667 - (12.0 + 34.0 / 60.0 + 18.0 / 3600.0)) < 1e-6)
     }
+
+    @Test
+    fun solarRiseSetEvents_mtErebusAugust_neverGlitchesToMidnightSun() {
+        val zones = listOf(
+            ZoneId.of("Antarctica/McMurdo"),
+            ZoneId.of("UTC"),
+            ZoneId.of("Europe/Rome"),
+            ZoneId.of("America/New_York"),
+            ZoneId.of("Pacific/Kiritimati"),
+        )
+        val failures = mutableListOf<String>()
+        // Fine sweep around exact grazing touch for Aug 19 (no dip) and Aug 12 (with dip)
+        val flagPairs = listOf(false to false, true to false, false to true, true to true)
+        for ((dip, instSd) in flagPairs) {
+            val baseDate = if (dip) LocalDate.of(2026, 8, 12) else LocalDate.of(2026, 8, 19)
+            // Find the exact grazing latitude for baseDate at McMurdo
+            val probeNoon = SolarEphemeris.calculateDailyEvents(
+                baseDate.atTime(12, 0).atZone(ZoneId.of("Antarctica/McMurdo")),
+                Coordinates(-77.5297, 167.1533, 3794.0, useHorizonDip = dip, useInstantaneousSemidiameter = instSd),
+            )
+            val horizon = Coordinates(-77.5297, 167.1533, 3794.0, useHorizonDip = dip, useInstantaneousSemidiameter = instSd)
+                .sunApparentHorizonAlt(probeNoon.distanceAu)
+            val delta = probeNoon.solarNoonAltitude - horizon
+            val grazingLat = -77.5297 - delta
+
+            for (zone in zones) {
+                for (step in -50..50) {
+                    val lat = grazingLat + step * 0.0005
+                    val coords = Coordinates(
+                        latitude = lat,
+                        longitude = 167.1533,
+                        altitude = 3794.0,
+                        useHorizonDip = dip,
+                        useInstantaneousSemidiameter = instSd,
+                    )
+                    val events = SolarEphemeris.calculateDailyEvents(baseDate.atTime(12, 0).atZone(zone), coords)
+                    val glitched = events.dayLength >= 12.0 ||
+                        (events.riseSetEvents.isEmpty() && events.dayLength > 1e-6)
+                    if (glitched) {
+                        failures.add(
+                            "zone=$zone dip=$dip instSd=$instSd lat=%.5f date=$baseDate events=${events.riseSetEvents.size} ".format(lat) +
+                                "sunrise=${events.sunrise} sunset=${events.sunset} dayLength=${events.dayLength} " +
+                                "noon=${events.solarNoon} noonElapsed=${events.solarNoonElapsedHours} " +
+                                "noonAlt=${events.solarNoonAltitude} midAlt=${events.solarMidnightAltitude} " +
+                                "horizon=${coords.sunApparentHorizonAlt(events.distanceAu)}",
+                        )
+                    }
+                }
+            }
+        }
+        assertTrue("Found ${failures.size} glitches:\n${failures.take(20).joinToString("\n")}", failures.isEmpty())
+    }
 }

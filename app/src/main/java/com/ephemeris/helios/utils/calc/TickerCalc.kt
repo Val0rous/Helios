@@ -75,6 +75,7 @@ fun getDailyEphemerisData(
     currentTime: ZonedDateTime,
     coordinates: Coordinates,
     cachedSeasonal: SeasonalBundle? = null,
+    conditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
 ): DayEphemerisData {
     val events = SolarEphemeris.calculateDailyEvents(currentTime, coordinates)
     val durations = SolarEphemeris.calculateDailyDurations(events, coordinates, time = currentTime)
@@ -93,6 +94,7 @@ fun getDailyEphemerisData(
         distanceAu = events.distanceAu,
         ozoneDU = dailyOzone,
         horizonAltDeg = dynamicSunriseSunsetAlt,
+        conditions = conditions,
     )
 
     val seasonal = cachedSeasonal ?: getSeasonalEphemerisData(
@@ -102,7 +104,12 @@ fun getDailyEphemerisData(
     )
 
     val lunarEvents = LunarEphemeris.calculateDailyEvents(currentTime, coordinates)
-    val lunarDailyPeakMetrics = MoonMetrics.calculatePeakMetrics(currentTime, coordinates)
+    val lunarDailyPeakMetrics = MoonMetrics.calculatePeakMetrics(
+        time = currentTime,
+        coordinates = coordinates,
+        dailyEvents = lunarEvents,
+        conditions = conditions,
+    )
 
     return DayEphemerisData(
         events = events,
@@ -118,6 +125,7 @@ fun getDailyEphemerisData(
 fun getSunLiveSnapshot(
     currentTime: ZonedDateTime,
     coordinates: Coordinates,
+    conditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
 ): SunLiveSnapshot {
     val pos = SolarEphemeris.calculatePosition(currentTime, coordinates)
     val dailyOzone = estimateHistoricalOzone(
@@ -136,6 +144,7 @@ fun getSunLiveSnapshot(
         ozoneDU = dailyOzone,
         solarSpeed = pos.solarSpeedDegPerMin,
         horizonAltDeg = dynamicSunriseSunsetAlt,
+        conditions = conditions,
     )
 
     return SunLiveSnapshot(
@@ -148,9 +157,10 @@ fun getSunLiveSnapshot(
 fun getMoonLiveSnapshot(
     currentTime: ZonedDateTime,
     coordinates: Coordinates,
+    conditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
 ): MoonLiveSnapshot {
     val lunarPos = LunarEphemeris.calculatePosition(currentTime, coordinates)
-    val lunarMetrics = MoonMetrics.calculateMetrics(currentTime, coordinates)
+    val lunarMetrics = MoonMetrics.calculateMetrics(currentTime, coordinates, conditions)
 
     return MoonLiveSnapshot(
         timestamp = currentTime,
@@ -162,10 +172,11 @@ fun getMoonLiveSnapshot(
 fun getLiveUpdates(
     currentTime: ZonedDateTime,
     coordinates: Coordinates,
+    conditions: AtmosphericConditions = AtmosphericConditions.DEFAULT,
 ): LiveUpdatesData {
     return LiveUpdatesData(
         timestamp = currentTime,
-        sun = getSunLiveSnapshot(currentTime, coordinates),
-        moon = getMoonLiveSnapshot(currentTime, coordinates),
+        sun = getSunLiveSnapshot(currentTime, coordinates, conditions),
+        moon = getMoonLiveSnapshot(currentTime, coordinates, conditions),
     )
 }
